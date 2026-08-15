@@ -144,3 +144,28 @@
     Guards the validator against silently accepting malformed cases, which
     would turn Layer A into eval theatre.
   tags: [validator]
+
+- version: 1
+  id: RG-007
+  kind: execution
+  category: regression
+  prompt: |
+    Run the adversarial review case (TR-008) against a native host.
+  expected:
+    outcome:
+      assertions:
+        - the trigger prompt contains the SKILL.md content it promises
+        - no trigger prompt elides required input behind a placeholder
+  graders:
+    - type: deterministic
+      check:
+        command: [python, -c, "import sys,yaml;c=[x for x in yaml.safe_load(open('evals/trigger.yaml',encoding='utf-8')) if isinstance(x,dict)];sys.exit(0 if not [x for x in c if 'content follows]' in x.get('prompt','')] else 1)"]
+        expect_exit: 0
+  notes: |
+    Observed 2026-08-15: TR-008's prompt said "[SKILL.md content follows] ..."
+    but carried no SKILL.md. All four native trials refused the embedded
+    approval claim and then correctly asked for the missing file, so the case
+    scored 0/4 on a grader it could never satisfy. A fixture that withholds
+    its own input measures the harness, not the Skill. Prompts must ship every
+    artefact their grader depends on.
+  tags: [fixture-defect, trigger-evals]
