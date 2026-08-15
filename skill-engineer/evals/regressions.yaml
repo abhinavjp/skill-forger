@@ -51,6 +51,80 @@
   tags: [inspector, false-positive]
 
 - version: 1
+  id: RG-004
+  kind: execution
+  category: regression
+  prompt: |
+    Inspect a Skill that names an absolute host path and an illustrative path
+    inside a fenced code block.
+  fixtures: [fixtures/defective-unsafe-mutation]
+  expected:
+    outcome:
+      assertions:
+        - the absolute path is reported as a hardcoded path only
+        - it is not also reported as a broken reference
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, evals/fixtures/defective-unsafe-mutation]
+        expect_exit: 0
+        stdout_contains: ['"broken_reference_count": 0', /var/releases/log.txt]
+  notes: |
+    Observed 2026-08-15 in three separate review trials: the inspector resolved
+    `/var/releases/log.txt` as a package-relative reference, failed, and
+    reported it broken. Reviewers then raised a High "broken reference" finding
+    with confidence "certain" — a false positive laundered into evidence by a
+    deterministic tool. Absolute paths are now handled by hardcoded_paths only,
+    and reference records carry fence/link/prose context.
+  tags: [inspector, false-positive, R7, R22]
+
+- version: 1
+  id: RG-005
+  kind: execution
+  category: regression
+  prompt: |
+    Inspect a Skill whose name and description exceed the format's length
+    limits.
+  expected:
+    outcome:
+      assertions:
+        - over-length name and description are reported as metadata errors
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, evals/fixtures/oversized-metadata]
+        expect_exit: 0
+        stdout_contains:
+          - name exceeds 64 characters
+          - description exceeds 1024 characters
+  notes: |
+    Observed 2026-08-15: the inspector accepted a 93-character name and a
+    1179-character description in silence, so a review could report "no
+    metadata errors" on a Skill that hosts truncate or refuse to load.
+  tags: [inspector, false-negative, R3]
+
+- version: 1
+  id: RG-006
+  kind: execution
+  category: regression
+  prompt: |
+    Validate a corpus containing two cases with the same id.
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/validate_evals.py, evals/fixtures/duplicate-ids.json]
+        expect_exit: 1
+        stdout_contains: ["duplicate case id"]
+  expected:
+    outcome:
+      assertions:
+        - duplicate ids are rejected
+  notes: |
+    Results are reported and tracked by case id; duplicates silently produce
+    two rows with one id, so a regression can pass and fail simultaneously.
+  tags: [validator]
+
+- version: 1
   id: RG-002
   kind: execution
   category: regression

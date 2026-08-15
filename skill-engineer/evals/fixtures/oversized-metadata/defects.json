@@ -1,0 +1,8 @@
+{
+  "fixture": "oversized-metadata",
+  "kind": "defective",
+  "expected_defects": [
+    {"rule": "R3", "defect": "name exceeds the 64-character format limit", "detection": "deterministic"},
+    {"rule": "R3", "defect": "description exceeds the 1024-character format limit; hosts truncate or reject it", "detection": "deterministic"}
+  ]
+}

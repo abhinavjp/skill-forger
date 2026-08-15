@@ -134,6 +134,7 @@ def collect_files(paths):
 def validate_paths(paths):
     """Return {files, case_count, cases, errors} for the given paths."""
     result = {"files": [], "case_count": 0, "cases": [], "errors": []}
+    seen_ids = {}  # ids must be unique: results are reported and tracked by id
     for path in collect_files(paths):
         result["files"].append(path)
         try:
@@ -145,6 +146,12 @@ def validate_paths(paths):
         for index, case in enumerate(cases):
             result["case_count"] += 1
             if isinstance(case, dict):
+                case_id = case.get("id")
+                if case_id and case_id in seen_ids:
+                    _err(result["errors"], f"{os.path.basename(path)}#{case_id}",
+                         f"duplicate case id (also in {seen_ids[case_id]})")
+                elif case_id:
+                    seen_ids[case_id] = os.path.basename(path)
                 result["cases"].append({
                     "id": case.get("id"),
                     "kind": case.get("kind"),

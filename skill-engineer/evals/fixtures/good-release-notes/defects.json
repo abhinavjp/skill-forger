@@ -2,5 +2,6 @@
   "fixture": "good-release-notes",
   "kind": "known-good",
   "expected_defects": [],
-  "notes": "Valid portable Skill: standard frontmatter, specific description, one conditional reference with an explicit retrieval condition, observable completion condition, no scripts or platform coupling."
+  "notes": "Valid portable Skill: standard frontmatter, specific description, one conditional reference with an explicit retrieval condition, observable completion condition, no scripts or platform coupling.",
+  "history": "2026-08-15: reviewers running EX-007 correctly raised two real defects in the original version — `git log --merges` silently returns nothing on squash-merging repositories, and 'if the repository defines a house format' named no detectable signal. Those were fixture defects, not reviewer false positives, and were fixed. A false-positive control only works if the control is actually clean."
 }

@@ -99,6 +99,14 @@ some hosts truncate catalog metadata (Strong heuristic). Do not chase "magic"
 leading words: distinctive vocabulary is fine when natural, but a wording change
 justified only by word order is **Needs validation** until A/B trigger evidence
 exists.
+**Invocation strategy** — Decide, and state, whether the Skill should be
+model/agent invoked, explicitly user invoked, or both where the host supports
+it. Weigh automatic discoverability against persistent catalog/context cost,
+routing uncertainty and the user's cognitive burden of remembering it exists.
+The mechanics are Platform-specific; the trade-off is a Strong heuristic. Token
+cost alone is not a reason to make a Skill manual — recommend a change of
+invocation mode only with evidence that the trade is beneficial.
+
 **Severity** — Critical for implicitly activated Skills whose routing materially
 fails.
 **Action** — State the capability, include real trigger concepts, communicate
@@ -162,6 +170,15 @@ changed, read `references/<that-topic>.md`" — not "see references for more".
 **Check** — Do materially different branches load only their own knowledge?
 **Detect** — Build a branch→reference map; look for resource loads a branch
 never needs; compare branch traces.
+**Future-stage visibility** (Situational) — Where a multi-stage workflow keeps
+underperforming on an early stage because the agent is racing toward a visible
+later goal, evaluate whether hiding the later stage improves the earlier one.
+Mechanisms: conditional disclosure, separate invocation, an isolated
+subagent/context, or a separate Skill where genuinely justified. Structure alone
+never justifies the split — require differential eval evidence of better
+current-stage quality or effort first. Completion effects of the same problem
+belong to R17.
+
 **Severity** — Medium/High. **Action** — Route first, then load.
 **Validation** — Context and execution comparison per branch.
 **Automation** — hybrid. **Class** — Strong heuristic. **Applies** —

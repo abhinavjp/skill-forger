@@ -14,13 +14,16 @@ user-visible effect, not by author or file.
 
 1. Resolve the range. Default to the two most recent tags; ask if the repo has
    none.
-2. Collect merges: `git log <from>..<to> --merges --pretty=%s%n%b`.
+2. Collect merges: `git log <from>..<to> --merges --pretty=%s%n%b`. If that
+   returns nothing the repository squash-merges, so use
+   `git log <from>..<to> --pretty=%s%n%b` instead.
 3. Group into Added / Changed / Fixed / Removed. Drop internal-only changes
    (CI, formatting, dependency bumps with no user effect).
 4. Write one line per entry in the user's own product vocabulary.
 
-If the repository defines a house format, read `references/house-format.md` and
-follow it instead of the default grouping.
+If the repository declares a release-notes format — a `.release-notes.md`
+template, or a changelog section in `CONTRIBUTING.md` — read
+`references/house-format.md` and follow it instead of the default grouping.
 
 ## Done when
 

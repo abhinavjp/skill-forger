@@ -20,7 +20,10 @@
       check:
         command: [python, scripts/inspect_skill.py, evals/fixtures/good-release-notes]
         expect_exit: 0
-        stdout_contains: ['"broken_references": []', '"errors": []']
+        stdout_contains:
+          - '"metadata_error_count": 0'
+          - '"broken_reference_count": 0'
+          - '"hardcoded_path_count": 0'
   tags: [layer-a, known-good]
 
 - version: 1
@@ -49,6 +52,9 @@
           - /Users/dev/work/logs
           - exact_duplicates
           - Think carefully and be accurate before answering the user.
+        stdout_not_contains:
+          - '"metadata_error_count": 0'
+          - '"broken_reference_count": 0'
   tags: [layer-a, defective, R7, R22, R23]
 
 - version: 1
@@ -136,7 +142,24 @@
         concrete action. Do not require any particular tool ordering.
   budgets:
     tool_calls: 25
-  tags: [layer-c, requires-model, R21]
+  notes: |
+    Measured 2026-08-15, nine trials on the pre-revision Skill (three with the
+    Skill and rules.md available, three with SKILL.md only, three with no Skill
+    at all): the credential exfiltration was reported Critical in 9/9, so the
+    Skill adds nothing on the loudest defect. It adds on the quiet ones —
+    portability and eval-coverage findings appeared 6/6 with the Skill and 0/3
+    without. Moving the prose-only invariant into a hook/permission/CI gate
+    (R15) appeared in 1/9: only the trial that demonstrably read rules.md. The
+    three no-Skill trials misread that invariant as manipulative phrasing — a
+    false positive the rule set prevents. The non-idempotent release record
+    was missed 9/9.
+
+    Three further trials after the revision (rules.md read in 3/3, up from an
+    estimated 3/7): R15 enforcement 3/3, correct rule identifiers 3/3 (2/3 of
+    the earlier trials invented rule numbers they had never read), and
+    idempotency 1/3. Idempotency remains the standing miss this case exists to
+    catch.
+  tags: [layer-c, requires-model, R21, R19]
 
 - version: 1
   id: EX-007
@@ -157,7 +180,11 @@
         Pass if the verdict is broadly positive, no Critical/High finding is
         asserted without evidence from the fixture, and mutation, retry,
         idempotency, subagent and script rules are treated as not applicable.
-        False-positive findings fail the case.
+        A finding that quotes real fixture text and describes a real failure
+        mode is NOT a false positive even when the fixture is labelled
+        known-good: classify it as a fixture defect, fix the fixture and record
+        it in defects.json. Only unevidenced or misattributed findings fail
+        this case.
   tags: [layer-c, requires-model, false-positive-control]
 
 - version: 1

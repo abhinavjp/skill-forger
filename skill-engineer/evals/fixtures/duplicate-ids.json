@@ -1,0 +1,9 @@
+[
+  {"version": 1, "id": "DUP-001", "kind": "execution", "category": "positive",
+   "prompt": "First case.", "expected": {"outcome": {"assertions": ["ok"]}},
+   "graders": [{"type": "human"}]},
+  {"version": 1, "id": "DUP-001", "kind": "execution", "category": "negative",
+   "prompt": "Second case reusing the same id on purpose.",
+   "expected": {"outcome": {"assertions": ["ok"]}},
+   "graders": [{"type": "human"}]}
+]

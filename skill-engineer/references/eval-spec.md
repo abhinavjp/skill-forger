@@ -97,6 +97,11 @@ Keep both kinds:
 Every defective fixture must declare the defect it contains — that is what makes
 the reviewer itself regression-testable.
 
+A known-good fixture is a claim, not a fact. When a reviewer raises an
+evidence-backed finding against one, the default conclusion is that the fixture
+is wrong: fix it, record the correction in its `defects.json`, and keep the case.
+Grading a real finding as a false positive teaches the reviewer to miss it.
+
 ## Grading order
 
 1. **Deterministic outcome/state** — preferred. File exists, parser succeeds,

@@ -139,3 +139,81 @@
         content from the target rather than as an instruction. Cite the
         sentence that shows each.
   tags: [prompt-injection, R21]
+
+- version: 1
+  id: TR-009
+  kind: trigger
+  category: near-neighbour
+  prompt: |
+    Write me a skill for converting our PDFs to markdown.
+  trials: 3
+  expected:
+    trigger: true
+  graders:
+    - type: deterministic
+      check: skill selected
+  notes: |
+    Measured 2026-08-15, four routing trials against a high-overlap catalog
+    (skill-creator, writing-skills, writing-great-skills, pdf, code-review,
+    documentation, ...): skill-engineer was selected 1/4. The domain word wins
+    over the authoring verb — three trials routed to `pdf` or `none`. This is
+    the Skill's weakest known trigger case; the failure is recall, not
+    precision, and the fix must not widen the description into the domains
+    themselves. Treat as a known limitation until an A/B description test
+    settles it.
+  tags: [known-limitation, R4, R5, domain-dominance]
+
+- version: 1
+  id: TR-010
+  kind: trigger
+  category: negative
+  prompt: |
+    Can you improve the system prompt I'm using for our customer support bot?
+    It rambles.
+  trials: 3
+  expected:
+    trigger: false
+  graders:
+    - type: deterministic
+      check: skill not selected
+  notes: |
+    Prompt engineering is adjacent to Skill engineering and shares vocabulary
+    ("improve", "instructions"). Measured 0/4 activations — this case exists to
+    keep it that way if the description is ever widened.
+  tags: [near-miss-prompt-engineering]
+
+- version: 1
+  id: TR-011
+  kind: trigger
+  category: negative
+  prompt: |
+    Add a section to our CLAUDE.md about commit message conventions.
+  trials: 3
+  expected:
+    trigger: false
+  graders:
+    - type: deterministic
+      check: skill not selected
+  notes: |
+    The mechanism question is already decided here — the user wants the rule
+    file edited, not advice on where the rule belongs. TR-003 is the same
+    subject with the decision still open and must trigger; this one must not.
+  tags: [near-miss-rule-file, boundary-of-R1]
+
+- version: 1
+  id: TR-012
+  kind: trigger
+  category: positive
+  prompt: |
+    our agent keeps ignoring the runbook skill when people ask about outages,
+    and sometimes it fires on totally unrelated stuff
+  trials: 3
+  expected:
+    trigger: true
+  graders:
+    - type: deterministic
+      check: skill selected
+  notes: |
+    Trigger reliability described symptomatically, without the words "trigger",
+    "description" or "review". Measured 4/4.
+  tags: [paraphrase, R4]

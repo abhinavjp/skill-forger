@@ -8,6 +8,10 @@ Emits a JSON object of structured facts about the package: frontmatter, file inv
 reference resolution, scripts/assets, size metrics, duplicate blocks,
 platform-specific frontmatter keys, hardcoded paths, and eval-schema results.
 
+Reference records carry a `context` of `link`, `fence` or `prose`: a path inside a
+fenced code block is often illustrative, so an unresolved one is weaker evidence
+than an unresolved markdown link.
+
 Exit codes:
     0  inspection completed (findings may still be present in the output)
     2  target is not a readable Skill package
@@ -54,6 +58,12 @@ HARDCODED_RE = re.compile(
     r"|~/[\w./-]+"
     r"|/(?:Users|home|opt|etc|var|mnt|usr)/[\w./-]+)")
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+FENCE_RE = re.compile(r"^\s*(```|~~~)")
+
+# Limits defined by the Agent Skills format. Hosts truncate or reject metadata
+# beyond these, so exceeding them is a load-time defect, not a style question.
+NAME_MAX = 64
+DESCRIPTION_MAX = 1024
 
 # Intentionally defective eval fixtures are data, not Skill content: scanning
 # them would report their planted defects as defects of the host package.
@@ -121,18 +131,31 @@ def scan_references(root, files):
             continue
         full = os.path.join(root, entry["path"])
         source_dir = os.path.dirname(entry["path"])
+        in_fence = False
         for lineno, line in enumerate(_read(full).splitlines(), 1):
-            targets = set(LINK_RE.findall(line)) | set(PATHY_RE.findall(line))
+            if FENCE_RE.match(line):
+                in_fence = not in_fence
+                continue
+            links = set(LINK_RE.findall(line))
+            targets = links | set(PATHY_RE.findall(line))
             for target in targets:
                 if re.match(r"^(https?:|mailto:|#)", target):
+                    continue
+                # Absolute paths are host coupling, not package references;
+                # find_hardcoded_paths owns them. Resolving them here reported
+                # every absolute path as a broken reference.
+                if os.path.isabs(target) or re.match(r"^[A-Za-z]:[\\/]", target):
                     continue
                 candidates = [
                     os.path.normpath(os.path.join(root, source_dir, target)),
                     os.path.normpath(os.path.join(root, target)),
                 ]
                 exists = any(os.path.exists(c) for c in candidates)
+                context = ("link" if target in links
+                           else "fence" if in_fence else "prose")
                 record = {"from": entry["path"], "line": lineno,
-                          "target": target, "resolved": exists}
+                          "target": target, "resolved": exists,
+                          "context": context}
                 refs.append(record)
                 if not exists:
                     broken.append(record)
@@ -189,9 +212,16 @@ def inspect(root):
     elif not NAME_RE.match(str(name)):
         metadata_errors.append(
             "name is not lowercase-hyphen format: %r" % name)
+    elif len(str(name)) > NAME_MAX:
+        metadata_errors.append(
+            "name exceeds %d characters: %d" % (NAME_MAX, len(str(name))))
     if not description:
         metadata_errors.append(
             "missing required frontmatter field: description")
+    elif len(str(description)) > DESCRIPTION_MAX:
+        metadata_errors.append(
+            "description exceeds %d characters: %d"
+            % (DESCRIPTION_MAX, len(str(description))))
 
     platform_extensions = []
     for key in frontmatter:
@@ -204,6 +234,7 @@ def inspect(root):
 
     files = inventory(root)
     references, broken = scan_references(root, files)
+    hardcoded = find_hardcoded_paths(root, files)
     skill_bytes = os.path.getsize(skill_md)
 
     eval_paths = [os.path.join(root, d) for d in ("evals",)
@@ -232,7 +263,7 @@ def inspect(root):
         "reference_docs": [f for f in files
                            if f["path"].startswith("references/")],
         "platform_extensions": platform_extensions,
-        "hardcoded_paths": find_hardcoded_paths(root, files),
+        "hardcoded_paths": hardcoded,
         "exact_duplicates": find_duplicate_blocks(root, files),
         "metrics": {
             "skill_lines": text.count("\n") + 1,
@@ -241,6 +272,12 @@ def inspect(root):
             "package_files": len(files),
             "package_bytes": sum(f["bytes"] for f in files),
             "body_lines": body.count("\n") + 1,
+            # Counts so a grader can assert on one unambiguous string; the
+            # bare `"errors": []` shape appears in several sections and made
+            # metadata assertions untestable.
+            "metadata_error_count": len(metadata_errors),
+            "broken_reference_count": len(broken),
+            "hardcoded_path_count": len(hardcoded),
         },
         "evals": evals,
     }

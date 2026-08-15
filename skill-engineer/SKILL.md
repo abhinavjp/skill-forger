@@ -41,7 +41,7 @@ say so.
 5. **Semantic analysis** — apply the applicable rules from
    `references/rules.md`. Every finding cites concrete evidence from the target.
 6. **Trigger behaviour** (R3–R5): name/description semantics, boundary, catalog
-   competition.
+   competition, invocation strategy.
 7. **Execution behaviour** (R6–R21): context architecture, determinism,
    validation, completion, failure, safety.
 8. **Eval coverage** (R25–R26) using `references/eval-spec.md`.
@@ -52,13 +52,17 @@ say so.
 ## Rules
 
 The 26 engineering rules — check, detection, severity, evidence class and
-applicability — live in `references/rules.md`. **Read it during step 5 of every
-run**; it is the shared source of truth for both modes and is not summarised
-here.
+applicability — live in `references/rules.md`. **Read that file before step 5.**
+It is the shared source of truth for both modes and is not summarised here, so
+a run that skips it is working from memory: never cite a rule number you have
+not read in this run, and name the rule ("completion semantics") rather than
+leaning on the number.
 
-Determine applicability before applying a rule. Idempotency, failure recovery,
-subagents, hooks and script rules apply only to Skills with those
-characteristics; raising them elsewhere is noise.
+Decide applicability in both directions. Idempotency, failure recovery,
+subagents, hooks and script rules are noise on Skills without those
+characteristics — and are mandatory on Skills with them. If the target mutates
+state, re-runs it, retries, or ships a script, those rules are in scope and
+their absence from your report is a miss.
 
 ## Deterministic inspection
 
@@ -68,11 +72,15 @@ Run once per REVIEW, and on any Skill produced in CREATE:
 python scripts/inspect_skill.py <skill-dir>
 ```
 
+Paths inside it are relative to the Skill directory, not the user's project.
+
 It emits JSON facts: frontmatter and metadata errors, file inventory,
 reference resolution and broken references, scripts/assets, size and token
 estimates, exact duplicate blocks, platform-specific frontmatter keys,
 hardcoded paths, and eval-schema results. It makes no quality judgements — read
-its output as evidence, not as findings.
+its output as evidence, not as findings. An unresolved reference whose
+`context` is `fence` is usually an illustrative command, not a broken link;
+confirm before raising it.
 
 To validate an eval corpus on its own:
 
