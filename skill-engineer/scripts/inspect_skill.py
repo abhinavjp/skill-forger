@@ -146,13 +146,20 @@ def scan_references(root, files):
                 # every absolute path as a broken reference.
                 if os.path.isabs(target) or re.match(r"^[A-Za-z]:[\\/]", target):
                     continue
-                candidates = [
-                    os.path.normpath(os.path.join(root, source_dir, target)),
-                    os.path.normpath(os.path.join(root, target)),
-                ]
-                exists = any(os.path.exists(c) for c in candidates)
                 context = ("link" if target in links
                            else "fence" if in_fence else "prose")
+                # A Markdown link resolves relative to its own document, full
+                # stop. Falling back to the package root made `[x](references/
+                # x.md)` inside references/ resolve against the root copy and
+                # report a genuinely broken link as fine. Prose and fenced
+                # paths are usually written from the package root, so they keep
+                # both candidates.
+                candidates = [
+                    os.path.normpath(os.path.join(root, source_dir, target))]
+                if context != "link":
+                    candidates.append(os.path.normpath(
+                        os.path.join(root, target)))
+                exists = any(os.path.exists(c) for c in candidates)
                 record = {"from": entry["path"], "line": lineno,
                           "target": target, "resolved": exists,
                           "context": context}

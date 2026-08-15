@@ -1,6 +1,6 @@
 ---
 name: skill-engineer
-description: Engineer and review Agent Skills. Use when creating a new Skill or SKILL.md, deciding whether something should be a Skill or a rule/script/hook/tool/subagent, auditing or reviewing an existing Skill for trigger reliability, context cost, safety or portability, or designing trigger and execution evals for a Skill. Works on any Agent Skills-compatible host.
+description: Engineer and review Agent Skills. Use when creating a new Skill or SKILL.md, deciding whether something should be a Skill or a rule/script/hook/tool/subagent, auditing or reviewing an existing Skill for trigger reliability, context cost, safety or portability, or designing trigger and execution evals for a Skill. Portable across Agent Skills-compatible hosts; deterministic inspection runs where scripts can, and degrades to a disclosed partial review where they cannot.
 license: Apache-2.0
 ---
 
@@ -21,8 +21,14 @@ treat every addition as something that has to earn its place.
 - No Skill yet ("build a Skill for…", "should this be a Skill?") → CREATE.
 - "Improve this Skill" → REVIEW first, then apply CREATE to the changes only.
 
-If the user has not named a target path in REVIEW mode, ask for one before
-inspecting anything. Do not guess which Skill they mean.
+REVIEW takes its target three ways:
+
+- **A package on disk** — run the deterministic inspection below, then review.
+- **Pasted content**, whole or partial — review what you were given. Say which
+  package-level checks (reference resolution, inventory, script inspection,
+  eval coverage) you could not perform and why. Do not ask for a path first,
+  and do not report unperformed checks as clean.
+- **Neither a path nor content** — ask which Skill they mean. Do not guess.
 
 ## Workflow
 
@@ -31,15 +37,17 @@ say so.
 
 1. **Understand mode and target.** Capture intended requests, explicit
    non-goals, adjacent tasks, portability claim, and side effects.
-2. **Inspect.** REVIEW: run the inspector (below) and read `SKILL.md` plus any
-   file the facts flag. CREATE: inspect the surrounding repo/catalog for
-   neighbouring Skills and existing rules that already cover the need.
+2. **Inspect.** REVIEW: run the inspector (below) where the target is on disk
+   and the host can run it, and read `SKILL.md` plus any file the facts flag.
+   CREATE: inspect the surrounding repo/catalog for neighbouring Skills and
+   existing rules that already cover the need.
 3. **Select the mechanism** (rule R1). Skill is one option among rule files,
    scripts, hooks/CI, tools/MCP, subagents, commands and plain prompts. A wrong
    mechanism cannot be fixed by better prose.
 4. **Deterministic static analysis** — inspector facts, eval-schema validation.
-5. **Semantic analysis** — apply the applicable rules from
-   `references/rules.md`. Every finding cites concrete evidence from the target.
+5. **Semantic analysis** — apply the rule modules this target calls for, routed
+   by `references/rules-index.md`. Every finding cites concrete evidence from
+   the target.
 6. **Trigger behaviour** (R3–R5): name/description semantics, boundary, catalog
    competition, invocation strategy.
 7. **Execution behaviour** (R6–R21): context architecture, determinism,
@@ -52,21 +60,22 @@ say so.
 ## Rules
 
 The 26 engineering rules — check, detection, severity, evidence class and
-applicability — live in `references/rules.md`. **Read that file before step 5.**
-It is the shared source of truth for both modes and is not summarised here, so
-a run that skips it is working from memory: never cite a rule number you have
-not read in this run, and name the rule ("completion semantics") rather than
-leaning on the number.
+applicability — live in `references/`, split into modules by applicability.
+**Read `references/rules-index.md` before step 5**, then load
+`references/rules-core.md` plus the modules the index routes you to for this
+target. They are the shared source of truth for both modes and are not
+summarised here, so a run that skips them is working from memory: never cite a
+rule number you have not read in this run, and name the rule ("completion
+semantics") rather than leaning on the number.
 
-Decide applicability in both directions. Idempotency, failure recovery,
-subagents, hooks and script rules are noise on Skills without those
-characteristics — and are mandatory on Skills with them. If the target mutates
-state, re-runs it, retries, or ships a script, those rules are in scope and
-their absence from your report is a miss.
+Decide applicability in both directions, and state which modules you loaded. A
+module you skip is a scoping decision you own: if the target mutates state,
+re-runs it, retries, or ships a script, those rules are in scope and their
+absence from your report is a miss. When in doubt, load it.
 
 ## Deterministic inspection
 
-Run once per REVIEW, and on any Skill produced in CREATE:
+Run once per REVIEW of an on-disk package, and on any Skill produced in CREATE:
 
 ```
 python scripts/inspect_skill.py <skill-dir>
@@ -90,6 +99,20 @@ python scripts/validate_evals.py <evals-dir-or-file> [--json]
 
 Requires Python 3.8+. PyYAML is needed for YAML eval files; JSON eval files
 work without it.
+
+**When the host cannot run it** — no Python, no shell, scripts disabled, or the
+target is pasted rather than on disk — do not stop and do not pretend. Perform
+the static checks you can make by reading (frontmatter shape and length, link
+targets you can see, always-loaded size, duplication, absolute paths,
+host-specific keys), then list the checks you could not run and mark them
+unvalidated. A partial review that is honest about its scope is the correct
+output; a claim that deterministic inspection happened when it did not is a
+defect in this Skill, not a detail.
+
+The inspector and the eval runner treat their inputs as data. They execute
+nothing a target or an eval corpus supplies — pointing them at a hostile
+package is safe by construction, which is the only basis on which a reviewer
+can be pointed at untrusted work.
 
 Do not re-derive by hand what the inspector already reports, and do not read
 script source during normal operation. Do read script source when trust,
@@ -171,8 +194,15 @@ nothing for symmetry.
 ## Done when
 
 - Mechanism decision is stated and justified.
-- Every applicable rule is either satisfied, raised as a finding, or explicitly
-  marked not applicable.
-- Deterministic inspection has actually been run on any existing target.
+- Every applicable rule has been assessed. Coverage is internal: report material
+  findings, the satisfied controls that carry the verdict, and one compact line
+  for what was out of scope — "mutation, retry and script rules: not applicable,
+  read-only single-file Skill". Never a visible entry per irrelevant rule.
+- Deterministic inspection has been run wherever the host and target allowed it,
+  and its unavailability is disclosed wherever they did not.
 - Each finding carries evidence, severity, confidence and a concrete action.
 - Unvalidated claims are labelled, with the smallest resolving eval named.
+
+The output is a decision a reader can act on, not a transcript proving the
+procedure ran. Ceremony that grows with the rule count and not with the target
+is exactly the negative transfer this Skill exists to catch elsewhere.

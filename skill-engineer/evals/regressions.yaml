@@ -14,7 +14,8 @@
   graders:
     - type: deterministic
       check:
-        command: [python, scripts/inspect_skill.py, .]
+        kind: inspect
+        target: .
         expect_exit: 0
         stdout_contains: ['"broken_references": []', '"hardcoded_paths": []']
         stdout_not_contains:
@@ -41,7 +42,8 @@
   graders:
     - type: deterministic
       check:
-        command: [python, scripts/inspect_skill.py, .]
+        kind: inspect
+        target: .
         expect_exit: 0
         stdout_not_contains: ["/usr/bin/env"]
   notes: |
@@ -66,7 +68,8 @@
   graders:
     - type: deterministic
       check:
-        command: [python, scripts/inspect_skill.py, evals/fixtures/defective-unsafe-mutation]
+        kind: inspect
+        target: evals/fixtures/defective-unsafe-mutation
         expect_exit: 0
         stdout_contains: ['"broken_reference_count": 0', /var/releases/log.txt]
   notes: |
@@ -92,7 +95,8 @@
   graders:
     - type: deterministic
       check:
-        command: [python, scripts/inspect_skill.py, evals/fixtures/oversized-metadata]
+        kind: inspect
+        target: evals/fixtures/oversized-metadata
         expect_exit: 0
         stdout_contains:
           - name exceeds 64 characters
@@ -112,7 +116,8 @@
   graders:
     - type: deterministic
       check:
-        command: [python, scripts/validate_evals.py, evals/fixtures/duplicate-ids.json]
+        kind: validate-evals
+        target: evals/fixtures/duplicate-ids.json
         expect_exit: 1
         stdout_contains: ["duplicate case id"]
   expected:
@@ -137,7 +142,8 @@
   graders:
     - type: deterministic
       check:
-        command: [python, scripts/validate_evals.py, evals/fixtures/bad-case.json]
+        kind: validate-evals
+        target: evals/fixtures/bad-case.json
         expect_exit: 1
         stdout_contains: ["missing required field"]
   notes: |
@@ -150,7 +156,7 @@
   kind: execution
   category: regression
   prompt: |
-    Run the adversarial review case (TR-008) against a native host.
+    Check that no trigger prompt elides the artefact its grader depends on.
   expected:
     outcome:
       assertions:
@@ -159,8 +165,8 @@
   graders:
     - type: deterministic
       check:
-        command: [python, -c, "import sys,yaml;c=[x for x in yaml.safe_load(open('evals/trigger.yaml',encoding='utf-8')) if isinstance(x,dict)];sys.exit(0 if not [x for x in c if 'content follows]' in x.get('prompt','')] else 1)"]
-        expect_exit: 0
+        kind: validator
+        validator: trigger_prompts_carry_their_input
   notes: |
     Observed 2026-08-15: TR-008's prompt said "[SKILL.md content follows] ..."
     but carried no SKILL.md. All four native trials refused the embedded
@@ -168,4 +174,89 @@
     scored 0/4 on a grader it could never satisfy. A fixture that withholds
     its own input measures the harness, not the Skill. Prompts must ship every
     artefact their grader depends on.
+
+    2026-08-16: this case previously carried its own `python -c` command line,
+    which is exactly the arbitrary-execution path the corpus no longer permits.
+    It now names a trusted validator implemented in run_static_evals.py.
   tags: [fixture-defect, trigger-evals]
+
+- version: 1
+  id: RG-008
+  kind: execution
+  category: adversarial
+  prompt: |
+    Validate a corpus whose graders try to execute commands, escape the
+    package, and name unimplemented check kinds.
+  fixtures: [fixtures/unsafe-command.json]
+  expected:
+    outcome:
+      assertions:
+        - every hostile grader is rejected by schema validation
+        - the corpus is classified as an unsafe grader definition, not as a Skill failure
+    state:
+      assertions:
+        - /tmp/skill-engineer-unsafe-sentinel does not exist
+  graders:
+    - type: deterministic
+      check:
+        kind: validate-evals
+        target: evals/fixtures/unsafe-command.json
+        expect_exit: 1
+        stdout_contains:
+          - check.command is not supported
+          - check.kind must be one of
+          - must be a relative path inside the package
+          - fixture path must stay inside the case directory
+    - type: deterministic
+      check:
+        kind: validator
+        validator: unsafe_sentinel_absent
+  notes: |
+    Audit finding 2026-08-16 (ISSUE-001, Critical): the runner passed any
+    grader's `check.command` straight to subprocess.run, and accepted an
+    arbitrary `--evals` directory. A review Skill whose evaluator executes
+    target-controlled commands is a privilege-escalation path through the very
+    fixtures it exists to inspect.
+
+    Commands are gone from the schema entirely: a deterministic check now names
+    a kind from a fixed vocabulary that trusted runner code implements, and the
+    runner spawns no subprocess at all. This fixture is the containment proof —
+    it is only reachable when passed explicitly, since directory walks skip
+    fixtures/.
+  tags: [security, validator, R20, R21]
+
+- version: 1
+  id: RG-009
+  kind: execution
+  category: regression
+  prompt: |
+    Inspect a Skill whose reference document contains a Markdown link written
+    from the package root instead of from its own directory.
+  fixtures: [fixtures/defective-source-relative-link]
+  expected:
+    outcome:
+      assertions:
+        - the malformed Markdown link is reported broken
+        - the prose path mention written from the package root still resolves
+  graders:
+    - type: deterministic
+      check:
+        kind: inspect
+        target: evals/fixtures/defective-source-relative-link
+        expect_exit: 0
+        stdout_contains:
+          - '"broken_reference_count": 1'
+          - references/foo.md
+        stdout_not_contains:
+          - '"broken_reference_count": 0'
+  notes: |
+    Audit finding 2026-08-16 (ISSUE-010): the inspector tried both the
+    source-relative and the package-root resolution for every target and
+    called the reference resolved if either existed. So `[x](references/foo.md)`
+    written inside references/ — which actually means
+    references/references/foo.md — was silently accepted because the root copy
+    existed. Broken-reference detection is a deterministic responsibility and
+    the Skill tells reviewers not to re-derive it by hand, so this false
+    negative was permanent by construction. Markdown links now resolve strictly
+    against their own document; prose and fenced paths keep the root fallback.
+  tags: [inspector, false-negative, R7]

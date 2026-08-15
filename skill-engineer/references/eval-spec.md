@@ -17,6 +17,14 @@ Layer A is fully covered by `scripts/inspect_skill.py` and
 `scripts/validate_evals.py`. Do not mix explicit invocation into implicit
 trigger precision/recall — they are different modes.
 
+**Keep the layers apart in the cases themselves.** A trigger case grades
+selection and nothing else; the moment its grader inspects what the Skill did
+afterwards, a routing failure and an execution failure become the same red
+result, and a host that satisfies the rubric through some other mechanism
+passes a case the Skill never routed to. Where one prompt is worth measuring
+both ways, ship two cases with the same prompt — one trigger, one execution —
+and cross-reference them in their notes.
+
 ## Case schema
 
 One case per mapping; a file may hold a single case or a list.
@@ -48,7 +56,7 @@ expected:
     forbidden: []
 
 graders:
-  - type: deterministic | process | llm-judge | human
+  - type: deterministic | host-routing | process | llm-judge | human
     check: ...
     rubric: ...       # required for llm-judge
 
@@ -62,11 +70,66 @@ platforms:
   required: []
   optional: []
 
+competition:          # required for category: competing-skill
+  required_candidates: []
+  expected_policy: skill-engineer-wins | competitor-wins | either | coactivation
+
 tags: []
 ```
 
 Extensible by design: unknown top-level keys are permitted, unknown *budget*
 keys are not (they are silently ignored by runners otherwise).
+
+### Graders and checks
+
+A **`host-routing`** grader is the only way to assert selection, and every
+trigger case needs one. It names the Skill whose selection is being asserted, so
+"skill selected" can never quietly mean "some skill was selected":
+
+```yaml
+- type: host-routing
+  check:
+    selected_skill: skill-engineer
+    selected: true
+```
+
+A **`deterministic`** grader names a `check.kind` from a fixed vocabulary that
+trusted runner code implements. Cases are data; they do not carry command lines,
+interpreters, or paths outside the package:
+
+```yaml
+- type: deterministic
+  check:
+    kind: inspect          # inspect | validate-evals | file-exists | validator
+    target: evals/fixtures/good-release-notes
+    expect_exit: 0
+    stdout_contains: ['"broken_reference_count": 0']
+```
+
+`check.command` is rejected by the validator. An evaluator that runs commands
+supplied by its own corpus hands whoever wrote that corpus the reviewer's
+permissions — the sharpest version of the supply-chain problem the reviewer
+exists to find (R21). A check that cannot be expressed in the vocabulary earns
+a new `kind` implemented and reviewed as code, or a named `validator` function;
+both are code changes, not data changes. `RG-008` is the containment test.
+
+### Competition preconditions
+
+A `competing-skill` case must declare which competitors have to be present for
+the result to mean anything:
+
+```yaml
+competition:
+  required_candidates: [skill-engineer, pdf]
+  expected_policy: skill-engineer-wins
+```
+
+The host runner captures the catalog before each trial and marks the case
+**UNMEASURED** — not passed, not failed — when a required candidate is missing
+or not routable. Run important trigger boundaries in at least four
+environments: candidate alone, candidate plus one deliberately overlapping
+Skill, a representative production catalog, and a high-overlap catalog. Record
+which candidate won each trial, not merely whether the candidate did.
 
 Validate with:
 
@@ -97,10 +160,42 @@ Keep both kinds:
 Every defective fixture must declare the defect it contains — that is what makes
 the reviewer itself regression-testable.
 
-A known-good fixture is a claim, not a fact. When a reviewer raises an
-evidence-backed finding against one, the default conclusion is that the fixture
-is wrong: fix it, record the correction in its `defects.json`, and keep the case.
-Grading a real finding as a false positive teaches the reviewer to miss it.
+Keep at least one known-good fixture per major applicability class the reviewer
+must judge — a read-only Skill, a safely mutating one — or the corpus rewards a
+reviewer that raises those rules unconditionally.
+
+### Known-good fixtures are frozen, and disputes are adjudicated
+
+A known-good fixture is a claim, not a fact — and so is a finding against one.
+An evidence-backed finding can still be wrong: quoting real fixture text proves
+attribution, not defect, and not severity.
+
+Freeze known-good expectations for a validation cycle. When a reviewer raises a
+finding a known-good fixture does not account for:
+
+1. mark the case **DISPUTED / NEEDS ADJUDICATION** — it counts as neither a
+   reviewer pass nor a fixture failure;
+2. adjudicate independently: human review, a second judge working from its own
+   rubric, official platform evidence, or a focused behavioural experiment;
+3. change the fixture only after adjudication concludes the fixture was wrong;
+4. record the adjudication evidence and outcome in the fixture's `defects.json`
+   alongside the change, so the corpus keeps its history.
+
+Rewriting the fixture whenever the reviewer complains closes a loop — the rules
+define a suspicious pattern, the reviewer reports it, the quoted evidence is
+taken as proof, the fixture is reclassified, and the corpus now ratifies the
+reviewer's interpretation. A systematically overcritical reviewer keeps a
+perfect record by moving the goalposts, and the fixture stops detecting the
+false positives it exists to detect. Grading a real finding as a false positive
+teaches the reviewer to miss it; grading a false positive as a real finding
+teaches it to shout. Adjudication is what tells them apart.
+
+Seed known-good fixtures with features that are easy to criticise and
+deliberately correct — a repetition a protocol requires, a small unconditional
+reference cheaper than the branch machinery that would avoid it, an illustrative
+shell example that is not an execution contract — and list them as
+`adjudicated_non_defects` with the reasoning. A finding against one of those is
+a false positive, and the grader should say so.
 
 ## Grading order
 
@@ -138,8 +233,15 @@ Classify every failed trial before it counts against the Skill:
 
 ```
 Skill failure | routing failure | model variance | tool failure |
-fixture failure | harness failure | environment failure | grader failure
+fixture failure | harness failure | environment failure | grader failure |
+unmeasured (precondition absent) | disputed (awaiting adjudication)
 ```
+
+The last two are not failures and not passes. `unmeasured` covers a trial whose
+precondition did not hold — a required competitor missing from the catalog, a
+capability the host lacks. `disputed` covers a finding against a frozen
+known-good fixture. Reporting either as a pass is how a suite comes to overstate
+what it established.
 
 Host Skill-eval tooling has documented false-negative trigger failures. An
 unclassified failure is not evidence.

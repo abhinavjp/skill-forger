@@ -1,0 +1,23 @@
+{
+  "fixture": "defective-source-relative-link",
+  "kind": "intentionally-defective",
+  "expected_defects": [
+    {
+      "defect": "Markdown link written from the wrong base",
+      "location": "references/a.md, link to references/foo.md",
+      "why": "A Markdown link resolves relative to its own document, so this link means references/references/foo.md, which does not exist. The correct link from inside references/ is foo.md.",
+      "detection": "deterministic (inspect_skill.py broken_references)"
+    }
+  ],
+  "expected_non_defects": [
+    {
+      "feature": "references/a.md mentions references/bar.md in prose",
+      "why": "Prose path mentions in this package are written from the package root by convention, so the inspector resolves them against the root as well as the source directory. Only Markdown links are strictly source-relative."
+    },
+    {
+      "feature": "SKILL.md links to references/a.md",
+      "why": "SKILL.md is at the package root, so source-relative and root-relative resolution agree."
+    }
+  ],
+  "notes": "Regression fixture for RG-009. The inspector previously accepted the broken link because it fell back to root-relative resolution for every target, turning a real broken link into a silent pass — a false negative that the Skill's own instruction not to re-derive inspector facts by hand would have made permanent."
+}

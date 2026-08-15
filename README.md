@@ -10,7 +10,14 @@ rules it enforces.
 skill-engineer/
 ├── SKILL.md                        operational core (CREATE + REVIEW)
 ├── references/
-│   ├── rules.md                    R1–R26, the shared rule set
+│   ├── rules-index.md              routes R1–R26 to the modules below
+│   ├── rules-core.md               always loaded: mechanism, safety, drift
+│   ├── rules-trigger.md            routing, precision/recall, competition
+│   ├── rules-context.md            disclosure, references, branches, filtering
+│   ├── rules-execution.md          workflow, scripts, tools, completion
+│   ├── rules-mutation-safety.md    failure recovery, idempotency
+│   ├── rules-portability.md        portability boundary
+│   ├── rules-evals.md              regression preservation, measured utility
 │   ├── eval-spec.md                portable eval schema, layers, grading
 │   └── platform-extensions.md      optional host adapters
 ├── scripts/
@@ -34,7 +41,14 @@ python skill-engineer/evals/run_static_evals.py
 ```
 
 Runs every case with a deterministic grader and reports the rest as requiring a
-host runner. Requires Python 3.8+; PyYAML for the YAML cases.
+host runner. Requires Python 3.8+; PyYAML for the YAML cases. Where a host
+cannot run Python or scripts, the Skill still reviews what it can read and
+reports the deterministic checks as unvalidated rather than claiming them.
+
+Eval cases are data. A deterministic grader selects a `check.kind` implemented
+by trusted runner code; it cannot carry a command line, and the runner spawns no
+subprocess — so pointing `--evals` at an untrusted corpus does not execute it
+(`RG-008` is the containment test).
 
 Inspect any Skill package:
 

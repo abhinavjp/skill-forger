@@ -1,0 +1,30 @@
+{
+  "fixture": "good-safe-mutation",
+  "kind": "known-good",
+  "status": "frozen",
+  "expected_defects": [],
+  "controls_present": [
+    {
+      "rule": "R19 idempotency",
+      "evidence": "The tag is the entry identity; an existing entry is updated in place and a re-run is required to leave the file byte-identical apart from changed fields."
+    },
+    {
+      "rule": "R18 failure recovery and retries",
+      "evidence": "Three named failure modes with distinct handling; the retry is bounded at two attempts and only for the plausibly transient lock case; the deterministic failure is explicitly not retried."
+    },
+    {
+      "rule": "R17 completion semantics",
+      "evidence": "Done-when is observable and checkable: file parses, exactly one entry for the tag, prior entries intact. Failure reporting is required not to imply the write happened."
+    },
+    {
+      "rule": "R20 least privilege",
+      "evidence": "One file written, one read-only command, no network or credentials, stated as a scoping instruction to the host rather than a promise of good behaviour."
+    },
+    {
+      "rule": "R12 proportional validation",
+      "evidence": "The unparseable-ledger guard protects the one output whose corruption is costly, and nothing more."
+    }
+  ],
+  "notes": "The positive control for mutating workflows. EX-006 shows the reviewer catches an unsafe mutation; this fixture shows it does not simply raise mutation findings unconditionally. Marking R17-R20 'not applicable' here is a failure — they apply and are satisfied.",
+  "change_policy": "Frozen for the validation cycle. A new evidence-backed finding is DISPUTED and goes to independent adjudication, recorded here with its evidence, before this fixture changes."
+}

@@ -1,7 +1,29 @@
 {
   "fixture": "good-release-notes",
   "kind": "known-good",
+  "status": "frozen",
   "expected_defects": [],
-  "notes": "Valid portable Skill: standard frontmatter, specific description, one conditional reference with an explicit retrieval condition, observable completion condition, no scripts or platform coupling.",
-  "history": "2026-08-15: reviewers running EX-007 correctly raised two real defects in the original version — `git log --merges` silently returns nothing on squash-merging repositories, and 'if the repository defines a house format' named no detectable signal. Those were fixture defects, not reviewer false positives, and were fixed. A false-positive control only works if the control is actually clean."
+  "adjudicated_non_defects": [
+    {
+      "feature": "Two `git log` invocations in the workflow (steps 2).",
+      "why_it_looks_wrong": "Shell commands inside a Skill body read as platform coupling and as work that should be extracted into a script.",
+      "why_it_is_correct": "They are illustrative of the evidence to collect, not an execution contract, and the second exists because the first is silently empty on squash-merging repositories. Extracting two one-line commands into scripts/ would add a file, a maintenance surface and an execution dependency to save nothing.",
+      "adjudicated": "2026-08-16, author review against R11 and R22."
+    },
+    {
+      "feature": "references/house-format.md is only three bullets long.",
+      "why_it_looks_wrong": "A reference this small looks like it should be inlined into SKILL.md; the file overhead appears to exceed its content.",
+      "why_it_is_correct": "Most runs never declare a house format, so inlining it puts three lines of irrelevant format rules into every run's context to save one conditional read from the minority. The pointer carries an explicit, detectable condition.",
+      "adjudicated": "2026-08-16, author review against R6 and R7."
+    },
+    {
+      "feature": "The description lists three separate 'use when' phrasings of one capability.",
+      "why_it_looks_wrong": "Reads as keyword stuffing of the kind that causes overbroad triggering.",
+      "why_it_is_correct": "They are paraphrases of a single narrow capability (preparing a release announcement), not additional capabilities. Contrast the defective-unsafe-mutation fixture, whose description enumerates unrelated domains. Narrowing to one phrasing costs recall on realistic user wording.",
+      "adjudicated": "2026-08-16, author review against R3."
+    }
+  ],
+  "notes": "Valid portable Skill: standard frontmatter, specific description, one conditional reference with an explicit retrieval condition, observable completion condition, no scripts or platform coupling. The adjudicated_non_defects are deliberately easy to criticise and deliberately correct — a reviewer that raises one has produced a semantic false positive (EX-007 grades it as such).",
+  "change_policy": "Frozen for the validation cycle. A new evidence-backed finding against this fixture is DISPUTED, not an automatic fixture defect: it is recorded here with its adjudication evidence and outcome before the fixture changes. Rewriting the fixture whenever the reviewer complains makes the control ratify the reviewer instead of testing it.",
+  "history": "2026-08-15: reviewers running EX-007 raised two real defects in the original version — `git log --merges` silently returns nothing on squash-merging repositories, and 'if the repository defines a house format' named no detectable signal. Adjudicated as genuine fixture defects and fixed. 2026-08-16: adjudication made an explicit precondition for any further change, and three adjudicated non-defects seeded so the control can fail an overcritical reviewer."
 }
