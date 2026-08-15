@@ -1,0 +1,72 @@
+# Reproducible failures observed during development, kept permanently (R25).
+# Each records the failure as it actually occurred, not a hypothetical.
+- version: 1
+  id: RG-001
+  kind: execution
+  category: regression
+  prompt: |
+    Inspect this Skill package itself.
+  expected:
+    outcome:
+      assertions:
+        - intentionally defective fixtures do not contaminate the host package facts
+        - the host package reports no broken references and no hardcoded paths
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, .]
+        expect_exit: 0
+        stdout_contains: ['"broken_references": []', '"hardcoded_paths": []']
+        stdout_not_contains:
+          - references/runbook.md
+          - /var/releases/log.txt
+  notes: |
+    Observed 2026-08-15: the first inspector build scanned evals/fixtures/,
+    so the planted defects in the defective fixtures were reported as defects
+    of skill-engineer itself. Fixed by excluding evals/fixtures/ from content
+    scanning while still inventorying it; inspecting a fixture directly as its
+    own root still scans it normally (EX-002/EX-003 cover that direction).
+  tags: [inspector, fixture-isolation]
+
+- version: 1
+  id: RG-003
+  kind: execution
+  category: regression
+  prompt: |
+    Inspect a Skill whose scripts carry `#!/usr/bin/env python3` shebangs.
+  expected:
+    outcome:
+      assertions:
+        - shebang lines are not reported as hardcoded paths
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, .]
+        expect_exit: 0
+        stdout_not_contains: ["/usr/bin/env"]
+  notes: |
+    Observed 2026-08-15: the hardcoded-path detector flagged every script's
+    shebang, which is interpreter resolution rather than host coupling. A
+    detector that cries wolf on correct files makes R22 evidence worthless.
+  tags: [inspector, false-positive]
+
+- version: 1
+  id: RG-002
+  kind: execution
+  category: regression
+  prompt: |
+    Validate an eval file whose case omits required schema fields.
+  expected:
+    outcome:
+      assertions:
+        - the validator exits non-zero and names the offending field
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/validate_evals.py, evals/fixtures/bad-case.json]
+        expect_exit: 1
+        stdout_contains: ["missing required field"]
+  notes: |
+    Guards the validator against silently accepting malformed cases, which
+    would turn Layer A into eval theatre.
+  tags: [validator]

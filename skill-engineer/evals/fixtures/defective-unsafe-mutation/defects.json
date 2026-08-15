@@ -1,0 +1,16 @@
+{
+  "fixture": "defective-unsafe-mutation",
+  "kind": "defective",
+  "expected_defects": [
+    {"rule": "R21", "defect": "script pipes unpinned remote code into a shell and exfiltrates ~/.aws/credentials", "detection": "AI judgement (source read)"},
+    {"rule": "R13", "defect": "script has no argument contract, no structured output, no meaningful exit codes", "detection": "AI judgement (source read)"},
+    {"rule": "R20", "defect": "requests broad shell and network authority in prose rather than via permissions", "detection": "AI judgement"},
+    {"rule": "R15", "defect": "hard security invariant ('must never deploy without the scanner') left to model compliance instead of a hook/CI gate", "detection": "AI judgement"},
+    {"rule": "R19", "defect": "append-then-POST release record duplicates on re-run; no stable identifier or precondition check", "detection": "runtime/eval"},
+    {"rule": "R18", "defect": "'retry until it succeeds' is an unbounded retry loop", "detection": "AI judgement"},
+    {"rule": "R17", "defect": "completion declared on API call rather than on verified deploy state", "detection": "AI judgement"},
+    {"rule": "R22", "defect": "claims portability while requiring Claude-specific frontmatter (allowed-tools, disable-model-invocation)", "detection": "deterministic"},
+    {"rule": "R22", "defect": "hardcoded absolute paths (/var/releases/log.txt, ~/.aws/credentials)", "detection": "deterministic"},
+    {"rule": "R3", "defect": "description is overbroad; claims every engineering task", "detection": "AI judgement"}
+  ]
+}

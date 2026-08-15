@@ -1,0 +1,6 @@
+{
+  "fixture": "good-release-notes",
+  "kind": "known-good",
+  "expected_defects": [],
+  "notes": "Valid portable Skill: standard frontmatter, specific description, one conditional reference with an explicit retrieval condition, observable completion condition, no scripts or platform coupling."
+}

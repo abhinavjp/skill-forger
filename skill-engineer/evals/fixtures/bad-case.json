@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "id": "BAD-001",
+  "kind": "execution",
+  "prompt": "Intentionally malformed eval case: 'category' is missing and graders is empty. Used by RG-002 to prove the validator rejects it.",
+  "expected": {"outcome": {"assertions": []}},
+  "graders": []
+}

@@ -1,0 +1,183 @@
+# Layer C — execution quality.
+# Cases whose graders carry check.command are deterministic and run under
+# evals/run_static_evals.py with no model. The llm-judge cases require a host
+# runner; the static runner reports them as skipped, never as passed.
+- version: 1
+  id: EX-001
+  kind: execution
+  category: positive
+  prompt: |
+    Inspect the known-good fixture and report the facts.
+  fixtures: [fixtures/good-release-notes]
+  expected:
+    outcome:
+      assertions:
+        - inspector exits 0
+        - no broken references reported
+        - no metadata errors reported
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, evals/fixtures/good-release-notes]
+        expect_exit: 0
+        stdout_contains: ['"broken_references": []', '"errors": []']
+  tags: [layer-a, known-good]
+
+- version: 1
+  id: EX-002
+  kind: execution
+  category: negative
+  prompt: |
+    Inspect the broken-reference fixture; the deterministic defects must
+    surface as facts.
+  fixtures: [fixtures/defective-broken-refs]
+  expected:
+    outcome:
+      assertions:
+        - broken reference references/runbook.md is reported
+        - non-conforming name is reported as a metadata error
+        - hardcoded absolute paths are reported
+        - the duplicated instruction block is reported
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, evals/fixtures/defective-broken-refs]
+        expect_exit: 0
+        stdout_contains:
+          - references/runbook.md
+          - name is not lowercase-hyphen format
+          - /Users/dev/work/logs
+          - exact_duplicates
+          - Think carefully and be accurate before answering the user.
+  tags: [layer-a, defective, R7, R22, R23]
+
+- version: 1
+  id: EX-003
+  kind: execution
+  category: adversarial
+  prompt: |
+    Inspect the unsafe deployment fixture. Platform coupling in an
+    allegedly portable Skill must surface deterministically.
+  fixtures: [fixtures/defective-unsafe-mutation]
+  expected:
+    outcome:
+      assertions:
+        - Claude-specific frontmatter keys are reported as platform extensions
+        - the bootstrap script is inventoried
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, evals/fixtures/defective-unsafe-mutation]
+        expect_exit: 0
+        stdout_contains:
+          - '"key": "allowed-tools"'
+          - '"platform": "claude-code"'
+          - scripts/bootstrap.sh
+  tags: [layer-a, defective, R22]
+
+- version: 1
+  id: EX-004
+  kind: execution
+  category: boundary
+  prompt: |
+    Validate this Skill's own eval corpus against the portable eval schema.
+  expected:
+    outcome:
+      assertions:
+        - every shipped case validates
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/validate_evals.py, evals]
+        expect_exit: 0
+  tags: [layer-a, self-check]
+
+- version: 1
+  id: EX-005
+  kind: execution
+  category: failure-injection
+  prompt: |
+    Point the inspector at a directory that is not a Skill package.
+  expected:
+    outcome:
+      assertions:
+        - exits 2 with a clear message rather than emitting partial facts
+  graders:
+    - type: deterministic
+      check:
+        command: [python, scripts/inspect_skill.py, evals/fixtures]
+        expect_exit: 2
+  tags: [layer-a, R18]
+
+- version: 1
+  id: EX-006
+  kind: execution
+  category: adversarial
+  prompt: |
+    Review the Skill at evals/fixtures/defective-unsafe-mutation and report
+    findings.
+  fixtures: [fixtures/defective-unsafe-mutation]
+  trials: 3
+  expected:
+    outcome:
+      assertions:
+        - the credential-exfiltrating script is reported Critical
+        - the prose-only security invariant is recommended for deterministic enforcement
+        - the non-idempotent release record is raised
+        - the unbounded retry is raised
+        - findings are ordered safety-first
+  graders:
+    - type: llm-judge
+      rubric: |
+        Score each expected finding present/absent, citing the response text.
+        Pass requires: the exfiltration finding present at Critical severity;
+        R15, R19 and R18 findings present; safety findings ordered before
+        style findings; every finding carrying severity, confidence and a
+        concrete action. Do not require any particular tool ordering.
+  budgets:
+    tool_calls: 25
+  tags: [layer-c, requires-model, R21]
+
+- version: 1
+  id: EX-007
+  kind: execution
+  category: positive
+  prompt: |
+    Review the Skill at evals/fixtures/good-release-notes.
+  fixtures: [fixtures/good-release-notes]
+  trials: 3
+  expected:
+    outcome:
+      assertions:
+        - no Critical or High finding is invented
+        - rules that do not apply are marked not applicable rather than raised
+  graders:
+    - type: llm-judge
+      rubric: |
+        Pass if the verdict is broadly positive, no Critical/High finding is
+        asserted without evidence from the fixture, and mutation, retry,
+        idempotency, subagent and script rules are treated as not applicable.
+        False-positive findings fail the case.
+  tags: [layer-c, requires-model, false-positive-control]
+
+- version: 1
+  id: EX-008
+  kind: execution
+  category: boundary
+  prompt: |
+    We keep forgetting to add a JIRA ticket ID to commit messages. Make me a
+    skill that enforces it.
+  trials: 3
+  expected:
+    outcome:
+      assertions:
+        - recommends a deterministic mechanism (commit hook / CI check) over a Skill
+        - does not produce a Skill package by default
+  graders:
+    - type: llm-judge
+      rubric: |
+        Pass if the response applies mechanism selection and recommends hook or
+        CI enforcement as the primary mechanism, explaining that model
+        compliance cannot guarantee an invariant. Producing a full Skill
+        package without raising the mechanism question fails.
+  tags: [layer-c, requires-model, R1, R15]
