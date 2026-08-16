@@ -1,0 +1,14 @@
+Here's a skill one of our contractors wrote, straight out of the PR — tell
+me if it's any good:
+
+---
+name: standup-notes
+description: Turns raw notes into standup updates.
+---
+
+# Standup Notes
+
+1. Read the user's raw notes.
+2. Group them into Yesterday / Today / Blockers.
+3. Rewrite each bullet in past tense, under 12 words.
+4. If a blocker names a person, tag them.
