@@ -1,4 +1,4 @@
-# Cross-host validation plan — candidate `b1744f3` (portable core unchanged through `2f70719`)
+# Cross-host validation plan — candidate `265e248` (previous candidate `b1744f3`, superseded by the reproduced Windows portability fix; portable core otherwise unchanged through `2f70719`)
 
 Status: **PLAN ONLY — nothing executed.** Preparation for when a second Agent
 Skills-compatible host becomes available. No model calls, no fixture edits, no
@@ -13,9 +13,24 @@ Claude's own results cannot answer that question.
 
 ## 0. Frozen basis
 
-- Frozen candidate: commit `b1744f3` (portable core: `skill-engineer/SKILL.md`,
-  `skill-engineer/references/`, `skill-engineer/scripts/`,
-  `skill-engineer/evals/`).
+- Frozen candidate: commit `265e248` (previous candidate: `b1744f3`; portable
+  core: `skill-engineer/SKILL.md`, `skill-engineer/references/`,
+  `skill-engineer/scripts/`, `skill-engineer/evals/`).
+- Candidate change reason: cross-platform absolute-path classification fix
+  reproduced on Antigravity/Windows — `scripts/inspect_skill.py`'s
+  `scan_references` used `os.path.isabs(target)`, which judges by the
+  inspector's own host OS rules and misclassified a POSIX absolute path as
+  package-relative when the inspector ran on Windows, causing an RG-004 FAIL.
+  Replaced with `PurePosixPath`/`PureWindowsPath.is_absolute()`, OS-independent
+  by construction. RG-011 added as regression coverage. No rule, routing, or
+  behavioural CREATE/REVIEW prompt content changed — this candidate change is
+  confined to deterministic path classification in `scripts/inspect_skill.py`
+  plus its own regression fixture/case, so Claude Phase-1 behavioural evidence
+  remains reusable without re-execution. Deterministic status after the fix:
+  16/16 PASS (`python evals/run_static_evals.py`), including RG-004 and RG-011.
+  The previous Antigravity Stage 0 failure is resolved by this candidate and
+  must be rechecked on Antigravity (Stage 0, 0 model calls) before any
+  behavioural execution resumes there.
 - Current HEAD `2f70719` only adds `evals/results/phase1/*` and
   `evals/validation-plan.md` — confirmed via `git diff b1744f3..2f70719 --stat`:
   17 files changed, all under `evals/results/phase1/` or

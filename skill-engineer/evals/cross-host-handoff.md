@@ -7,8 +7,15 @@ the plan itself for evidence trails.
 
 ## Frozen candidate
 
-- Commit: `b1744f3` (Skill package unchanged through current `HEAD 2f70719`;
-  the delta is evidence/docs only — see plan §0).
+- Commit: `265e248` (previous candidate: `b1744f3`, superseded by a reproduced
+  Windows portability fix in `scripts/inspect_skill.py` — OS-independent
+  absolute-path classification, plus RG-011 regression coverage; see plan §0
+  for full rationale). No rule, routing, or CREATE/REVIEW prompt behaviour
+  changed, so existing Claude Phase-1 behavioural evidence remains reusable.
+- Previous Antigravity Stage 0 failure (RG-004 FAIL on POSIX-absolute-path
+  misclassification) is resolved by this candidate — **re-run Stage 0 on
+  Antigravity before trusting any Stage 1 result**, do not assume the old
+  Stage 0 failure carries forward.
 - Target: `skill-engineer/` at repo root (this repo).
 - Do not modify `SKILL.md`, `references/`, `scripts/`, or `evals/*.yaml`
   before or during this phase.
