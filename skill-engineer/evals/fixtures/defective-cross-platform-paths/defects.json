@@ -1,0 +1,22 @@
+{
+  "fixture": "defective-cross-platform-paths",
+  "kind": "intentionally-defective",
+  "expected_defects": [
+    {
+      "defect": "Markdown link to a package-relative file that does not exist",
+      "location": "SKILL.md, link to references/missing.md",
+      "detection": "deterministic (inspect_skill.py broken_references)"
+    }
+  ],
+  "expected_non_defects": [
+    {
+      "feature": "/var/releases/log.txt (POSIX absolute path) in prose",
+      "why": "An absolute filesystem path is host coupling, reported by hardcoded_paths, not a package-relative reference. It must not also appear in broken_references."
+    },
+    {
+      "feature": "C:/temp/release-log.txt (Windows absolute path) in prose",
+      "why": "Absolute-path classification must be OS-independent: a Windows drive-absolute path is recognised as absolute (and reported as hardcoded) even when the inspector runs on a non-Windows host, and vice versa."
+    }
+  ],
+  "notes": "Regression fixture proving absolute-path classification (PurePosixPath/PureWindowsPath) is independent of the OS running the inspector. os.path.isabs() alone judges by the host OS's own path rules, which misclassifies a POSIX absolute path as package-relative when the inspector runs on Windows (observed cross-host on Antigravity/Windows, corpus revision 2331f2c). See RG-011."
+}

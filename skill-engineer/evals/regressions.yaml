@@ -303,3 +303,50 @@
     exclusion-only: a genuine hardcoded path in real script content is still
     caught.
   tags: [inspector, false-positive, R22, harness-hygiene]
+
+- version: 1
+  id: RG-011
+  kind: execution
+  category: regression
+  prompt: |
+    Inspect a Skill that names a POSIX absolute path and a Windows
+    drive-absolute path in prose, alongside a genuinely missing
+    package-relative link.
+  fixtures: [fixtures/defective-cross-platform-paths]
+  expected:
+    outcome:
+      assertions:
+        - both absolute paths are reported as hardcoded paths only
+        - neither absolute path is also reported as a broken reference
+        - the genuinely missing relative link is still reported broken
+  graders:
+    - type: deterministic
+      check:
+        kind: inspect
+        target: evals/fixtures/defective-cross-platform-paths
+        expect_exit: 0
+        stdout_contains:
+          - '"broken_reference_count": 1'
+          - '"hardcoded_path_count": 2'
+          - references/missing.md
+        stdout_not_contains:
+          - '"broken_reference_count": 0'
+          - '"broken_reference_count": 2'
+  notes: |
+    Observed 2026-08-17 cross-host on Antigravity/Windows (harness revision
+    2331f2c): scan_references used os.path.isabs(target) to decide whether a
+    referenced path was host-absolute (and therefore hardcoded_paths' concern,
+    per RG-004) rather than a package-relative reference. os.path.isabs()
+    judges by the host OS's own path module, so a POSIX absolute path came
+    out "relative" when the inspector itself ran on Windows, and the
+    inspector then tried to resolve it as a package-relative reference and
+    reported it broken — a deterministic false positive laundered into
+    review evidence, the same failure mode RG-004 exists to catch, but
+    triggered by the inspector's own host OS rather than by the corpus.
+    Replaced the OS-dependent check with PurePosixPath(target).is_absolute()
+    or PureWindowsPath(target).is_absolute(), which classifies POSIX
+    absolute paths, Windows drive-absolute paths, and Windows UNC paths the
+    same way regardless of which OS is running the inspector. This fixture
+    proves both directions at once and keeps a genuine broken relative
+    reference intact so the fix doesn't silently swallow real defects.
+  tags: [inspector, false-positive, portability, R7, R22]

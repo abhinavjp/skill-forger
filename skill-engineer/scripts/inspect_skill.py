@@ -25,6 +25,7 @@ import json
 import os
 import re
 import sys
+from pathlib import PurePosixPath, PureWindowsPath
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import validate_evals  # noqa: E402
@@ -136,6 +137,19 @@ def inventory(root):
     return files
 
 
+def _is_absolute_reference(target):
+    """Absolute-path check independent of the OS running the inspector.
+
+    os.path.isabs() judges by the host OS's own path rules, so a POSIX
+    path can come out "relative" when the inspector runs on Windows, or
+    vice versa. Checking both PurePosixPath and PureWindowsPath recognises
+    POSIX absolute paths, Windows drive-absolute paths, and Windows UNC
+    paths regardless of which OS is doing the inspecting.
+    """
+    return (PurePosixPath(target).is_absolute()
+            or PureWindowsPath(target).is_absolute())
+
+
 def scan_references(root, files):
     refs, broken = [], []
     for entry in files:
@@ -156,7 +170,7 @@ def scan_references(root, files):
                 # Absolute paths are host coupling, not package references;
                 # find_hardcoded_paths owns them. Resolving them here reported
                 # every absolute path as a broken reference.
-                if os.path.isabs(target) or re.match(r"^[A-Za-z]:[\\/]", target):
+                if _is_absolute_reference(target):
                     continue
                 context = ("link" if target in links
                            else "fence" if in_fence else "prose")
