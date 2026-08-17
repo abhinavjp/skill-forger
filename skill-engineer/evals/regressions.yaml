@@ -260,3 +260,46 @@
     negative was permanent by construction. Markdown links now resolve strictly
     against their own document; prose and fenced paths keep the root fallback.
   tags: [inspector, false-negative, R7]
+
+- version: 1
+  id: RG-010
+  kind: execution
+  category: regression
+  prompt: |
+    Inspect a Skill whose scripts/ contains a genuine hardcoded path, whose
+    evals/results/ contains a transcript quoting a different example path,
+    and whose evals/notes.md mentions a third example path as planning
+    context.
+  fixtures: [fixtures/defective-eval-evidence-boundary]
+  expected:
+    outcome:
+      assertions:
+        - the scripts/ hardcoded path is still reported
+        - the evals/results/ and top-level evals/*.md path mentions are not reported
+  graders:
+    - type: deterministic
+      check:
+        kind: inspect
+        target: evals/fixtures/defective-eval-evidence-boundary
+        expect_exit: 0
+        stdout_contains: ['"hardcoded_path_count": 1', /var/releases/live/]
+        stdout_not_contains:
+          - /opt/data/secrets.env
+          - ~/skills/pr-reviewer
+  notes: |
+    Observed 2026-08-17: evals/results/phase1/* (generated Phase-1
+    transcripts) and evals/cross-host-validation-plan.md /
+    evals/cross-host-handoff.md (cross-host planning docs) began failing
+    RG-001 once they were added, because both quote example hardcoded paths
+    and repo-root-relative references from the defective fixtures they
+    document, and the inspector's scan-exclusion boundary only covered
+    evals/fixtures/. Generated eval-run evidence and evals/*.md
+    validation-control documents are data about the validation process, not
+    Skill content; scanning them reports their quoted examples as defects of
+    the host package itself — the exact failure mode RG-001 already exists to
+    catch for evals/fixtures/. Extended EXCLUDED_SCAN_PREFIXES to
+    evals/results/ and added a top-level-document rule for evals/*.md|*.txt,
+    mirroring the fixtures/ exclusion. This fixture proves the boundary is
+    exclusion-only: a genuine hardcoded path in real script content is still
+    caught.
+  tags: [inspector, false-positive, R22, harness-hygiene]

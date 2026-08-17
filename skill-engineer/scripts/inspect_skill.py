@@ -65,15 +65,27 @@ FENCE_RE = re.compile(r"^\s*(```|~~~)")
 NAME_MAX = 64
 DESCRIPTION_MAX = 1024
 
-# Intentionally defective eval fixtures are data, not Skill content: scanning
-# them would report their planted defects as defects of the host package.
-# They are still inventoried, and inspecting a fixture directly (as its own
-# root) scans it normally.
-EXCLUDED_SCAN_PREFIXES = ("evals/fixtures/",)
+# Intentionally defective eval fixtures, and generated eval-run evidence
+# (transcripts/results), are data about the Skill's evaluation process, not
+# Skill content: scanning them would report their planted defects, or their
+# quotes of those defects, as defects of the host package. They are still
+# inventoried, and inspecting a fixture or a results directory directly (as
+# its own root) scans it normally.
+EXCLUDED_SCAN_PREFIXES = ("evals/fixtures/", "evals/results/")
+
+# Narrative documents living directly in evals/ (validation plans, cross-host
+# handoffs, run notes) describe the validation *process* around the canonical
+# case corpus (evals/*.yaml) and its fixtures/results; they are not part of
+# the inspected product surface either. Matching only direct children of
+# evals/ keeps genuine product documentation under references/ (or nested
+# inside a fixture's own root) unaffected.
+EXCLUDED_SCAN_TOPLEVEL_DOC_RE = re.compile(r"^evals/[^/]+\.(?:md|markdown|txt)$")
 
 
 def _scannable(rel_path):
-    return not rel_path.startswith(EXCLUDED_SCAN_PREFIXES)
+    if rel_path.startswith(EXCLUDED_SCAN_PREFIXES):
+        return False
+    return not EXCLUDED_SCAN_TOPLEVEL_DOC_RE.match(rel_path)
 
 
 def _read(path):

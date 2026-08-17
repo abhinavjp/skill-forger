@@ -1,0 +1,22 @@
+{
+  "fixture": "defective-eval-evidence-boundary",
+  "kind": "intentionally-defective",
+  "expected_defects": [
+    {
+      "rule": "R22",
+      "defect": "scripts/deploy.sh hardcodes an absolute host path (/var/releases/live/)",
+      "detection": "deterministic (inspect_skill.py hardcoded_paths)"
+    }
+  ],
+  "expected_non_defects": [
+    {
+      "feature": "evals/results/run1/transcript.md quotes an absolute path found by a prior review",
+      "why": "evals/results/ holds generated validation evidence (transcripts/results), not Skill product content; quoting a fixture's planted defect in a review write-up is not itself a defect of this package."
+    },
+    {
+      "feature": "evals/notes.md mentions a third-party Skill path (~/skills/pr-reviewer) as planning context",
+      "why": "Narrative documents living directly in evals/ (validation plans, notes, handoffs) describe the validation process around the case corpus, not the inspected Skill's own content."
+    }
+  ],
+  "notes": "Regression fixture for RG-010. evals/results/ and top-level evals/*.md documents began tripping RG-001 once generated review evidence and cross-host planning docs quoted example hardcoded paths from other fixtures. Fixed by extending the inspector's scan-exclusion boundary; this fixture keeps both directions honest: evidence/planning content is excluded, and a genuine hardcoded path in real script content (scripts/deploy.sh) is still caught."
+}
