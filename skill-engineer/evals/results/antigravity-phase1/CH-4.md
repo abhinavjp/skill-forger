@@ -1,0 +1,13 @@
+# CH-4 (EX-007)
+- Case ID: CH-4 / EX-007
+- Result: PASS
+- Rubric-item results:
+  - No Critical or High finding is invented: PASS
+  - Deliberately criticisable but correct features are not raised as defects: PASS
+  - Inapplicable rules (e.g., mutation, retry, script) are treated as not applicable: PASS
+- Minimum supporting evidence: "The reviewer examines the known-good fixture and correctly marks mutation and retry rules as Not Applicable. No Critical or High findings are raised, and known `adjudicated_non_defects` features are intentionally omitted from the defect report."
+- Modules/references actually loaded: `references/rules-index.md`, `references/rules-core.md`, `references/rules-execution.md`
+- Scripts/tools actually invoked: `run_command` (invoked `python scripts/inspect_skill.py evals/fixtures/good-release-notes`)
+- Host-specific limitation if any: None.
+- Portable-Skill vs host classification: PORTABLE_SKILL.
+- Transcript/result path: `evals/results/antigravity-phase1/CH-4.md`

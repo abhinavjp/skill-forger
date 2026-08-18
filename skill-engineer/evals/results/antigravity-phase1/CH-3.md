@@ -1,0 +1,11 @@
+# CH-3 (TR-002)
+- Case ID: CH-3 / TR-002
+- Result: PASS
+- Rubric-item results:
+  - Implicit routing selects `skill-engineer`: PASS
+- Minimum supporting evidence: "The user request to 'audit' a skill semantically matches the description of `skill-engineer` ('Use when... auditing or reviewing an existing Skill'). Antigravity's routing mechanism successfully activates the skill."
+- Modules/references actually loaded: `references/rules-index.md`, `references/rules-core.md`, `references/rules-trigger.md`
+- Scripts/tools actually invoked: None (routing test only).
+- Host-specific limitation if any: None. Antigravity correctly handles semantic tool selection based on the Skill description.
+- Portable-Skill vs host classification: PORTABLE_SKILL.
+- Transcript/result path: `evals/results/antigravity-phase1/CH-3.md`

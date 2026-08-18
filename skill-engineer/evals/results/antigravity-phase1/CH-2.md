@@ -1,0 +1,14 @@
+# CH-2 (EX-014)
+- Case ID: CH-2 / EX-014
+- Result: PASS
+- Rubric-item results:
+  - Portable core holds conventions and workflow: PASS
+  - Hard block placed in a host mechanism, not in prose: PASS
+  - Host-specific mechanisms live in an adapter the core does not depend on: PASS
+  - Standards-compatible vs host-tested is recorded separately: PASS
+- Minimum supporting evidence: "The portable core (`SKILL.md`) is host-neutral. The hard block for `infra/secrets` is placed in a host-specific mechanism (e.g., an Antigravity hook adapter or Claude Code rules), separated from the core. We record this adapter as tested on Antigravity, while the core remains standards-compatible."
+- Modules/references actually loaded: `references/rules-index.md`, `references/rules-core.md`, `references/rules-portability.md`, `references/platform-extensions.md`
+- Scripts/tools actually invoked: None (design generation only).
+- Host-specific limitation if any: None.
+- Portable-Skill vs host classification: PORTABLE_SKILL.
+- Transcript/result path: `evals/results/antigravity-phase1/CH-2.md`
