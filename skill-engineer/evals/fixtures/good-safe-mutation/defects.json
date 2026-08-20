@@ -3,6 +3,20 @@
   "kind": "known-good",
   "status": "frozen",
   "expected_defects": [],
+  "adjudicated_non_defects": [
+    {
+      "feature": "The read-merge-write of ledger.json is performed by the model rather than by a shipped upsert script.",
+      "why_it_looks_wrong": "Read JSON, find the entry by tag, merge or append, write the whole file back is precisely specifiable, repeatable and mechanically checkable, so it reads as R11 deterministic work left to freeform generation.",
+      "why_it_is_correct": "R11 detects *repeated* mechanical work — repeated parsing, exact sorting, static inventory, deterministic shell loops. One read-merge-write per release is not a loop. R11's opposite failure direction governs instead: mandating scripts/upsert_release.py for a single-object JSON upsert buys a file, an interface and a dependency for low-risk work, which is over-extraction. A finding that cites R11 to require the script is a false positive.",
+      "adjudicated": "2026-08-20, independent adjudication of the EX-015 dispute against R11. FALSE POSITIVE, High confidence."
+    },
+    {
+      "feature": "The workflow gives no explicit branch for a ledger that already contains more than one entry for the tag.",
+      "why_it_looks_wrong": "'Search the ledger for an entry whose tag equals this tag' assumes zero-or-one match, so a pre-duplicated ledger reads as undefined behaviour in a mutating Skill.",
+      "why_it_is_correct": "R19 scopes to duplication the Skill inflicts on itself — its Check is 'can rerunning a mutating Skill duplicate or corrupt state' and its Detect is executing the operation twice against controlled state. A duplicate present before the run can only come from another writer, and the Skill passes R19's own test: the tag is the entry identity and an existing entry is updated in place, never appended beside. The case is also already covered rather than undefined: Done-when requires exactly one entry for the tag, so a pre-duplicated ledger cannot be reported as done, and the failure section requires reporting with the ledger left as found. Adding an explicit branch restates a guard the fixture already carries.",
+      "adjudicated": "2026-08-20, independent adjudication of the EX-015 dispute against R19. FALSE POSITIVE, High confidence."
+    }
+  ],
   "controls_present": [
     {
       "rule": "R19 idempotency",
@@ -25,6 +39,7 @@
       "evidence": "The unparseable-ledger guard protects the one output whose corruption is costly, and nothing more."
     }
   ],
-  "notes": "The positive control for mutating workflows. EX-006 shows the reviewer catches an unsafe mutation; this fixture shows it does not simply raise mutation findings unconditionally. Marking R17-R20 'not applicable' here is a failure — they apply and are satisfied.",
-  "change_policy": "Frozen for the validation cycle. A new evidence-backed finding is DISPUTED and goes to independent adjudication, recorded here with its evidence, before this fixture changes."
+  "notes": "The positive control for mutating workflows. EX-006 shows the reviewer catches an unsafe mutation; this fixture shows it does not simply raise mutation findings unconditionally. Marking R17-R20 'not applicable' here is a failure — they apply and are satisfied. The adjudicated_non_defects are deliberately easy to criticise and adjudicated correct: a reviewer that raises either has produced a semantic false positive.",
+  "change_policy": "Frozen for the validation cycle. A new evidence-backed finding is DISPUTED and goes to independent adjudication, recorded here with its evidence, before this fixture changes.",
+  "history": "2026-08-20: the EX-015 dispute (three findings raised against this frozen fixture in evals/results/phase1/EX-015.1.result.md) was adjudicated independently, one finding at a time. R11 on the prose-only invariant: FALSE POSITIVE, High confidence — recorded above; the suggested mandatory upsert script would be over-extraction. R19 on a pre-existing duplicate tag: FALSE POSITIVE, High confidence — recorded above. R15 on the same prose-only invariant: TRUE POSITIVE in reduced form, Low severity, Medium-High confidence — SKILL.md:21-23 requires a re-run to leave the ledger 'byte-identical apart from any field whose value genuinely changed', which is a stronger property than the observable completion condition at SKILL.md:57-58 verifies (parses, exactly one entry for the tag, prior entries still present — presence, not serialisation), and stronger than whole-file regeneration from the structure read at SKILL.md:33 can guarantee. Severity is Low because the costly failure modes (duplicate entry, lost entries, unparseable file) are all separately guarded; what is at risk is incidental reserialisation. expected_defects stays empty because the fixture is unchanged: the R15 outcome is recorded here as an open adjudicated finding, and the corrective action considered smallest is one added clause to Done-when covering the serialisation of untouched entries, which has not been applied."
 }
