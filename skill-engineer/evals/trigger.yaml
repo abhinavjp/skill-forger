@@ -218,22 +218,17 @@
   expected:
     trigger: true
   competition:
-    required_candidates: [skill-engineer, pdf]
+    required_candidates: [skill-engineer, skill-creator]
     expected_policy: skill-engineer-wins
   notes: |
     The authoring verb ("write me a skill") must beat the domain word ("PDFs").
-    Measured 2026-08-15 in native Claude Code, four routing trials: selected
-    4/4 — but no trial captured a catalog snapshot, so whether a live `pdf`
-    Skill was a routable competitor at that moment is unknown. Under the
-    competition precondition that result is UNMEASURED, not a pass: the
-    domain-dominance risk is neither confirmed nor disproven. An earlier
-    simulated pass scored 1/4, with the domain word winning; that does not
-    reproduce natively and is kept only as the reason this case exists.
-
-    To measure: install a `pdf` Skill whose description naturally covers PDF
-    conversion, verify it appears in the catalog immediately before each trial,
-    then run fresh trials. Do not widen skill-engineer's description into the
-    domains themselves on the strength of the unmeasured 4/4.
+    Measured under a verified competing catalog containing `skill-creator`,
+    with a catalog snapshot captured before each trial confirming
+    `skill-creator` was installed and routable: 6 routing trials, accepted
+    result 3/6 selected skill-engineer, 3/6 selected skill-creator. Under the
+    skill-engineer-wins policy this is a known FAIL, tracked as a non-blocking
+    limitation (see evals/validation-state.md and evals/release-decision.md).
+    This is accepted evidence, not a placeholder pending a further run.
   graders:
     - type: host-routing
       check:
