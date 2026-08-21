@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "skill-engineer",
+  "version": "1.0.0",
+  "description": "Engineer and review Agent Skills: mechanism selection, trigger design, execution/safety rules, and eval coverage. Portable across Agent Skills-compatible hosts.",
+  "author": {
+    "name": "Abhinav Pisharody",
+    "email": "ai.abhinavjp@gmail.com"
+  },
+  "repository": "https://github.com/abhinavjp/skill-forger",
+  "license": "Apache-2.0",
+  "keywords": [
+    "skills",
+    "agent-skills",
+    "skill-authoring",
+    "skill-review"
+  ]
+}
