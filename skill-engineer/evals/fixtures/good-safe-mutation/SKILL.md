@@ -34,6 +34,14 @@ Write the whole file once, from the structure you read in step 1. Do not
 hand-edit surrounding lines: a partial write leaves the ledger unparseable for
 everyone else.
 
+## Verify
+
+Before writing, keep the exact serialized text you read for every entry other
+than the one you are adding or updating. After writing, read the file back and
+compare that kept text, character for character, against the same entries in
+the new file. Any difference is a failure — the byte-identical invariant does
+not hold until this comparison passes.
+
 ## When something fails
 
 - `ledger.json` does not parse → stop and report it. Do not overwrite a file
@@ -54,5 +62,7 @@ access anywhere else — scope it that way if the host lets you.
 
 ## Done when
 
-`ledger.json` parses, contains exactly one entry for the tag, and every entry
-that was there before is still there.
+`ledger.json` parses, contains exactly one entry for the tag, every entry
+that was there before is still there, and the serialized representation of
+every pre-existing entry is character-for-character unchanged from its
+pre-write representation.

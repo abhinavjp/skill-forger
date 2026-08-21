@@ -67,6 +67,14 @@ action restrictions expressed as prose.
 **Severity** — Critical where a bypass causes security or data loss.
 **Action** — Move enforcement into a hook, permission, validator or CI gate
 where the host allows; keep the explanation in the Skill.
+**Not a finding** when the Skill is portable-core with no host-independent
+enforcement surface available *and* an observable completion condition
+already verifies the same property the invariant states *by comparison
+against the artifact itself* (e.g. a diff, a re-parse, a hash) rather than
+by the model narrating its own compliance — a weaker or merely-asserted
+completion condition is still the finding. This boundary never applies to a
+security, destructive, irreversible or high-blast-radius invariant: those
+are findings regardless of what completion checks.
 **Validation** — Attempt the violating action in a controlled test.
 **Automation** — hybrid. **Class** — Strong heuristic; the enforcement
 mechanism is platform-specific. **Applies** — Skills with hard invariants.
