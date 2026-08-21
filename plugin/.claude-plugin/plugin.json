@@ -1,0 +1,18 @@
+{
+  "name": "skill-engineer",
+  "description": "Engineer and review Agent Skills: mechanism selection, trigger design, execution/safety rules, and eval coverage.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Abhinav Pisharody",
+    "email": "ai.abhinavjp@gmail.com"
+  },
+  "homepage": "https://github.com/abhinavjp/skill-forger",
+  "repository": "https://github.com/abhinavjp/skill-forger",
+  "license": "Apache-2.0",
+  "keywords": [
+    "skills",
+    "agent-skills",
+    "skill-authoring",
+    "skill-review"
+  ]
+}
