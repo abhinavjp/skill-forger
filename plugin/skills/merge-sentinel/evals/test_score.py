@@ -41,9 +41,15 @@ class ScoreTests(unittest.TestCase):
 
     def test_trigger_inventory_has_exact_ids_and_split(self) -> None:
         records = json.loads((ROOT / "evals" / "trigger_queries.json").read_text(encoding="utf-8"))
-        self.assertEqual([record["id"] for record in records], [f"{number:02d}" for number in range(1, 21)])
-        self.assertEqual([record["split"] for record in records[:12]], ["development"] * 12)
-        self.assertEqual([record["split"] for record in records[12:]], ["held-out"] * 8)
+        ids = [record["id"] for record in records]
+        legacy_ids = [f"{number:02d}" for number in range(1, 21)]
+        self.assertTrue(set(legacy_ids).issubset(ids))
+        legacy_by_id = {record["id"]: record for record in records if record["id"] in set(legacy_ids)}
+        self.assertEqual([legacy_by_id[i]["split"] for i in legacy_ids[:12]], ["development"] * 12)
+        self.assertEqual([legacy_by_id[i]["split"] for i in legacy_ids[12:]], ["held-out"] * 8)
+        new_ids = [i for i in ids if i not in set(legacy_ids)]
+        self.assertEqual(new_ids, [f"{number:02d}" for number in range(21, 21 + len(new_ids))])
+        self.assertTrue(all(record["split"] in {"development", "held-out"} for record in records))
 
     def test_all_required_fixture_directories_exist(self) -> None:
         fixtures = ROOT / "evals" / "fixtures"

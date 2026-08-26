@@ -118,5 +118,41 @@
     "expected": false,
     "prompt": "Tell me what changed in this branch.",
     "split": "held-out"
+  },
+  {
+    "id": "21",
+    "expected": true,
+    "prompt": "Adversarially review this MR and try to disprove that it is safe.",
+    "split": "development"
+  },
+  {
+    "id": "22",
+    "expected": true,
+    "prompt": "Find the MRs for these Jira keys and review every changed file.",
+    "split": "development"
+  },
+  {
+    "id": "23",
+    "expected": true,
+    "prompt": "The head is unchanged, but verify the developer's resolved review threads.",
+    "split": "development"
+  },
+  {
+    "id": "24",
+    "expected": false,
+    "prompt": "Merge all clear MRs and transition their Jira issues to Unit Tested.",
+    "split": "development"
+  },
+  {
+    "id": "25",
+    "expected": false,
+    "prompt": "Update the Merge Sentinel skill so it reviews adversarially.",
+    "split": "development"
+  },
+  {
+    "id": "26",
+    "expected": false,
+    "prompt": "Implement every issue found by the adversarial reviewer.",
+    "split": "development"
   }
 ]
