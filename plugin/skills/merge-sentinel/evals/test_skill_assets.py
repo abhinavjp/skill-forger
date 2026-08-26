@@ -36,7 +36,14 @@ class SkillAssetTests(unittest.TestCase):
             ],
             "risk-overlays.md": ["# Risk Overlays"],
             "finding-contract.md": ["# Finding Contract"],
-            "review-patterns.md": ["# Review Patterns", "## Domain overlay", "## Required passes", "## Comment quality"],
+            "review-patterns.md": [
+                "# Review Patterns",
+                "## Adversarial posture",
+                "## Execution sizing",
+                "## Domain overlay",
+                "## Required passes",
+                "## Comment quality",
+            ],
             "summary-agent.md": ["# Summary Agent", "## Inputs", "## Output contract", "## Signature"],
             "rereview.md": [
                 "# Re-review",
