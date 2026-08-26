@@ -125,6 +125,49 @@ class SkillAssetTests(unittest.TestCase):
         self.assertIn("`references/review-patterns.md`", content)
         self.assertIn("Always; use a supplied or discovered local review policy", content)
 
+    def test_every_review_is_adversarial_by_default(self) -> None:
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Every review is adversarial by default", skill)
+        self.assertNotIn("adversarial mode", skill.lower())
+        self.assertIn("try to falsify", skill)
+        self.assertIn("Do not invent findings", skill)
+
+    def test_every_changed_file_requires_a_terminal_coverage_state(self) -> None:
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        for phrase in ("Every changed file", "reviewed", "excluded-with-reason", "blocked"):
+            self.assertIn(phrase, skill)
+        self.assertIn("prohibit a clean verdict", skill)
+
+    def test_review_patterns_define_falsification_and_size_aware_delegation(self) -> None:
+        content = self.read_reference("review-patterns.md")
+        for phrase in (
+            "Adversarial posture",
+            "Competing hypothesis",
+            "Small review",
+            "Medium review",
+            "Large or huge review",
+            "The main reviewer owns cross-file reasoning",
+            "return findings and evidence, not raw code",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_rereview_skip_requires_unchanged_head_and_discussions(self) -> None:
+        content = self.read_reference("rereview.md")
+        for phrase in (
+            "latest reviewed head",
+            "current head",
+            "current discussions",
+            "Skip code re-review only when",
+            "discussion changed",
+        ):
+            self.assertIn(phrase, content)
+
+    def test_summary_collects_one_round_and_refreshes_discussions(self) -> None:
+        content = self.read_reference("summary-agent.md")
+        self.assertIn("collect all independent findings before publication", content)
+        self.assertIn("re-fetch all discussions", content)
+        self.assertIn("one review round", content)
+
     def test_summary_agent_requires_decision_and_traceable_signature(self) -> None:
         content = self.read_reference("summary-agent.md")
         for phrase in ("coverage", "blocked", "evidence gaps", "reviewed head", "Merge Sentinel", "do not approve"):
