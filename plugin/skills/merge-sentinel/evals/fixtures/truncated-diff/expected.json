@@ -1,0 +1,17 @@
+{
+  "finding_ids": [],
+  "findings": [],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "partial",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "partial"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": [
+    "truncated-diff"
+  ]
+}

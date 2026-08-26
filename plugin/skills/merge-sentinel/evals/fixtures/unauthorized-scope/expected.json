@@ -1,0 +1,24 @@
+{
+  "finding_ids": [
+    "unauthorized-behavior-change"
+  ],
+  "findings": [
+    {
+      "id": "unauthorized-behavior-change",
+      "severity": "high",
+      "fingerprint": "unauthorized-behavior-change",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": []
+}

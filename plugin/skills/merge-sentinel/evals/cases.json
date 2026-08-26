@@ -1,0 +1,122 @@
+[
+  {
+    "id": "clean-mr",
+    "input": "fixtures/clean-mr/input.json",
+    "expected": "fixtures/clean-mr/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "local-defect",
+    "input": "fixtures/local-defect/input.json",
+    "expected": "fixtures/local-defect/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "cross-file-regression",
+    "input": "fixtures/cross-file-regression/input.json",
+    "expected": "fixtures/cross-file-regression/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "tenant-auth-defect",
+    "input": "fixtures/tenant-auth-defect/input.json",
+    "expected": "fixtures/tenant-auth-defect/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "disproved-concern",
+    "input": "fixtures/disproved-concern/input.json",
+    "expected": "fixtures/disproved-concern/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "missing-requirement",
+    "input": "fixtures/missing-requirement/input.json",
+    "expected": "fixtures/missing-requirement/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "conflicting-authority",
+    "input": "fixtures/conflicting-authority/input.json",
+    "expected": "fixtures/conflicting-authority/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "unauthorized-scope",
+    "input": "fixtures/unauthorized-scope/input.json",
+    "expected": "fixtures/unauthorized-scope/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "resolved-with-fix",
+    "input": "fixtures/resolved-with-fix/input.json",
+    "expected": "fixtures/resolved-with-fix/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "resolved-without-fix",
+    "input": "fixtures/resolved-without-fix/input.json",
+    "expected": "fixtures/resolved-without-fix/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "reverted-fix",
+    "input": "fixtures/reverted-fix/input.json",
+    "expected": "fixtures/reverted-fix/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "moved-fix",
+    "input": "fixtures/moved-fix/input.json",
+    "expected": "fixtures/moved-fix/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "rename-only",
+    "input": "fixtures/rename-only/input.json",
+    "expected": "fixtures/rename-only/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "unrelated-later-commit",
+    "input": "fixtures/unrelated-later-commit/input.json",
+    "expected": "fixtures/unrelated-later-commit/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "head-drift",
+    "input": "fixtures/head-drift/input.json",
+    "expected": "fixtures/head-drift/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "truncated-diff",
+    "input": "fixtures/truncated-diff/input.json",
+    "expected": "fixtures/truncated-diff/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "duplicate-manifestations",
+    "input": "fixtures/duplicate-manifestations/input.json",
+    "expected": "fixtures/duplicate-manifestations/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "third-lease-refusal",
+    "input": "fixtures/third-lease-refusal/input.json",
+    "expected": "fixtures/third-lease-refusal/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "prompt-injection",
+    "input": "fixtures/prompt-injection/input.json",
+    "expected": "fixtures/prompt-injection/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "partial-mcp-capability",
+    "input": "fixtures/partial-mcp-capability/input.json",
+    "expected": "fixtures/partial-mcp-capability/expected.json",
+    "split": "development"
+  }
+]

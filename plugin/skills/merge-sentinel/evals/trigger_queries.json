@@ -1,0 +1,122 @@
+[
+  {
+    "id": "01",
+    "expected": true,
+    "prompt": "Review GitLab MR 42 for defects.",
+    "split": "development"
+  },
+  {
+    "id": "02",
+    "expected": true,
+    "prompt": "Review my current local diff.",
+    "split": "development"
+  },
+  {
+    "id": "03",
+    "expected": true,
+    "prompt": "Re-review the MR after the developer's fixes.",
+    "split": "development"
+  },
+  {
+    "id": "04",
+    "expected": true,
+    "prompt": "Check whether resolved review threads were actually fixed.",
+    "split": "development"
+  },
+  {
+    "id": "05",
+    "expected": true,
+    "prompt": "Verify every acceptance criterion is implemented.",
+    "split": "development"
+  },
+  {
+    "id": "06",
+    "expected": true,
+    "prompt": "Perform a read-only security review of this change.",
+    "split": "development"
+  },
+  {
+    "id": "07",
+    "expected": true,
+    "prompt": "Review this patch but do not post anything.",
+    "split": "development"
+  },
+  {
+    "id": "08",
+    "expected": true,
+    "prompt": "Review and, after showing me findings, ask before posting.",
+    "split": "development"
+  },
+  {
+    "id": "09",
+    "expected": false,
+    "prompt": "Implement the requested MR changes.",
+    "split": "development"
+  },
+  {
+    "id": "10",
+    "expected": false,
+    "prompt": "Fix the failing GitHub Actions checks.",
+    "split": "development"
+  },
+  {
+    "id": "11",
+    "expected": false,
+    "prompt": "Summarize this merge request.",
+    "split": "development"
+  },
+  {
+    "id": "12",
+    "expected": false,
+    "prompt": "Explain how this service works.",
+    "split": "development"
+  },
+  {
+    "id": "13",
+    "expected": true,
+    "prompt": "Audit this merge request for regression and scope creep.",
+    "split": "held-out"
+  },
+  {
+    "id": "14",
+    "expected": true,
+    "prompt": "Compare the new commits with the previous review.",
+    "split": "held-out"
+  },
+  {
+    "id": "15",
+    "expected": true,
+    "prompt": "Check this diff against the supplied specification.",
+    "split": "held-out"
+  },
+  {
+    "id": "16",
+    "expected": true,
+    "prompt": "Review whether this change is safe to merge.",
+    "split": "held-out"
+  },
+  {
+    "id": "17",
+    "expected": false,
+    "prompt": "Write a merge-request review skill.",
+    "split": "held-out"
+  },
+  {
+    "id": "18",
+    "expected": false,
+    "prompt": "Address all reviewer comments in code.",
+    "split": "held-out"
+  },
+  {
+    "id": "19",
+    "expected": false,
+    "prompt": "Create a Jira ticket for this defect.",
+    "split": "held-out"
+  },
+  {
+    "id": "20",
+    "expected": false,
+    "prompt": "Tell me what changed in this branch.",
+    "split": "held-out"
+  }
+]

@@ -1,21 +1,13 @@
 #!/usr/bin/env python3
-"""Deterministically mirror skill-engineer/ into every host discovery path.
+"""Package the existing canonical plugin payload without rewriting it.
 
-skill-engineer/ (SKILL.md, references/, scripts/) is the canonical source.
-This script never edits it; it only regenerates tracked mirrors so each host
-can discover the Skill directly from a git clone of this repo, with no build
-step required on the consumer's side:
-
-  plugin/skills/skill-engineer/    Agent Plugins v1.0.0 package (plugin/plugin.json
-                                    at the package root) and the Claude Code plugin
-                                    (plugin/.claude-plugin/plugin.json, referenced by
-                                    .claude-plugin/marketplace.json)
-  .agents/skills/skill-engineer/   Auto-discovered by Cursor and OpenAI Codex CLI,
-                                    which both scan .agents/skills/ at the project root
+The authored payload lives only in ``plugin/skills/``. This command validates
+the immediate Skill directories, refuses duplicate frontmatter names, and
+copies the complete ``plugin/`` tree to an ignored directory beneath ``dist/``.
+It never writes to host discovery trees or back into ``plugin/skills/``.
 
 Usage:
-    python packaging/build_plugin.py [--out DIR ...]
-        --out overrides/adds mirror targets instead of the two defaults above.
+    python packaging/build_plugin.py [--out dist/DIR]
 """
 from __future__ import annotations
 
@@ -24,60 +16,83 @@ import shutil
 import sys
 from pathlib import Path
 
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SKILL_SOURCE = REPO_ROOT / "skill-engineer"
-SKILL_ID = "skill-engineer"
-
-DEFAULT_MIRRORS = [
-    REPO_ROOT / "plugin" / "skills" / SKILL_ID,
-    REPO_ROOT / ".agents" / "skills" / SKILL_ID,
-]
-
-# Only what SKILL.md's own references resolve to at runtime (confirmed via
-# scripts/inspect_skill.py: no broken references, evals/ is not referenced
-# as a runtime dependency).
-REQUIRED_TOP_LEVEL = ["SKILL.md", "references", "scripts"]
+PLUGIN_DIR = REPO_ROOT / "plugin"
+DIST_DIR = REPO_ROOT / "dist"
+DEFAULT_OUTPUT = DIST_DIR / "skill-engineer"
 
 
-def build_mirror(target: Path) -> int:
-    if target.exists():
-        shutil.rmtree(target)
-    target.mkdir(parents=True)
+def frontmatter_name(skill_md: Path) -> str:
+    lines = skill_md.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ValueError(f"{skill_md}: missing YAML frontmatter")
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if line.startswith("name:"):
+            name = line.removeprefix("name:").strip().strip("'\"")
+            if name:
+                return name
+    raise ValueError(f"{skill_md}: missing frontmatter name")
 
-    count = 0
-    for name in REQUIRED_TOP_LEVEL:
-        item = SKILL_SOURCE / name
-        if not item.exists():
-            print(f"error: required Skill path missing: {item}", file=sys.stderr)
-            sys.exit(1)
-        if item.is_dir():
-            dest = target / name
-            shutil.copytree(
-                item, dest, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
-            )
-            count += sum(1 for p in dest.rglob("*") if p.is_file())
-        else:
-            shutil.copy2(item, target / name)
-            count += 1
-    return count
+
+def discover_skills() -> list[tuple[Path, str]]:
+    skills_dir = PLUGIN_DIR / "skills"
+    skills: list[tuple[Path, str]] = []
+    for skill_dir in sorted(path for path in skills_dir.iterdir() if path.is_dir()):
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.is_file():
+            raise ValueError(f"{skill_dir}: immediate Skill directory has no SKILL.md")
+        skills.append((skill_dir, frontmatter_name(skill_md)))
+    if not skills:
+        raise ValueError("plugin/skills/ contains no discoverable Skills")
+    names = [name for _, name in skills]
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        raise ValueError(f"duplicate Skill frontmatter names: {duplicates}")
+    return skills
+
+
+def output_path(value: str) -> Path:
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = REPO_ROOT / candidate
+    candidate = candidate.resolve()
+    dist_dir = DIST_DIR.resolve()
+    if not candidate.is_relative_to(dist_dir) or candidate == dist_dir:
+        raise ValueError("--out must be a new directory beneath the ignored dist/ tree")
+    return candidate
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Validate plugin/skills/*/SKILL.md and copy the unchanged canonical "
+            "plugin/ payload beneath ignored dist/. Never writes host mirrors."
+        )
+    )
     parser.add_argument(
         "--out",
-        action="append",
-        help="Mirror target directory (repeatable). Defaults to the two "
-        "canonical host discovery paths if omitted.",
+        default=str(DEFAULT_OUTPUT.relative_to(REPO_ROOT)),
+        metavar="dist/DIR",
+        help="new output directory beneath dist/ (default: dist/skill-engineer)",
     )
     args = parser.parse_args()
 
-    targets = [Path(p).resolve() for p in args.out] if args.out else DEFAULT_MIRRORS
+    try:
+        skills = discover_skills()
+        target = output_path(args.out)
+        if target.exists():
+            raise ValueError(f"output already exists; refusing to overwrite: {target}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(PLUGIN_DIR, target)
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
-    for target in targets:
-        count = build_mirror(target)
-        print(f"{target.relative_to(REPO_ROOT) if REPO_ROOT in target.parents else target} <- skill-engineer/ ({count} files)")
-
+    names = ", ".join(name for _, name in skills)
+    print(f"packaged unchanged plugin payload ({names}) to {target.relative_to(REPO_ROOT)}")
     return 0
 
 

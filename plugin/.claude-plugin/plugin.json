@@ -1,6 +1,6 @@
 {
   "name": "skill-engineer",
-  "description": "Engineer and review Agent Skills: mechanism selection, trigger design, execution/safety rules, and eval coverage.",
+  "description": "Engineer and review Agent Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness.",
   "version": "1.0.0",
   "author": {
     "name": "Abhinav Pisharody",
@@ -13,6 +13,8 @@
     "skills",
     "agent-skills",
     "skill-authoring",
-    "skill-review"
+    "skill-review",
+    "merge-request-review",
+    "code-review"
   ]
 }

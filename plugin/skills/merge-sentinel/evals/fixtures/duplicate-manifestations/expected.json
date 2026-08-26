@@ -1,0 +1,24 @@
+{
+  "finding_ids": [
+    "caller-contract-regression"
+  ],
+  "findings": [
+    {
+      "id": "caller-contract-regression",
+      "severity": "high",
+      "fingerprint": "caller-contract-regression",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": []
+}

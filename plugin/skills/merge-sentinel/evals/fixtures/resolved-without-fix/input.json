@@ -1,0 +1,28 @@
+{
+  "request": "Review this change.",
+  "requirements": [],
+  "base_files": {
+    "service.py": "def process(employee):\n    return employee.name\n"
+  },
+  "head_files": {
+    "service.py": "def process(employee):\n    return employee.name\n"
+  },
+  "diff_metadata": {
+    "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "prior_findings": [
+    "prior-null-guard"
+  ],
+  "discussions": [
+    "resolved-thread"
+  ],
+  "capabilities": {
+    "mcp": [],
+    "api": []
+  },
+  "authority": [
+    "reopen",
+    "reply"
+  ]
+}

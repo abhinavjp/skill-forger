@@ -1,0 +1,18 @@
+{
+  "finding_ids": [],
+  "findings": [],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [
+    "reopen",
+    "reply"
+  ],
+  "required_warnings": []
+}

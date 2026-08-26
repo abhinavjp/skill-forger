@@ -1,0 +1,4 @@
+interface:
+  display_name: "Merge Sentinel"
+  short_description: "Review merge requests and local diffs safely"
+  default_prompt: "Review this merge request or local diff for defects, regressions, security risks, and implementation completeness. Keep analysis read-only unless I explicitly authorize publication."

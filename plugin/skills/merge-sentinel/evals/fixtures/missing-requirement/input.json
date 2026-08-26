@@ -1,0 +1,26 @@
+{
+  "request": "Review this change.",
+  "requirements": [
+    {
+      "id": "audit-event",
+      "status": "missing"
+    }
+  ],
+  "base_files": {
+    "service.py": "def process(employee):\n    return employee.name\n"
+  },
+  "head_files": {
+    "service.py": "def process(employee):\n    state = 'approved'\n"
+  },
+  "diff_metadata": {
+    "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "prior_findings": [],
+  "discussions": [],
+  "capabilities": {
+    "mcp": [],
+    "api": []
+  },
+  "authority": "read-only"
+}

@@ -1,0 +1,24 @@
+{
+  "finding_ids": [
+    "inverted-null-guard"
+  ],
+  "findings": [
+    {
+      "id": "inverted-null-guard",
+      "severity": "high",
+      "fingerprint": "inverted-null-guard",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": []
+}

@@ -1,0 +1,17 @@
+{
+  "finding_ids": [],
+  "findings": [],
+  "discarded_ids": [
+    "missing-error-handling"
+  ],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": []
+}

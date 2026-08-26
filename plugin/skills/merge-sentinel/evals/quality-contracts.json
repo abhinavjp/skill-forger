@@ -1,0 +1,12 @@
+{"cases":[
+{"id":"clean-preserved-contract","expected_findings":[]},
+{"id":"inverted-null-guard","expected_findings":["inverted-null-guard"]},
+{"id":"tenant-scope-removed","expected_findings":["tenant-scope-removed"]},
+{"id":"permission-key-mismatch","expected_findings":["permission-key-mismatch"]},
+{"id":"bulk-filter-asymmetry","expected_findings":["bulk-filter-asymmetry"]},
+{"id":"intentional-email-queue-done","expected_findings":[]},
+{"id":"unguarded-service-response-output","expected_findings":["unguarded-service-response-output"]},
+{"id":"duplicate-html-class","expected_findings":["duplicate-html-class"]},
+{"id":"missing-required-audit-event","expected_findings":["missing-required-audit-event"]},
+{"id":"migration-dependency-missing","expected_findings":["migration-dependency-missing"]}
+]}

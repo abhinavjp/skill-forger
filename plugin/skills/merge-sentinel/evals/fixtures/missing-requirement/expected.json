@@ -1,0 +1,29 @@
+{
+  "finding_ids": [
+    "missing-audit-requirement"
+  ],
+  "findings": [
+    {
+      "id": "missing-audit-requirement",
+      "severity": "high",
+      "fingerprint": "missing-audit-requirement",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [
+    {
+      "id": "audit-event",
+      "status": "missing"
+    }
+  ],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "partial",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": []
+}

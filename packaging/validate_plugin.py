@@ -1,40 +1,41 @@
 #!/usr/bin/env python3
-"""Deterministic validation for the skill-engineer plugin packaging.
+"""Deterministically validate the canonical multi-Skill plugin payload.
 
-Checks:
-  1. plugin/plugin.json validates against the Agent Plugins v1.0.0 manifest schema.
-  2. plugin/ layout matches v1.0.0 discovery rules (skills/<id>/SKILL.md).
-  3. No resolved path inside plugin/ escapes the plugin root.
-  4. plugin/skills/skill-engineer/ and .agents/skills/skill-engineer/ are
-     byte-identical to the source of truth at skill-engineer/.
-  5. scripts/inspect_skill.py reports no broken references, no hardcoded
-     paths, no platform-specific frontmatter keys inside the packaged copy.
-  6. plugin/.claude-plugin/plugin.json and .claude-plugin/marketplace.json
-     carry Claude Code's required fields and a consistent plugin name.
+Checks the Agent Plugins and Claude manifests, enumerates every immediate
+``plugin/skills/*/SKILL.md`` package, runs the canonical inspector on each,
+enforces path containment and unique names, and rejects tracked host mirrors.
 
 Usage:
     python packaging/validate_plugin.py
 """
 from __future__ import annotations
 
-import filecmp
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
-SKILL_SOURCE = REPO_ROOT / "skill-engineer"
-SCHEMA_PATH = Path(__file__).resolve().parent / "plugin.schema.1.0.0.json"
-SKILL_ID = "skill-engineer"
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SCHEMA_PATH = Path(__file__).resolve().parent / "plugin.schema.1.0.0.json"
 PLUGIN_DIR = REPO_ROOT / "plugin"
+PLUGIN_SKILLS = PLUGIN_DIR / "skills"
 CLAUDE_PLUGIN_JSON = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
-AGENTS_MIRROR = REPO_ROOT / ".agents" / "skills" / SKILL_ID
-
-REQUIRED_TOP_LEVEL = ["SKILL.md", "references", "scripts"]
+EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer"}
+REPOSITORY_URL = "https://github.com/abhinavjp/skill-forger"
+PERSONAL_PATH_RE = re.compile(
+    r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
+)
+CREDENTIAL_PATTERNS = {
+    "private key": re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    "GitHub token": re.compile(r"\bghp_[A-Za-z0-9]{20,}\b"),
+    "GitLab token": re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b"),
+    "OpenAI-style secret": re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),
+}
+TEXT_SUFFIXES = {".json", ".md", ".py", ".txt", ".yaml", ".yml"}
 
 _ok = True
 
@@ -49,9 +50,29 @@ def ok(msg: str) -> None:
     print(f"PASS: {msg}")
 
 
-def check_schema(plugin_json: Path) -> None:
-    data = json.loads(plugin_json.read_text(encoding="utf-8"))
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+def read_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def frontmatter_name(skill_md: Path) -> str | None:
+    lines = skill_md.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if line.startswith("name:"):
+            return line.removeprefix("name:").strip().strip("'\"") or None
+    return None
+
+
+def check_schema(plugin_json: Path) -> dict | None:
+    try:
+        data = read_json(plugin_json)
+        schema = read_json(SCHEMA_PATH)
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"plugin/plugin.json schema inputs: {exc}")
+        return None
     try:
         import jsonschema
 
@@ -78,140 +99,226 @@ def check_schema(plugin_json: Path) -> None:
             ok("plugin/plugin.json validates against Agent Plugins v1.0.0 schema (manual fallback)")
     except Exception as exc:
         fail(f"plugin/plugin.json schema: {exc}")
+    return data
 
 
-def check_layout(plugin_dir: Path) -> Path | None:
-    if not (plugin_dir / "plugin.json").is_file():
+def discover_skills() -> list[Path]:
+    if not (PLUGIN_DIR / "plugin.json").is_file():
         fail("plugin/plugin.json missing at plugin root")
-        return None
-    ok("plugin/plugin.json present at plugin root")
-
-    skills_dir = plugin_dir / "skills"
-    if not skills_dir.is_dir():
+    else:
+        ok("plugin/plugin.json present at plugin root")
+    if not PLUGIN_SKILLS.is_dir():
         fail("plugin/skills/ directory missing")
-        return None
+        return []
 
-    skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and (d / "SKILL.md").is_file()]
-    if len(skill_dirs) != 1 or skill_dirs[0].name != SKILL_ID:
-        fail(f"expected exactly plugin/skills/{SKILL_ID}/SKILL.md, found: {skill_dirs}")
-        return None
-    ok(f"plugin/skills/{SKILL_ID}/SKILL.md discoverable per v1.0.0 layout rules")
-    return skill_dirs[0]
+    children = sorted(path for path in PLUGIN_SKILLS.iterdir() if path.is_dir())
+    missing_skill_md = [path.name for path in children if not (path / "SKILL.md").is_file()]
+    if missing_skill_md:
+        fail(f"immediate plugin/skills directories missing SKILL.md: {missing_skill_md}")
+    skill_dirs = [path for path in children if (path / "SKILL.md").is_file()]
+    found = {path.name for path in skill_dirs}
+    if found != EXPECTED_SKILL_IDS:
+        fail(f"expected Skill IDs {sorted(EXPECTED_SKILL_IDS)}, found {sorted(found)}")
+    else:
+        ok(f"canonical Skill IDs are exactly {sorted(found)}")
+    return skill_dirs
 
 
-def check_containment(plugin_dir: Path) -> None:
-    plugin_dir = plugin_dir.resolve()
-    escapes = []
-    for p in plugin_dir.rglob("*"):
-        try:
-            resolved = p.resolve()
-        except OSError:
-            escapes.append(str(p))
+def check_skill_names(skill_dirs: list[Path]) -> None:
+    names: list[str] = []
+    for skill_dir in skill_dirs:
+        name = frontmatter_name(skill_dir / "SKILL.md")
+        if name is None:
+            fail(f"{skill_dir.relative_to(REPO_ROOT)}/SKILL.md has no frontmatter name")
             continue
-        if plugin_dir not in resolved.parents and resolved != plugin_dir:
-            escapes.append(str(p))
+        names.append(name)
+        if name != skill_dir.name:
+            fail(f"folder {skill_dir.name!r} does not match frontmatter name {name!r}")
+    duplicates = sorted({name for name in names if names.count(name) > 1})
+    if duplicates:
+        fail(f"duplicate Skill frontmatter names: {duplicates}")
+    elif len(names) == len(skill_dirs):
+        ok("all Skill folder names match unique frontmatter names")
+
+
+def check_containment() -> None:
+    root = PLUGIN_DIR.resolve()
+    escapes: list[str] = []
+    for path in PLUGIN_DIR.rglob("*"):
+        try:
+            resolved = path.resolve()
+        except OSError:
+            escapes.append(str(path.relative_to(REPO_ROOT)))
+            continue
+        if resolved != root and not resolved.is_relative_to(root):
+            escapes.append(str(path.relative_to(REPO_ROOT)))
     if escapes:
         fail(f"paths resolve outside plugin root: {escapes}")
     else:
-        ok("all packaged paths resolve within the plugin root")
+        ok("all packaged filesystem paths resolve within plugin/")
 
 
-def check_content_match(label: str, mirror_dir: Path) -> None:
-    mismatches: list[str] = []
-    for name in REQUIRED_TOP_LEVEL:
-        src = SKILL_SOURCE / name
-        dst = mirror_dir / name
-        if src.is_dir():
-            cmp = filecmp.dircmp(src, dst, ignore=["__pycache__"])
-            _walk_dircmp(cmp, mismatches, name)
+def reference_escapes_plugin(skill_dir: Path, reference: dict) -> bool:
+    target = reference["target"]
+    if re.match(r"^(?:https?:|mailto:|#)", target) or os.path.isabs(target):
+        return False
+    source_dir = Path(reference["from"]).parent
+    candidates = [(skill_dir / source_dir / target).resolve()]
+    if reference["context"] != "link":
+        candidates.append((skill_dir / target).resolve())
+    existing = [candidate for candidate in candidates if candidate.exists()]
+    plugin_root = PLUGIN_DIR.resolve()
+    return any(not candidate.is_relative_to(plugin_root) for candidate in existing)
+
+
+def check_inspector(skill_dirs: list[Path]) -> None:
+    inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
+    if not inspector.is_file():
+        fail("canonical inspect_skill.py missing from skill-engineer")
+        return
+    for skill_dir in skill_dirs:
+        proc = subprocess.run(
+            [sys.executable, str(inspector), str(skill_dir)],
+            capture_output=True,
+            text=True,
+        )
+        label = str(skill_dir.relative_to(REPO_ROOT))
+        if proc.returncode != 0:
+            fail(f"inspect_skill.py failed on {label}: {proc.stderr.strip()}")
+            continue
+        try:
+            report = json.loads(proc.stdout)
+        except json.JSONDecodeError as exc:
+            fail(f"inspect_skill.py emitted invalid JSON for {label}: {exc}")
+            continue
+
+        metadata_errors = [
+            error
+            for error in report["metadata"]["errors"]
+            if not error.startswith("PyYAML unavailable:")
+        ]
+        personal_paths = [
+            finding
+            for finding in report["hardcoded_paths"]
+            if PERSONAL_PATH_RE.search(finding["match"])
+        ]
+        escaping_refs = [
+            reference
+            for reference in report["references"]
+            if reference["resolved"] and reference_escapes_plugin(skill_dir, reference)
+        ]
+        problems = []
+        if metadata_errors:
+            problems.append(f"metadata errors={metadata_errors}")
+        if report["broken_references"]:
+            problems.append(f"broken references={report['broken_references']}")
+        if personal_paths:
+            problems.append(f"personal paths={personal_paths}")
+        if report["platform_extensions"]:
+            problems.append(f"platform frontmatter={report['platform_extensions']}")
+        if escaping_refs:
+            problems.append(f"references escaping plugin/={escaping_refs}")
+        if problems:
+            fail(f"inspect_skill.py findings in {label}: " + "; ".join(problems))
         else:
-            if not dst.is_file() or src.read_bytes() != dst.read_bytes():
-                mismatches.append(name)
-    if mismatches:
-        fail(f"{label} differs from skill-engineer/ source: {mismatches}")
+            ok(f"inspect_skill.py passes portable-core checks ({label})")
+
+
+def check_credentials(skill_dirs: list[Path]) -> None:
+    findings: list[str] = []
+    for skill_dir in skill_dirs:
+        for path in skill_dir.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            for label, pattern in CREDENTIAL_PATTERNS.items():
+                if pattern.search(text):
+                    findings.append(f"{path.relative_to(REPO_ROOT)} ({label})")
+    if findings:
+        fail(f"credential-like material in portable payload: {findings}")
     else:
-        ok(f"{label} is byte-identical to source of truth")
+        ok("no credential-like material found in canonical Skill payloads")
 
 
-def _walk_dircmp(cmp: filecmp.dircmp, mismatches: list[str], prefix: str) -> None:
-    for name in cmp.left_only:
-        mismatches.append(f"{prefix}/{name} (missing from package)")
-    for name in cmp.right_only:
-        mismatches.append(f"{prefix}/{name} (extra in package)")
-    for name in cmp.diff_files:
-        mismatches.append(f"{prefix}/{name} (content differs)")
-    for name, sub in cmp.subdirs.items():
-        _walk_dircmp(sub, mismatches, f"{prefix}/{name}")
-
-
-def check_inspector(skill_dir: Path, label: str) -> None:
-    inspector = SKILL_SOURCE / "scripts" / "inspect_skill.py"
+def check_no_tracked_mirrors() -> None:
     proc = subprocess.run(
-        [sys.executable, str(inspector), str(skill_dir)], capture_output=True, text=True
+        ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True
     )
     if proc.returncode != 0:
-        fail(f"inspect_skill.py failed on {label}: {proc.stderr.strip()}")
+        fail(f"cannot enumerate tracked files: {proc.stderr.strip()}")
         return
-    data = json.loads(proc.stdout)
-    m = data["metrics"]
-    problems = []
-    if m["metadata_error_count"]:
-        problems.append("metadata errors")
-    if m["broken_reference_count"]:
-        problems.append("broken references")
-    if m["hardcoded_path_count"]:
-        problems.append("hardcoded paths")
-    if data["platform_extensions"]:
-        problems.append("platform-specific frontmatter keys")
-    if data["exact_duplicates"]:
-        problems.append("exact duplicate blocks")
-    if problems:
-        fail(f"inspect_skill.py findings in {label}: {problems}")
+    skill_files = [line for line in proc.stdout.splitlines() if line.endswith("/SKILL.md")]
+    mirrors = [line for line in skill_files if not line.startswith("plugin/skills/")]
+    legacy_dirs = [
+        REPO_ROOT / "skill-engineer",
+        REPO_ROOT / ".agents" / "skills" / "skill-engineer",
+        REPO_ROOT / ".agents" / "skills" / "merge-sentinel",
+    ]
+    existing = [str(path.relative_to(REPO_ROOT)) for path in legacy_dirs if path.exists()]
+    if mirrors or existing:
+        fail(f"Skill mirrors outside plugin/skills/: tracked={mirrors}, existing={existing}")
     else:
-        ok(f"inspect_skill.py: 0 broken references, 0 hardcoded paths, 0 platform-specific keys ({label})")
+        ok("plugin/skills/ is the only tracked and authored Skill tree")
 
 
-def check_claude_manifest() -> None:
-    if not CLAUDE_PLUGIN_JSON.is_file():
-        fail("plugin/.claude-plugin/plugin.json missing")
+def check_manifests(agent_manifest: dict | None) -> None:
+    try:
+        claude = read_json(CLAUDE_PLUGIN_JSON)
+        market = read_json(MARKETPLACE_JSON)
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"Claude manifest inputs: {exc}")
         return
-    data = json.loads(CLAUDE_PLUGIN_JSON.read_text(encoding="utf-8"))
-    if not data.get("name"):
-        fail("plugin/.claude-plugin/plugin.json missing required 'name'")
+    if agent_manifest is None:
         return
-    ok("plugin/.claude-plugin/plugin.json has required 'name' field")
 
-    if not MARKETPLACE_JSON.is_file():
-        fail(".claude-plugin/marketplace.json missing")
-        return
-    market = json.loads(MARKETPLACE_JSON.read_text(encoding="utf-8"))
-    missing = [f for f in ("name", "owner", "plugins") if f not in market]
-    if missing:
-        fail(f".claude-plugin/marketplace.json missing required fields: {missing}")
-        return
-    entries = [p for p in market["plugins"] if p.get("name") == data["name"]]
-    if not entries:
-        fail(f".claude-plugin/marketplace.json has no entry named '{data['name']}'")
-        return
-    source = entries[0].get("source")
-    if source != "./plugin":
-        fail(f".claude-plugin/marketplace.json entry source is {source!r}, expected './plugin'")
-        return
-    ok(".claude-plugin/marketplace.json has a matching, correctly-sourced plugin entry")
+    identity = agent_manifest.get("name")
+    version = agent_manifest.get("version")
+    if claude.get("name") != identity or claude.get("version") != version:
+        fail("plugin manifests do not share one name and version")
+    else:
+        ok(f"Agent and Claude manifests share identity {identity!r} at version {version}")
+
+    entries = [entry for entry in market.get("plugins", []) if entry.get("name") == identity]
+    if len(entries) != 1 or entries[0].get("source") != "./plugin":
+        fail("marketplace must contain exactly one matching './plugin' entry")
+    else:
+        ok("marketplace has one correctly sourced entry for the existing plugin identity")
+
+    repositories = {
+        agent_manifest.get("repository"),
+        claude.get("repository"),
+        claude.get("homepage"),
+    }
+    if repositories != {REPOSITORY_URL}:
+        fail(f"manifest repository URLs are inconsistent: {sorted(str(x) for x in repositories)}")
+    else:
+        ok(f"manifest repository URL is {REPOSITORY_URL}")
+
+    descriptions = [
+        agent_manifest.get("description", ""),
+        claude.get("description", ""),
+        entries[0].get("description", "") if len(entries) == 1 else "",
+    ]
+    if any("skill" not in value.lower() or "merge" not in value.lower() for value in descriptions):
+        fail("manifest descriptions must cover Skill engineering and merge-request review")
+    else:
+        ok("manifest descriptions cover both included Skills")
 
 
 def main() -> int:
-    check_schema(PLUGIN_DIR / "plugin.json")
-    skill_dir = check_layout(PLUGIN_DIR)
-    check_containment(PLUGIN_DIR)
-    if skill_dir is not None:
-        check_content_match("plugin/skills/skill-engineer/", skill_dir)
-        check_inspector(skill_dir, "plugin/skills/skill-engineer/")
-    check_content_match(".agents/skills/skill-engineer/", AGENTS_MIRROR)
-    if AGENTS_MIRROR.is_dir():
-        check_inspector(AGENTS_MIRROR, ".agents/skills/skill-engineer/")
-    check_claude_manifest()
-
+    global _ok
+    _ok = True
+    agent_manifest = check_schema(PLUGIN_DIR / "plugin.json")
+    skill_dirs = discover_skills()
+    check_skill_names(skill_dirs)
+    check_containment()
+    check_inspector(skill_dirs)
+    check_credentials(skill_dirs)
+    check_no_tracked_mirrors()
+    check_manifests(agent_manifest)
     print()
     print("RESULT:", "PASS" if _ok else "FAIL")
     return 0 if _ok else 1

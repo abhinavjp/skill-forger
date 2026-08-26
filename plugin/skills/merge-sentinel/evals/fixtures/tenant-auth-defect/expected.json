@@ -1,0 +1,24 @@
+{
+  "finding_ids": [
+    "tenant-scope-removed"
+  ],
+  "findings": [
+    {
+      "id": "tenant-scope-removed",
+      "severity": "critical",
+      "fingerprint": "tenant-scope-removed",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": []
+}
