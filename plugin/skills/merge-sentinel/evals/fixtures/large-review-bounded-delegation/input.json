@@ -1,0 +1,38 @@
+{
+  "request": "Review this large change spanning frontend and backend.",
+  "requirements": [],
+  "base_files": {
+    "frontend/src/PayrollForm.tsx": "export function PayrollForm() { return <form />; }\n",
+    "backend/payroll/service.py": "def calculate(employee):\n    return employee.base_salary\n",
+    "shared/contracts/payroll.schema.json": "{\"type\": \"object\", \"properties\": {\"base_salary\": {\"type\": \"number\"}}}\n"
+  },
+  "head_files": {
+    "frontend/src/PayrollForm.tsx": "export function PayrollForm() { return <form><input name=\"bonus\" /></form>; }\n",
+    "backend/payroll/service.py": "def calculate(employee):\n    return employee.base_salary + employee.bonus\n",
+    "shared/contracts/payroll.schema.json": "{\"type\": \"object\", \"properties\": {\"base_salary\": {\"type\": \"number\"}, \"bonus\": {\"type\": \"number\"}}}\n"
+  },
+  "diff_metadata": {
+    "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_sha": "dddddddddddddddddddddddddddddddddddddddd",
+    "truncated": false,
+    "head_drift": false
+  },
+  "prior_findings": [],
+  "discussions": [],
+  "capabilities": {
+    "mcp": [],
+    "api": []
+  },
+  "authority": "read-only",
+  "components": {
+    "frontend": [
+      "frontend/src/PayrollForm.tsx"
+    ],
+    "backend": [
+      "backend/payroll/service.py"
+    ],
+    "shared_contract": [
+      "shared/contracts/payroll.schema.json"
+    ]
+  }
+}

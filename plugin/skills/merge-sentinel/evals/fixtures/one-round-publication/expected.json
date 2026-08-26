@@ -1,0 +1,41 @@
+{
+  "finding_ids": [
+    "tenant-scope-removed",
+    "unvalidated-amount-parameter"
+  ],
+  "findings": [
+    {
+      "id": "tenant-scope-removed",
+      "severity": "critical",
+      "fingerprint": "tenant-scope-removed",
+      "equivalent_fingerprints": []
+    },
+    {
+      "id": "unvalidated-amount-parameter",
+      "severity": "high",
+      "fingerprint": "unvalidated-amount-parameter",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [
+    "inline-discussion",
+    "top-level-note"
+  ],
+  "required_warnings": [],
+  "changed_files": [
+    "service.py",
+    "billing.py"
+  ],
+  "head_changed": false,
+  "discussions_available": true,
+  "publication_rounds": 1
+}

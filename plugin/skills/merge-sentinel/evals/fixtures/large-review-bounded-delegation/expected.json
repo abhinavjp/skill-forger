@@ -1,0 +1,41 @@
+{
+  "finding_ids": [
+    "bonus-not-validated"
+  ],
+  "findings": [
+    {
+      "id": "bonus-not-validated",
+      "severity": "medium",
+      "fingerprint": "bonus-not-validated",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": [],
+  "changed_files": [
+    "frontend/src/PayrollForm.tsx",
+    "backend/payroll/service.py",
+    "shared/contracts/payroll.schema.json"
+  ],
+  "head_changed": false,
+  "delegatable_scopes": [
+    [
+      "frontend/src/PayrollForm.tsx"
+    ],
+    [
+      "backend/payroll/service.py"
+    ]
+  ],
+  "main_reviewer_owns": [
+    "shared/contracts/payroll.schema.json"
+  ]
+}

@@ -118,5 +118,35 @@
     "input": "fixtures/partial-mcp-capability/input.json",
     "expected": "fixtures/partial-mcp-capability/expected.json",
     "split": "development"
+  },
+  {
+    "id": "adversarial-clean-change",
+    "input": "fixtures/adversarial-clean-change/input.json",
+    "expected": "fixtures/adversarial-clean-change/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "all-files-covered",
+    "input": "fixtures/all-files-covered/input.json",
+    "expected": "fixtures/all-files-covered/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "unchanged-head-changed-thread",
+    "input": "fixtures/unchanged-head-changed-thread/input.json",
+    "expected": "fixtures/unchanged-head-changed-thread/expected.json",
+    "split": "development"
+  },
+  {
+    "id": "large-review-bounded-delegation",
+    "input": "fixtures/large-review-bounded-delegation/input.json",
+    "expected": "fixtures/large-review-bounded-delegation/expected.json",
+    "split": "held-out"
+  },
+  {
+    "id": "one-round-publication",
+    "input": "fixtures/one-round-publication/input.json",
+    "expected": "fixtures/one-round-publication/expected.json",
+    "split": "held-out"
   }
 ]

@@ -1,0 +1,27 @@
+{
+  "finding_ids": [],
+  "findings": [],
+  "discarded_ids": [
+    "unnecessary-null-guard"
+  ],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": [],
+  "changed_files": [
+    "service.py"
+  ],
+  "head_changed": false,
+  "adversarial_posture": {
+    "claim": "the added null guard is dead code because callers never pass None",
+    "competing_hypothesis": "a caller can pass None and would previously crash with AttributeError",
+    "counterevidence": "tests/test_service.py::test_process_returns_none_for_missing_employee exercises process(None) and asserts the new guard's return value",
+    "verdict": "disproven"
+  }
+}

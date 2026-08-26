@@ -1,0 +1,24 @@
+{
+  "finding_ids": [],
+  "findings": [],
+  "discarded_ids": [
+    "missing-null-guard"
+  ],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": [],
+  "changed_files": [
+    "service.py"
+  ],
+  "head_changed": false,
+  "discussion_needs_verification": true,
+  "discussions_available": true,
+  "review_decision": "re-review"
+}

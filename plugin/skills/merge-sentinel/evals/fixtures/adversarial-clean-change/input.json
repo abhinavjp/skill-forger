@@ -1,0 +1,26 @@
+{
+  "request": "Review this change.",
+  "requirements": [],
+  "base_files": {
+    "service.py": "def process(employee):\n    return employee.name\n"
+  },
+  "head_files": {
+    "service.py": "def process(employee):\n    if employee is None:\n        return None\n    return employee.name\n"
+  },
+  "context_files": {
+    "tests/test_service.py": "def test_process_returns_none_for_missing_employee():\n    assert process(None) is None\n\n\ndef test_process_returns_name():\n    assert process(Employee(name='Ada')) == 'Ada'\n"
+  },
+  "diff_metadata": {
+    "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "truncated": false,
+    "head_drift": false
+  },
+  "prior_findings": [],
+  "discussions": [],
+  "capabilities": {
+    "mcp": [],
+    "api": []
+  },
+  "authority": "read-only"
+}

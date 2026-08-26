@@ -1,0 +1,38 @@
+{
+  "request": "Re-review after developer reply.",
+  "requirements": [],
+  "base_files": {
+    "service.py": "def process(employee):\n    return employee.name\n"
+  },
+  "head_files": {
+    "service.py": "def process(employee):\n    if employee is None:\n        return None\n    return employee.name\n"
+  },
+  "diff_metadata": {
+    "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+    "truncated": false,
+    "head_drift": false
+  },
+  "review_head": {
+    "latest_reviewed_head": "cccccccccccccccccccccccccccccccccccccccc",
+    "current_head": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "prior_findings": [
+    "missing-null-guard"
+  ],
+  "discussions": [
+    {
+      "id": "thread-1",
+      "anchor_file": "service.py",
+      "status": "resolved",
+      "previous_status": "unresolved",
+      "developer_reply": "Fixed, added the null guard above.",
+      "last_updated": "2026-08-25T10:00:00Z"
+    }
+  ],
+  "capabilities": {
+    "mcp": [],
+    "api": []
+  },
+  "authority": "read-only"
+}

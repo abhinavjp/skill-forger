@@ -1,0 +1,32 @@
+{
+  "finding_ids": [
+    "ssn-index-exposes-pii"
+  ],
+  "findings": [
+    {
+      "id": "ssn-index-exposes-pii",
+      "severity": "high",
+      "fingerprint": "ssn-index-exposes-pii",
+      "equivalent_fingerprints": []
+    }
+  ],
+  "discarded_ids": [],
+  "requirements": [],
+  "coverage": {
+    "code_quality": "complete",
+    "security": "complete",
+    "implementation_compliance": "complete",
+    "evidence_coverage": "complete"
+  },
+  "anchor_status": "exact",
+  "allowed_writes": [],
+  "required_warnings": [],
+  "changed_files": [
+    "service.py",
+    "tests/test_service.py",
+    "migrations/0007_add_ssn_index.sql",
+    "config/payroll.yaml",
+    "reports/legacy_report.py"
+  ],
+  "head_changed": false
+}
