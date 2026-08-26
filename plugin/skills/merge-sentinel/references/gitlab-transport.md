@@ -38,6 +38,9 @@ Route each operation left-to-right, trying each available layer once. An MCP inl
 
 Revalidate remote state and MR head immediately before a final verdict or write.
 
+Immediately before the final verdict or summary, re-fetch all discussions and unresolved state
+as well as remote head and diff version.
+
 ## Publication ledger
 
 Record every publication attempt and its verification state in the ledger.

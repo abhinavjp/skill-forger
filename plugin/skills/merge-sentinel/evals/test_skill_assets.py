@@ -44,7 +44,13 @@ class SkillAssetTests(unittest.TestCase):
                 "## Required passes",
                 "## Comment quality",
             ],
-            "summary-agent.md": ["# Summary Agent", "## Inputs", "## Output contract", "## Signature"],
+            "summary-agent.md": [
+                "# Summary Agent",
+                "## Inputs",
+                "## Publication round",
+                "## Output contract",
+                "## Signature",
+            ],
             "rereview.md": [
                 "# Re-review",
                 "## Skip decision",
