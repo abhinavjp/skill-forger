@@ -156,16 +156,32 @@ def check_containment() -> None:
         ok("all packaged filesystem paths resolve within plugin/")
 
 
-def check_no_generated_results(skill_dirs: list[Path]) -> None:
-    result_dirs = [
-        str((skill_dir / "evals" / "results").relative_to(REPO_ROOT))
-        for skill_dir in skill_dirs
-        if (skill_dir / "evals" / "results").is_dir()
-    ]
-    if result_dirs:
-        fail(f"generated eval result directories in canonical payload: {result_dirs}")
+GENERATED_RESULTS_RE = re.compile(r"^plugin/skills/[^/]+/evals/results/")
+
+
+def tracked_generated_results(paths: list[str]) -> list[str]:
+    """Return tracked per-Skill ``evals/results/`` paths in the canonical payload.
+
+    Generated result artifacts are ignored working-tree state, not source. A local,
+    git-ignored run directory is expected during behavioral comparison, so only a
+    *committed* result artifact is a packaging defect.
+    """
+    normalized = (path.replace("\\", "/") for path in paths)
+    return sorted(path for path in normalized if GENERATED_RESULTS_RE.match(path))
+
+
+def check_no_generated_results() -> None:
+    proc = subprocess.run(
+        ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True
+    )
+    if proc.returncode != 0:
+        fail(f"cannot enumerate tracked files: {proc.stderr.strip()}")
+        return
+    tracked = tracked_generated_results(proc.stdout.splitlines())
+    if tracked:
+        fail(f"generated eval result artifacts tracked in canonical payload: {tracked}")
     else:
-        ok("canonical Skill payloads contain no generated eval result directories")
+        ok("canonical Skill payloads track no generated eval result artifacts")
 
 
 def reference_escapes_plugin(skill_dir: Path, reference: dict) -> bool:
@@ -237,8 +253,12 @@ def check_inspector(skill_dirs: list[Path]) -> None:
 def check_sensitive_content(skill_dirs: list[Path]) -> None:
     findings: list[str] = []
     for skill_dir in skill_dirs:
+        generated_results = skill_dir / "evals" / "results"
         for path in skill_dir.rglob("*"):
             if not path.is_file():
+                continue
+            if path.is_relative_to(generated_results):
+                # Ignored local run output, excluded from every distribution copy.
                 continue
             try:
                 text = path.read_text(encoding="utf-8")
@@ -380,7 +400,7 @@ def main() -> int:
     skill_dirs = discover_skills()
     check_skill_names(skill_dirs)
     check_containment()
-    check_no_generated_results(skill_dirs)
+    check_no_generated_results()
     check_inspector(skill_dirs)
     check_sensitive_content(skill_dirs)
     check_no_tracked_mirrors()

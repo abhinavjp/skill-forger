@@ -1,0 +1,4 @@
+# The canonical plugin/skills/ payload must be byte-identical on every host:
+# plugin/skills/merge-sentinel/release-manifest.json pins SHA-256 of the runtime
+# files, so checkout line endings cannot vary by platform.
+* text=auto eol=lf

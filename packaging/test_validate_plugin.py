@@ -61,14 +61,37 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         ]
         self.assertEqual([], [str(path.relative_to(REPO_ROOT)) for path in mirrors if path.exists()])
 
-    def test_canonical_payload_excludes_generated_eval_results(self) -> None:
-        """Catches committed or generated eval output in an authored Skill tree."""
-        result_dirs = sorted(
-            str(path.relative_to(REPO_ROOT))
-            for path in PLUGIN_SKILLS.glob("*/evals/results")
-            if path.is_dir()
+    def test_canonical_payload_excludes_committed_eval_results(self) -> None:
+        """Catches committed eval output in an authored Skill tree."""
+        proc = subprocess.run(
+            ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True
         )
-        self.assertEqual([], result_dirs)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual(
+            [], validator.tracked_generated_results(proc.stdout.splitlines())
+        )
+
+    def test_generated_results_are_matched_only_at_the_skill_eval_root(self) -> None:
+        """Catches a matcher that flags fixture payloads or ignores real result output."""
+        self.assertEqual(
+            ["plugin/skills/merge-sentinel/evals/results/run1/summary.json"],
+            validator.tracked_generated_results(
+                [
+                    "plugin/skills/merge-sentinel/evals/results/run1/summary.json",
+                    r"plugin\skills\skill-engineer\evals\fixtures\x\evals\results\run1\t.md",
+                    "plugin/skills/skill-engineer/evals/cases.json",
+                ]
+            ),
+        )
+
+    def test_untracked_generated_results_do_not_fail_validation(self) -> None:
+        """Task 8 reserves a local, git-ignored results run directory for final review."""
+        results_dir = PLUGIN_SKILLS / "merge-sentinel" / "evals" / "results"
+        with self.generated_result_fixture(results_dir):
+            buffer = io.StringIO()
+            with contextlib.redirect_stdout(buffer):
+                exit_code = validator.main()
+            self.assertEqual(0, exit_code, buffer.getvalue())
 
     def test_built_payload_excludes_generated_results(self) -> None:
         """Catches a distribution build that copies host-generated eval output."""
