@@ -1,7 +1,7 @@
 {
   "name": "skill-engineer",
   "description": "Engineer and review Agent Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness.",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": {
     "name": "Abhinav Pisharody",
     "email": "ai.abhinavjp@gmail.com"
