@@ -35,8 +35,6 @@ CREDENTIAL_PATTERNS = {
     "GitLab token": re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b"),
     "OpenAI-style secret": re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),
 }
-TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".py", ".txt", ".yaml", ".yml"}
-
 _ok = True
 
 
@@ -240,7 +238,7 @@ def check_sensitive_content(skill_dirs: list[Path]) -> None:
     findings: list[str] = []
     for skill_dir in skill_dirs:
         for path in skill_dir.rglob("*"):
-            if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+            if not path.is_file():
                 continue
             try:
                 text = path.read_text(encoding="utf-8")

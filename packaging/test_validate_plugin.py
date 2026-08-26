@@ -73,11 +73,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_built_payload_excludes_generated_results(self) -> None:
         """Catches a distribution build that copies host-generated eval output."""
         results_dir = PLUGIN_SKILLS / "merge-sentinel" / "evals" / "results"
-        existed = results_dir.exists()
-        results_dir.mkdir(parents=True, exist_ok=True)
-        marker = results_dir / "generated.jsonl"
-        marker.write_text('{"workspace":"C:/Users/local/repo"}\n', encoding="utf-8")
-        try:
+        with self.generated_result_fixture(results_dir):
             with self.built_payload() as payload:
                 result_dirs = sorted(
                     str(path.relative_to(payload))
@@ -85,10 +81,26 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                     if path.is_dir()
                 )
                 self.assertEqual([], result_dirs)
-        finally:
-            marker.unlink(missing_ok=True)
-            if not existed:
-                results_dir.rmdir()
+
+    def test_generated_result_setup_preserves_preexisting_content(self) -> None:
+        """Catches fixed-name setup that overwrites and deletes an existing result."""
+        with tempfile.TemporaryDirectory(prefix="collision-safety-") as directory:
+            root = Path(directory)
+            skills = root / "skills"
+            results_dir = skills / "merge-sentinel" / "evals" / "results"
+            results_dir.mkdir(parents=True)
+            preexisting = results_dir / "generated.jsonl"
+            original = b'{"preserve":true}\n'
+            preexisting.write_bytes(original)
+
+            with self.generated_result_fixture(results_dir) as marker:
+                self.assertNotEqual(preexisting, marker)
+                self.assertTrue(marker.is_file())
+                self.assertEqual(original, preexisting.read_bytes())
+
+            self.assertTrue(preexisting.is_file())
+            self.assertEqual(original, preexisting.read_bytes())
+            self.assertFalse(marker.exists())
 
     def test_generated_results_path_is_git_ignored(self) -> None:
         """Catches generated eval results that can be accidentally committed."""
@@ -100,6 +112,32 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(0, proc.returncode, proc.stderr)
+
+    def test_validator_scans_extensionless_packaged_text_for_credentials(self) -> None:
+        """Catches suffix allowlists that omit readable packaged scripts or text."""
+        scripts_dir = PLUGIN_SKILLS / "merge-sentinel" / "scripts"
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="credential-probe-",
+            suffix="",
+            dir=scripts_dir,
+            delete=False,
+        ) as handle:
+            handle.write("token=" + "ghp_" + "A" * 24 + "\n")
+            probe = Path(handle.name)
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(REPO_ROOT / "packaging" / "validate_plugin.py")],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            probe.unlink(missing_ok=True)
+
+        self.assertNotEqual(0, proc.returncode)
+        self.assertIn(probe.name, proc.stdout)
 
     def test_built_payload_contains_no_personal_paths(self) -> None:
         """Catches personal paths in every text artifact, including JSONL transcripts."""
@@ -130,6 +168,31 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 validator.check_no_tracked_mirrors()
         self.addCleanup(setattr, validator, "_ok", True)
         self.assertFalse(validator._ok)
+
+    @contextlib.contextmanager
+    def generated_result_fixture(self, results_dir: Path):
+        """Create and remove one exclusive result marker without touching peers."""
+        existed = results_dir.exists()
+        results_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix="generated-result-",
+            suffix=".jsonl",
+            dir=results_dir,
+            delete=False,
+        ) as handle:
+            handle.write('{"workspace":"C:/Users/local/repo"}\n')
+            marker = Path(handle.name)
+        try:
+            yield marker
+        finally:
+            marker.unlink(missing_ok=True)
+            if not existed:
+                try:
+                    results_dir.rmdir()
+                except OSError:
+                    pass
 
     @contextlib.contextmanager
     def built_payload(self):
