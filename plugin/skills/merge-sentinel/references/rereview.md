@@ -1,5 +1,19 @@
 # Re-review
 
+## Skip decision
+
+Always read current discussions before deciding to skip. Compare the latest reviewed head with
+the current head, then compare prior discussion resolution and update state with the state seen
+at that review.
+
+Skip code re-review only when the latest reviewed head equals the current head and no prior
+discussion changed in a way that needs verification. Re-review when the head changed, or when a
+discussion changed, was resolved, was reopened, or received a developer reply that requires
+verification. A skip applies only to code analysis; discussion and gate checks still run.
+
+If the latest reviewed head or prior discussion snapshot is unavailable, do not infer equality.
+Mark the comparison unverified and perform the review needed to support the requested verdict.
+
 ## Snapshot comparison
 
 Compare the current snapshot with the reviewed snapshot before classifying prior findings.

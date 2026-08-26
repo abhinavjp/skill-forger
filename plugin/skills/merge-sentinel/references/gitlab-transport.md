@@ -21,6 +21,15 @@ Build the capability matrix once.
 
 Acquire evidence through the matrix before review.
 
+Before code review, read MR metadata and description, all notes, and all discussion pages.
+Capture developer replies plus resolved/unresolved and last-updated state. Use this snapshot for
+deduplication, re-review decisions, and unresolved-thread gating. If pagination or permissions
+prevent complete discussion acquisition, mark discussion coverage partial and do not claim all
+threads are clear.
+
+If Jira/spec context was supplied or discoverable within authorized tools, load it before code
+through the existing implementation-compliance reference. Do not add Jira mutation operations.
+
 ## Operation routing
 
 Route each operation left-to-right, trying each available layer once. An MCP inline draft is not a published discussion and is unsupported for inline-discussion unless a publish operation also exists. Never silently downgrade a published-discussion request into a draft.

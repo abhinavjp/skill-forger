@@ -47,6 +47,7 @@ class SkillAssetTests(unittest.TestCase):
             "summary-agent.md": ["# Summary Agent", "## Inputs", "## Output contract", "## Signature"],
             "rereview.md": [
                 "# Re-review",
+                "## Skip decision",
                 "## Snapshot comparison",
                 "## Per-finding packet",
                 "## Semantic classification",
