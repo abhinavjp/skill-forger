@@ -45,6 +45,13 @@ claude plugin marketplace remove skill-forger
 Uninstalling removes only Claude Code's own installation state. It never touches your clone of
 `abhinavjp/skill-forger`.
 
+## Status
+
+This route was documented from the frozen planning-phase decision and was not exercised against
+a live Claude Code build in this implementation session: `UNTESTED: host verification skipped in
+this session`. Re-run [verify-installation.md](verify-installation.md) against your Claude Code
+build before relying on it.
+
 ## Do not also install a standalone copy
 
 Do not additionally place `skill-engineer` or `merge-sentinel` under a personal
