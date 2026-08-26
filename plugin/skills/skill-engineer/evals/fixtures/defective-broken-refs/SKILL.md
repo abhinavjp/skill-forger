@@ -13,7 +13,7 @@ Load all of the reference material before starting: see references for more
 information, including [the taxonomy](references/error-taxonomy.md) and
 [the runbook](references/runbook.md).
 
-Logs are at /Users/dev/work/logs/app.log and C:\logs\app.log.
+Logs are at /opt/dev/work/logs/app.log and C:\logs\app.log.
 
 ## Process
 

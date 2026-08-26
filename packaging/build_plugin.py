@@ -4,7 +4,8 @@
 The authored payload lives only in ``plugin/skills/``. This command validates
 the immediate Skill directories, refuses duplicate frontmatter names, and
 copies the complete ``plugin/`` tree to an ignored directory beneath ``dist/``.
-It never writes to host discovery trees or back into ``plugin/skills/``.
+Immediate per-Skill ``evals/results/`` directories are excluded. It never
+writes to host discovery trees or back into ``plugin/skills/``.
 
 Usage:
     python packaging/build_plugin.py [--out dist/DIR]
@@ -65,6 +66,22 @@ def output_path(value: str) -> Path:
     return candidate
 
 
+def ignore_generated_results(directory: str, names: list[str]) -> set[str]:
+    """Exclude only immediate per-Skill eval output from distribution copies."""
+    try:
+        relative = Path(directory).resolve().relative_to(PLUGIN_DIR.resolve())
+    except ValueError:
+        return set()
+    is_skill_evals = (
+        len(relative.parts) == 3
+        and relative.parts[0] == "skills"
+        and relative.parts[2] == "evals"
+    )
+    if is_skill_evals:
+        return {"results"} if "results" in names else set()
+    return set()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -86,7 +103,7 @@ def main() -> int:
         if target.exists():
             raise ValueError(f"output already exists; refusing to overwrite: {target}")
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(PLUGIN_DIR, target)
+        shutil.copytree(PLUGIN_DIR, target, ignore=ignore_generated_results)
     except (OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

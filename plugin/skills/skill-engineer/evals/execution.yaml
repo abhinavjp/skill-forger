@@ -54,7 +54,7 @@
         stdout_contains:
           - references/runbook.md
           - name is not lowercase-hyphen format
-          - /Users/dev/work/logs
+          - /opt/dev/work/logs
           - exact_duplicates
           - Think carefully and be accurate before answering the user.
         stdout_not_contains:

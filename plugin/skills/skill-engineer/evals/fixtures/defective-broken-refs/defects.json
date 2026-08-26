@@ -7,7 +7,7 @@
     {"rule": "R3", "defect": "name 'Log_Triage' is not lowercase-hyphen format", "detection": "deterministic"},
     {"rule": "R6", "defect": "instructs loading all references unconditionally", "detection": "AI judgement"},
     {"rule": "R7", "defect": "'see references for more information' has no retrieval condition", "detection": "AI judgement"},
-    {"rule": "R22", "defect": "hardcoded absolute paths (/Users/..., C:\\logs\\...)", "detection": "deterministic"},
+    {"rule": "R22", "defect": "hardcoded absolute paths (/opt/..., C:\\logs\\...)", "detection": "deterministic"},
     {"rule": "R10", "defect": "no-op instructions ('Think carefully', 'Be accurate')", "detection": "AI judgement"},
     {"rule": "R23", "defect": "duplicated instruction block repeated verbatim", "detection": "deterministic"}
   ]

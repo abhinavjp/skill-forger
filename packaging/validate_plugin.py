@@ -15,7 +15,7 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -35,7 +35,7 @@ CREDENTIAL_PATTERNS = {
     "GitLab token": re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b"),
     "OpenAI-style secret": re.compile(r"\bsk-[A-Za-z0-9]{20,}\b"),
 }
-TEXT_SUFFIXES = {".json", ".md", ".py", ".txt", ".yaml", ".yml"}
+TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".py", ".txt", ".yaml", ".yml"}
 
 _ok = True
 
@@ -158,6 +158,18 @@ def check_containment() -> None:
         ok("all packaged filesystem paths resolve within plugin/")
 
 
+def check_no_generated_results(skill_dirs: list[Path]) -> None:
+    result_dirs = [
+        str((skill_dir / "evals" / "results").relative_to(REPO_ROOT))
+        for skill_dir in skill_dirs
+        if (skill_dir / "evals" / "results").is_dir()
+    ]
+    if result_dirs:
+        fail(f"generated eval result directories in canonical payload: {result_dirs}")
+    else:
+        ok("canonical Skill payloads contain no generated eval result directories")
+
+
 def reference_escapes_plugin(skill_dir: Path, reference: dict) -> bool:
     target = reference["target"]
     if re.match(r"^(?:https?:|mailto:|#)", target) or os.path.isabs(target):
@@ -224,7 +236,7 @@ def check_inspector(skill_dirs: list[Path]) -> None:
             ok(f"inspect_skill.py passes portable-core checks ({label})")
 
 
-def check_credentials(skill_dirs: list[Path]) -> None:
+def check_sensitive_content(skill_dirs: list[Path]) -> None:
     findings: list[str] = []
     for skill_dir in skill_dirs:
         for path in skill_dir.rglob("*"):
@@ -234,13 +246,25 @@ def check_credentials(skill_dirs: list[Path]) -> None:
                 text = path.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 continue
+            if PERSONAL_PATH_RE.search(text):
+                findings.append(f"{path.relative_to(REPO_ROOT)} (personal path)")
             for label, pattern in CREDENTIAL_PATTERNS.items():
                 if pattern.search(text):
                     findings.append(f"{path.relative_to(REPO_ROOT)} ({label})")
     if findings:
-        fail(f"credential-like material in portable payload: {findings}")
+        fail(f"personal path or credential-like material in portable payload: {findings}")
     else:
-        ok("no credential-like material found in canonical Skill payloads")
+        ok("no personal paths or credential-like material found in packaged text")
+
+
+def illegal_tracked_skill_sources(paths: list[str]) -> list[str]:
+    """Return tracked SKILL.md paths outside the canonical plugin Skill tree."""
+    skill_sources = []
+    for path in paths:
+        normalized = path.replace("\\", "/")
+        if PurePosixPath(normalized).name == "SKILL.md":
+            skill_sources.append(normalized)
+    return sorted(path for path in skill_sources if not path.startswith("plugin/skills/"))
 
 
 def check_no_tracked_mirrors() -> None:
@@ -250,8 +274,7 @@ def check_no_tracked_mirrors() -> None:
     if proc.returncode != 0:
         fail(f"cannot enumerate tracked files: {proc.stderr.strip()}")
         return
-    skill_files = [line for line in proc.stdout.splitlines() if line.endswith("/SKILL.md")]
-    mirrors = [line for line in skill_files if not line.startswith("plugin/skills/")]
+    mirrors = illegal_tracked_skill_sources(proc.stdout.splitlines())
     legacy_dirs = [
         REPO_ROOT / "skill-engineer",
         REPO_ROOT / ".agents" / "skills" / "skill-engineer",
@@ -315,8 +338,9 @@ def main() -> int:
     skill_dirs = discover_skills()
     check_skill_names(skill_dirs)
     check_containment()
+    check_no_generated_results(skill_dirs)
     check_inspector(skill_dirs)
-    check_credentials(skill_dirs)
+    check_sensitive_content(skill_dirs)
     check_no_tracked_mirrors()
     check_manifests(agent_manifest)
     print()

@@ -21,6 +21,7 @@ The plugin includes:
 
 Each complete Skill package—including runtime references, scripts, agents
 metadata, and canonical eval inputs—lives beneath its canonical directory.
+Generated per-Skill `evals/results/` directories are ignored and never packaged.
 
 ## Validate the plugin
 
