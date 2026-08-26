@@ -105,6 +105,27 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 )
                 self.assertEqual([], result_dirs)
 
+    def test_built_payload_excludes_bytecode_caches(self) -> None:
+        """Catches a build that ships .pyc files, which embed absolute source paths."""
+        cache_dir = PLUGIN_SKILLS / "merge-sentinel" / "evals" / "__pycache__"
+        created = not cache_dir.exists()
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        probe = cache_dir / "build-probe.cpython-000.pyc"
+        probe.write_bytes(b"\x00\x00\x00\x00" + str(REPO_ROOT).encode("utf-8"))
+        try:
+            with self.built_payload() as payload:
+                leaked = sorted(
+                    str(path.relative_to(payload))
+                    for path in payload.rglob("*")
+                    if path.name == "__pycache__" or path.suffix == ".pyc"
+                )
+                self.assertEqual([], leaked)
+        finally:
+            probe.unlink(missing_ok=True)
+            if created:
+                with contextlib.suppress(OSError):
+                    cache_dir.rmdir()
+
     def test_generated_result_setup_preserves_preexisting_content(self) -> None:
         """Catches fixed-name setup that overwrites and deletes an existing result."""
         with tempfile.TemporaryDirectory(prefix="collision-safety-") as directory:

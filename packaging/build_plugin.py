@@ -4,8 +4,9 @@
 The authored payload lives only in ``plugin/skills/``. This command validates
 the immediate Skill directories, refuses duplicate frontmatter names, and
 copies the complete ``plugin/`` tree to an ignored directory beneath ``dist/``.
-Immediate per-Skill ``evals/results/`` directories are excluded. It never
-writes to host discovery trees or back into ``plugin/skills/``.
+Immediate per-Skill ``evals/results/`` directories and interpreter bytecode
+caches are excluded. It never writes to host discovery trees or back into
+``plugin/skills/``.
 
 Usage:
     python packaging/build_plugin.py [--out dist/DIR]
@@ -67,19 +68,27 @@ def output_path(value: str) -> Path:
 
 
 def ignore_generated_results(directory: str, names: list[str]) -> set[str]:
-    """Exclude only immediate per-Skill eval output from distribution copies."""
+    """Exclude host-generated artifacts from distribution copies.
+
+    Two kinds of ignored working-tree state must never reach a distribution
+    payload: immediate per-Skill ``evals/results/`` run output, and interpreter
+    bytecode caches. A ``.pyc`` embeds the absolute source path it was compiled
+    from, so packaging one leaks a personal path past ``validate_plugin.py``'s
+    sensitive-content scan, which can only read text files.
+    """
+    excluded = {name for name in names if name == "__pycache__" or name.endswith(".pyc")}
     try:
         relative = Path(directory).resolve().relative_to(PLUGIN_DIR.resolve())
     except ValueError:
-        return set()
+        return excluded
     is_skill_evals = (
         len(relative.parts) == 3
         and relative.parts[0] == "skills"
         and relative.parts[2] == "evals"
     )
-    if is_skill_evals:
-        return {"results"} if "results" in names else set()
-    return set()
+    if is_skill_evals and "results" in names:
+        excluded.add("results")
+    return excluded
 
 
 def main() -> int:
