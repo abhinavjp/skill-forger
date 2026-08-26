@@ -214,6 +214,55 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             self.assertEqual(0, proc.returncode, proc.stderr)
             yield payload
 
+    def test_install_docs_do_not_commit_a_tracked_mirror(self) -> None:
+        """Catches an install doc that instructs committing a banned Skill mirror."""
+        validator._ok = True
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.check_install_docs_do_not_instruct_committing_mirrors()
+        self.addCleanup(setattr, validator, "_ok", True)
+        self.assertTrue(validator._ok)
+
+    def test_install_docs_check_ignores_prose_mentions_of_mirror_paths(self) -> None:
+        """Catches a naive banned-string scan that would flag legitimate warnings."""
+        with tempfile.TemporaryDirectory() as directory:
+            docs_dir = Path(directory) / "docs" / "install"
+            docs_dir.mkdir(parents=True)
+            (Path(directory) / "README.md").write_text(
+                "Do not create `.agents/skills/merge-sentinel/` inside this repository.\n",
+                encoding="utf-8",
+            )
+            (docs_dir / "codex.md").write_text(
+                "```bash\nln -s \"$(pwd)/plugin/skills/merge-sentinel\" .agents/skills/merge-sentinel\n```\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(validator, "REPO_ROOT", Path(directory)), mock.patch.object(
+                validator, "INSTALL_DOCS_DIR", docs_dir
+            ):
+                validator._ok = True
+                with contextlib.redirect_stdout(io.StringIO()):
+                    validator.check_install_docs_do_not_instruct_committing_mirrors()
+                self.addCleanup(setattr, validator, "_ok", True)
+                self.assertTrue(validator._ok)
+
+    def test_install_docs_check_catches_a_git_add_of_a_mirror_path(self) -> None:
+        """Catches a real regression: a doc that tells users to commit a mirror."""
+        with tempfile.TemporaryDirectory() as directory:
+            docs_dir = Path(directory) / "docs" / "install"
+            docs_dir.mkdir(parents=True)
+            (Path(directory) / "README.md").write_text("See install docs.\n", encoding="utf-8")
+            (docs_dir / "bad.md").write_text(
+                "```bash\ngit add .agents/skills/merge-sentinel\ngit commit -m 'mirror'\n```\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(validator, "REPO_ROOT", Path(directory)), mock.patch.object(
+                validator, "INSTALL_DOCS_DIR", docs_dir
+            ):
+                validator._ok = True
+                with contextlib.redirect_stdout(io.StringIO()):
+                    validator.check_install_docs_do_not_instruct_committing_mirrors()
+                self.addCleanup(setattr, validator, "_ok", True)
+                self.assertFalse(validator._ok)
+
     def test_canonical_skill_names_are_unique_and_inspect_cleanly(self) -> None:
         """Catches name collisions and portable-core path/reference regressions."""
         inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"

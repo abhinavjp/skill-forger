@@ -23,6 +23,22 @@ Each complete Skill package—including runtime references, scripts, agents
 metadata, and canonical eval inputs—lives beneath its canonical directory.
 Generated per-Skill `evals/results/` directories are ignored and never packaged.
 
+## Install
+
+One repository payload, four host adapters. The skills are authored once under
+plugin/skills/. Claude Code, OpenAI Codex, Cursor, and Google Antigravity use that same
+payload through their supported plugin or skill installation route. Manifest and install
+commands differ by host; skill content does not.
+
+- [Claude Code](docs/install/claude-code.md)
+- [OpenAI Codex](docs/install/openai-codex.md)
+- [Cursor](docs/install/cursor.md)
+- [Google Antigravity](docs/install/antigravity.md)
+- [Verify an installation](docs/install/verify-installation.md)
+
+Do not install the same Skill through two routes on the same host at once — it produces
+duplicate, conflicting Skill entries. Each guide states its route's own uninstall step.
+
 ## Validate the plugin
 
 ```bash

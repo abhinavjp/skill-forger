@@ -285,6 +285,50 @@ def check_no_tracked_mirrors() -> None:
         ok("plugin/skills/ is the only tracked and authored Skill tree")
 
 
+INSTALL_DOCS_DIR = REPO_ROOT / "docs" / "install"
+BANNED_MIRROR_FRAGMENTS = (
+    ".agents/skills/",
+    ".claude/skills/",
+    ".cursor/skills/",
+    "skill-engineer/",
+    "merge-sentinel/",
+)
+GIT_MUTATING_COMMAND = re.compile(r"\bgit\s+(?:add|commit|mv)\b")
+
+
+def _install_doc_files() -> list[Path]:
+    docs = [REPO_ROOT / "README.md"]
+    if INSTALL_DOCS_DIR.is_dir():
+        docs.extend(sorted(INSTALL_DOCS_DIR.glob("*.md")))
+    return [doc for doc in docs if doc.is_file()]
+
+
+def check_install_docs_do_not_instruct_committing_mirrors() -> None:
+    """Fail only when a doc's own shell examples commit a banned mirror path.
+
+    This intentionally ignores plain prose mentions (including "Do not ..." warnings and
+    ``plugin/skills/...`` paths) and only inspects git-mutating commands inside fenced code
+    blocks, so documenting a mirror as a forbidden or host-owned destination is not itself
+    a failure.
+    """
+    problems: list[str] = []
+    for doc in _install_doc_files():
+        in_code_block = False
+        for line in doc.read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith("```"):
+                in_code_block = not in_code_block
+                continue
+            if not in_code_block or not GIT_MUTATING_COMMAND.search(line):
+                continue
+            for fragment in BANNED_MIRROR_FRAGMENTS:
+                if fragment in line and f"plugin/skills/{fragment}" not in line:
+                    problems.append(f"{doc.relative_to(REPO_ROOT)}: {line.strip()!r}")
+    if problems:
+        fail(f"install docs instruct committing a banned mirror path: {problems}")
+    else:
+        ok("install docs never instruct committing a tracked Skill mirror")
+
+
 def check_manifests(agent_manifest: dict | None) -> None:
     try:
         claude = read_json(CLAUDE_PLUGIN_JSON)
@@ -341,6 +385,7 @@ def main() -> int:
     check_sensitive_content(skill_dirs)
     check_no_tracked_mirrors()
     check_manifests(agent_manifest)
+    check_install_docs_do_not_instruct_committing_mirrors()
     print()
     print("RESULT:", "PASS" if _ok else "FAIL")
     return 0 if _ok else 1
