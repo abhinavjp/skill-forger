@@ -23,9 +23,11 @@ from score import (  # noqa: E402
 class ScoreTests(unittest.TestCase):
     def test_results_directory_cli_writes_summary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
+            results_directory = Path(directory) / "results"
+            results_directory.mkdir()
             output = Path(directory) / "summary.json"
             result = subprocess.run(
-                [sys.executable, str(ROOT / "evals" / "score.py"), str(ROOT / "evals" / "results"), "--output", str(output)],
+                [sys.executable, str(ROOT / "evals" / "score.py"), str(results_directory), "--output", str(output)],
                 capture_output=True,
                 text=True,
                 check=False,
