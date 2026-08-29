@@ -20,7 +20,7 @@ Cursor use — there is no separate Antigravity payload to build or maintain.
 
 ## Verify
 
-Confirm both `skill-engineer` and `merge-sentinel` appear from the installed plugin, then run
+Confirm `skill-engineer`, `merge-sentinel`, and `skill-prospector` appear from the installed plugin, then run
 through [verify-installation.md](verify-installation.md).
 
 ## Update

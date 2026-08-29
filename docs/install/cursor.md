@@ -12,7 +12,7 @@ route as untested for your build rather than inventing a second authored copy â€
 
 ## Verify
 
-Confirm Cursor discovers both `skill-engineer` and `merge-sentinel` by their portable frontmatter
+Confirm Cursor discovers `skill-engineer`, `merge-sentinel`, and `skill-prospector` by their portable frontmatter
 names, with no second authored copy anywhere, then run through
 [verify-installation.md](verify-installation.md).
 

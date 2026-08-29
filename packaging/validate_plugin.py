@@ -24,7 +24,7 @@ PLUGIN_DIR = REPO_ROOT / "plugin"
 PLUGIN_SKILLS = PLUGIN_DIR / "skills"
 CLAUDE_PLUGIN_JSON = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
-EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer"}
+EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"}
 REPOSITORY_URL = "https://github.com/abhinavjp/skill-forger"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
@@ -390,7 +390,7 @@ def check_manifests(agent_manifest: dict | None) -> None:
     if any("skill" not in value.lower() or "merge" not in value.lower() for value in descriptions):
         fail("manifest descriptions must cover Skill engineering and merge-request review")
     else:
-        ok("manifest descriptions cover both included Skills")
+        ok("manifest descriptions cover all included Skills")
 
 
 def main() -> int:

@@ -16,6 +16,7 @@ link — never a second authored copy, and never something committed back to thi
 git clone https://github.com/abhinavjp/skill-forger.git
 ln -s "$(pwd)/skill-forger/plugin/skills/merge-sentinel" <codex-skills-dir>/merge-sentinel
 ln -s "$(pwd)/skill-forger/plugin/skills/skill-engineer" <codex-skills-dir>/skill-engineer
+ln -s "$(pwd)/skill-forger/plugin/skills/skill-prospector" <codex-skills-dir>/skill-prospector
 ```
 
 Replace `<codex-skills-dir>` with the user-level Skills directory your Codex build documents.
@@ -24,7 +25,7 @@ and is safe to delete and recreate at any time.
 
 ## Verify
 
-Confirm Codex discovers both `skill-engineer` and `merge-sentinel` by name, then run through
+Confirm Codex discovers `skill-engineer`, `merge-sentinel`, and `skill-prospector` by name, then run through
 [verify-installation.md](verify-installation.md).
 
 ## Update

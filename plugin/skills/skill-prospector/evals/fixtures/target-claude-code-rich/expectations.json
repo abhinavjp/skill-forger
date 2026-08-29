@@ -1,0 +1,14 @@
+{
+  "fixture": "target-claude-code-rich",
+  "host": "claude-code",
+  "expected_paths": [
+    "CLAUDE.md",
+    ".claude/commands/release.md",
+    ".claude/hooks/verify.sh",
+    ".claude/skills/release-notes/SKILL.md",
+    "docs/runbooks/deploy.md"
+  ],
+  "adjudicated_non_defects": [
+    "The existing release-notes Skill is overlap evidence, not a new candidate."
+  ]
+}

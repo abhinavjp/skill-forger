@@ -1,0 +1,9 @@
+{
+  "fixture": "target-flat-no-conventions",
+  "host": "unknown",
+  "expected_paths": [],
+  "max_accepted_candidates": 1,
+  "adjudicated_non_defects": [
+    "README.md and notes.md are ordinary prose below the heuristic threshold."
+  ]
+}

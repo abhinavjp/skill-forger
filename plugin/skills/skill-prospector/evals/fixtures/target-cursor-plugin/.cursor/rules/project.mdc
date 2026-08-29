@@ -1,0 +1,9 @@
+---
+description: Keep project checks repeatable.
+globs: ["src/**"]
+---
+
+# Project rule
+
+Run the project checks before changing the generated client.
+Verify the generated output.

@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "catalogue": [
+    {
+      "id": "agent-instructions",
+      "globs": ["AGENTS.md", "**/AGENTS.md"],
+      "current_mechanism": "rule-file",
+      "host_affinity": ["none"],
+      "notes": "Common agent instructions and repository rules."
+    },
+    {
+      "id": "claude-instructions",
+      "globs": ["CLAUDE.md", "**/CLAUDE.md"],
+      "current_mechanism": "rule-file",
+      "host_affinity": ["claude-code"],
+      "notes": "Claude Code instruction files."
+    },
+    {
+      "id": "gemini-instructions",
+      "globs": ["GEMINI.md", "**/GEMINI.md"],
+      "current_mechanism": "rule-file",
+      "host_affinity": ["antigravity"],
+      "notes": "Gemini and Antigravity instruction files."
+    },
+    {
+      "id": "existing-skill",
+      "globs": ["SKILL.md", "**/SKILL.md"],
+      "current_mechanism": "skill",
+      "host_affinity": ["none"],
+      "notes": "Existing Skill packages are evidence for overlap checks."
+    },
+    {
+      "id": "cursor-rules",
+      "globs": [".cursor/rules/**", ".cursor/rules/**/*", ".cursor/skills/**"],
+      "current_mechanism": "host-rule-file",
+      "host_affinity": ["cursor"],
+      "notes": "Cursor rules and project Skills."
+    },
+    {
+      "id": "cursor-legacy-rules",
+      "globs": [".cursorrules"],
+      "current_mechanism": "host-rule-file",
+      "host_affinity": ["cursor"],
+      "notes": "Legacy Cursor rule file."
+    },
+    {
+      "id": "windsurf-rules",
+      "globs": [".windsurfrules"],
+      "current_mechanism": "host-rule-file",
+      "host_affinity": ["windsurf"],
+      "notes": "Windsurf rule file."
+    },
+    {
+      "id": "copilot-instructions",
+      "globs": [".github/copilot-instructions.md"],
+      "current_mechanism": "host-instructions",
+      "host_affinity": ["github-copilot"],
+      "notes": "GitHub Copilot repository instructions."
+    },
+    {
+      "id": "claude-host-config",
+      "globs": [".claude/**", ".claude/**/*"],
+      "current_mechanism": "host-config",
+      "host_affinity": ["claude-code"],
+      "notes": "Claude commands, hooks, settings and Skills."
+    },
+    {
+      "id": "agent-host-config",
+      "globs": [".agents/**", ".agents/**/*", "_agents/**", "_agents/**/*"],
+      "current_mechanism": "host-config",
+      "host_affinity": ["antigravity", "shared"],
+      "notes": "Host-owned agent configuration and extensions."
+    },
+    {
+      "id": "contributing-guide",
+      "globs": ["CONTRIBUTING.md", "**/CONTRIBUTING.md"],
+      "current_mechanism": "prose-doc",
+      "host_affinity": ["none"],
+      "notes": "Contribution procedures and repository workflow."
+    },
+    {
+      "id": "conventions-guide",
+      "globs": ["CONVENTIONS.md", "**/CONVENTIONS.md"],
+      "current_mechanism": "prose-doc",
+      "host_affinity": ["none"],
+      "notes": "Project conventions and procedures."
+    },
+    {
+      "id": "architecture-decisions",
+      "globs": ["docs/adr/**", "docs/adr/**/*"],
+      "current_mechanism": "architecture-doc",
+      "host_affinity": ["none"],
+      "notes": "Architecture decision records."
+    },
+    {
+      "id": "runbooks",
+      "globs": ["docs/runbooks/**", "docs/runbooks/**/*"],
+      "current_mechanism": "runbook",
+      "host_affinity": ["none"],
+      "notes": "Operational procedures and runbooks."
+    },
+    {
+      "id": "task-runner",
+      "globs": [
+        "Makefile", "**/Makefile", "justfile", "**/justfile",
+        "Taskfile.yml", "**/Taskfile.yml", "package.json", "**/package.json",
+        "pyproject.toml", "**/pyproject.toml", "tox.ini", "**/tox.ini",
+        "noxfile.py", "**/noxfile.py", ".pre-commit-config.yaml"
+      ],
+      "current_mechanism": "task-runner",
+      "host_affinity": ["none"],
+      "notes": "Repeatable task and local workflow declarations."
+    },
+    {
+      "id": "ci-workflows",
+      "globs": [".github/workflows/**", ".github/workflows/**/*"],
+      "current_mechanism": "ci-workflow",
+      "host_affinity": ["github"],
+      "notes": "Continuous integration and release workflow declarations."
+    }
+  ],
+  "heuristic": {
+    "extensions": [".md", ".mdc", ".txt"],
+    "directive_markers": [
+      "\\b(?:must|never|always|should|do not|dont)\\b",
+      "^\\s*(?:\\d+[.)]|[-*])\\s+",
+      "^\\s*(?:read|write|run|check|use|create|update|remove|delete|verify|record|report|ask|keep|avoid|prefer|ensure|install|uninstall)\\b"
+    ],
+    "min_directives": 6,
+    "max_bytes": 524288
+  },
+  "exclusions": [
+    ".git/**", "node_modules/**", "vendor/**", "dist/**", "build/**",
+    "target/**", ".venv/**", "__pycache__/**", "*.lock",
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "Cargo.lock",
+    "poetry.lock", "Gemfile.lock", "composer.lock", "*.bin", "*.exe",
+    "*.dll", "*.so", "*.dylib", "*.class", "*.pyc"
+  ]
+}

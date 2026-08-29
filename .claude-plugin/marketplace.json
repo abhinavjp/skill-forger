@@ -5,12 +5,12 @@
     "email": "ai.abhinavjp@gmail.com",
     "url": "https://github.com/abhinavjp"
   },
-  "description": "Marketplace for the skill-engineer plugin: Agent Skill engineering plus merge-request review.",
+  "description": "Marketplace for the skill-engineer plugin: Agent Skill engineering, project guidance auditing and Skill planning, plus merge-request review.",
   "plugins": [
     {
       "name": "skill-engineer",
       "source": "./plugin",
-      "description": "Engineer and review Agent Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness."
+      "description": "Engineer and review Agent Skills, audit project guidance to plan new Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness."
     }
   ]
 }

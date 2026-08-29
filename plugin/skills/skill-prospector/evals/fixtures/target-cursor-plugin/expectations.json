@@ -1,0 +1,13 @@
+{
+  "fixture": "target-cursor-plugin",
+  "host": "cursor",
+  "expected_paths": [
+    ".cursor/rules/project.mdc",
+    ".cursor/skills/generated-review/SKILL.md",
+    "AGENTS.md"
+  ],
+  "required_warning": "plugin-delivered Cursor Skills must not receive disable-model-invocation: true",
+  "adjudicated_non_defects": [
+    "The existing generated-review Skill is overlap evidence, not a candidate to recreate."
+  ]
+}

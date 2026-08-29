@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "skill-engineer",
-  "version": "2.0.0",
-  "description": "Engineer and review Agent Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness.",
+  "version": "2.1.0",
+  "description": "Engineer and review Agent Skills, audit project guidance to plan new Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness.",
   "author": {
     "name": "Abhinav Pisharody",
     "email": "ai.abhinavjp@gmail.com"
@@ -15,6 +15,8 @@
     "skill-authoring",
     "skill-review",
     "merge-request-review",
-    "code-review"
+    "code-review",
+    "guidance-audit",
+    "skill-planning"
   ]
 }

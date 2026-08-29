@@ -17,7 +17,7 @@ from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
-EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer"}
+EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"}
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
 )

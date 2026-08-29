@@ -1,0 +1,10 @@
+{
+  "fixture": "target-everything-is-a-rule",
+  "host": "multi-host",
+  "max_accepted_candidates": 1,
+  "expected_paths": ["AGENTS.md", "CLAUDE.md", "GEMINI.md"],
+  "reason": "The evidence applies to every task, so it should remain rule guidance rather than be over-converted into Skills.",
+  "adjudicated_non_defects": [
+    "Multiple host rule files express the same universal scope; that is a consolidation question, not multiple Skill candidates."
+  ]
+}

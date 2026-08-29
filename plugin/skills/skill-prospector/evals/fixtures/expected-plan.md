@@ -1,0 +1,47 @@
+# Fixture plan
+
+## Run summary
+
+discovery: scripted
+
+## Target and authority
+
+confirmed plan path: docs/plans/confirmed.md
+
+## Discovery inventory
+
+| path | terminal state |
+|---|---|
+| docs/runbooks/deploy.md | stays-as-runbook |
+
+## Candidates
+
+### Candidate: example-workflow
+
+id: example-workflow
+name: example-workflow
+boundary: Run the documented workflow.
+trigger: Use when the workflow is requested.
+sources: docs/runbooks/deploy.md:Deploy
+proposed mechanism: Skill; derived through skill-engineer CREATE.
+portable invocation: deliberate user invocation.
+host enhancements: none
+dependencies: none
+eval outline: positive and negative trigger cases.
+acceptance criteria: the workflow completes and reports its result.
+
+## Rejected and deferred units
+
+none
+
+## Host adaptation
+
+portable core only
+
+## Capabilities not exercised
+
+Layers B and D: not run.
+
+## Follow-up
+
+Run host validation before release.

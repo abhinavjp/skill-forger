@@ -2,9 +2,9 @@
 
 *Forges Agent Skills. Catches the forgeries.*
 
-An agent-agnostic plugin for engineering Agent Skills and reviewing merge
-requests, built around the repository's `SKILL_ENGINEERING_SPEC.md` and a
-deterministic review toolkit.
+An agent-agnostic plugin for engineering Agent Skills, auditing project
+guidance, and reviewing merge requests, built around the repository's
+`SKILL_ENGINEERING_SPEC.md` and deterministic review tools.
 
 ## Canonical payload
 
@@ -18,6 +18,8 @@ The plugin includes:
 - [merge-sentinel](plugin/skills/merge-sentinel/SKILL.md) — reviews merge
   requests and local diffs for defects, regressions, security risks, unsafe
   scope, and implementation completeness.
+- [skill-prospector](plugin/skills/skill-prospector/SKILL.md) — audits project
+  guidance and plans which reusable procedures should become Skills.
 
 Each complete Skill package—including runtime references, scripts, agents
 metadata, and canonical eval inputs—lives beneath its canonical directory.
@@ -45,7 +47,7 @@ duplicate, conflicting Skill entries. Each guide states its route's own uninstal
 python packaging/validate_plugin.py
 ```
 
-This validates both manifests, the exact two-Skill layout, unique frontmatter
+This validates both manifests, the exact three-Skill layout, unique frontmatter
 names, reference resolution and path containment, portable-core checks, and
 the absence of tracked host mirrors.
 
