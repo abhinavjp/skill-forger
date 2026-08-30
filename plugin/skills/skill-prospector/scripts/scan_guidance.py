@@ -15,15 +15,14 @@ import argparse
 import fnmatch
 import hashlib
 import json
-import ntpath
 import os
 import re
 import sys
 from pathlib import Path
 
+from safe_fs import SafeFSError, SafeRoot
 
 HERE = Path(__file__).resolve().parent
-PATTERNS_PATH = HERE / "patterns.json"
 DEFAULT_EXCLUDED_DIRS = {
     ".git", "node_modules", "vendor", "dist", "build", "target", ".venv"
 }
@@ -34,7 +33,6 @@ KNOWN_GUIDANCE_BASENAMES = {
 TEXT_EXTENSIONS = {".md", ".markdown", ".mdc", ".txt", ".rst"}
 HEADING_RE = re.compile(r"^ {0,3}(#{1,6})\s+(.+?)\s*$")
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)")
-REPARSE_POINT = 0x400
 
 
 class _ContainmentError(ValueError):
@@ -51,105 +49,8 @@ def _canonical_root(root: Path) -> Path:
     return resolved
 
 
-def _is_absolute_or_drive(value: str) -> bool:
-    normalised = value.replace("\\", "/")
-    return (
-        os.path.isabs(value)
-        or normalised.startswith("/")
-        or ntpath.isabs(value)
-        or bool(ntpath.splitdrive(value)[0])
-    )
-
-
-def _relative_parts(relative: str):
-    if not isinstance(relative, str) or not relative or "\x00" in relative:
-        raise _ContainmentError("path is not a contained relative path")
-    normalised = relative.replace("\\", "/")
-    if _is_absolute_or_drive(relative):
-        raise _ContainmentError("path is not a contained relative path")
-    parts = [part for part in normalised.split("/") if part not in ("", ".")]
-    if not parts or any(part == ".." for part in parts):
-        raise _ContainmentError("path is not a contained relative path")
-    return parts
-
-
-def _assert_contained(root: Path, candidate: Path):
-    root_text = os.path.normcase(os.path.abspath(os.fspath(root)))
-    candidate_text = os.path.normcase(os.path.abspath(os.fspath(candidate)))
-    try:
-        common = os.path.commonpath([root_text, candidate_text])
-    except ValueError as exc:
-        raise _ContainmentError("path is not contained by target root") from exc
-    if common != root_text:
-        raise _ContainmentError("path is not contained by target root")
-
-
-def _is_link_or_reparse(path: Path) -> bool:
-    try:
-        if path.is_symlink() or os.path.islink(os.fspath(path)):
-            return True
-        if os.name == "nt":
-            attributes = os.stat(
-                os.fspath(path), follow_symlinks=False
-            ).st_file_attributes
-            return bool(attributes & REPARSE_POINT)
-    except FileNotFoundError:
-        return False
-    except OSError:
-        return False
-    return False
-
-
-def _reject_link_components(root: Path, candidate: Path):
-    try:
-        relative = candidate.relative_to(root)
-    except ValueError as exc:
-        raise _ContainmentError("path is not contained by target root") from exc
-    current = root
-    for part in relative.parts:
-        current = current / part
-        if _is_link_or_reparse(current):
-            raise _ContainmentError("path traverses a link or reparse point")
-
-
-def _resolve_candidate(root: Path, candidate: Path, *, require_file: bool) -> Path:
-    _assert_contained(root, candidate)
-    _reject_link_components(root, candidate)
-    try:
-        resolved = candidate.resolve(strict=False)
-    except (OSError, RuntimeError) as exc:
-        raise _ContainmentError("path cannot be resolved") from exc
-    _assert_contained(root, resolved)
-    if resolved.exists() and not resolved.is_file():
-        raise _ContainmentError("path is not a regular file")
-    if require_file and not resolved.is_file():
-        raise _ContainmentError("path is not a regular file")
-    return resolved
-
-
-def _resolve_within(root: Path, relative: str, *, require_file: bool) -> Path:
-    """Resolve a repository-relative path without crossing links or root."""
-    canonical_root = _canonical_root(root)
-    parts = _relative_parts(relative)
-    candidate = canonical_root.joinpath(*parts)
-    return _resolve_candidate(canonical_root, candidate, require_file=require_file)
-
-
-def _resolve_output(root: Path, value: str) -> Path:
-    if not isinstance(value, str) or not value or "\x00" in value:
-        raise _ContainmentError("inventory output must stay inside target root")
-    if not _is_absolute_or_drive(value):
-        return _resolve_within(root, value, require_file=False)
-    if not Path(value).is_absolute():
-        raise _ContainmentError("inventory output must stay inside target root")
-    canonical_root = _canonical_root(root)
-    candidate = Path(os.path.abspath(value))
-    return _resolve_candidate(canonical_root, candidate, require_file=False)
-
-
 def _load_patterns():
-    with PATTERNS_PATH.open(encoding="utf-8") as handle:
-        data = json.load(handle)
+    data = json.loads(SafeRoot(HERE).read_text("patterns.json"))
     if data.get("version") != 1:
         raise ValueError("patterns.json version must be 1")
     return data
@@ -188,14 +89,10 @@ def _glob_match(path: str, pattern: str) -> bool:
     return False
 
 
-def _read_gitignore(root: Path):
+def _read_gitignore(safe_root: SafeRoot):
     try:
-        path = _resolve_within(root, ".gitignore", require_file=True)
-    except (_ContainmentError, OSError):
-        return []
-    try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
+        lines = safe_root.read_text(".gitignore").splitlines()
+    except (SafeFSError, OSError):
         return []
     rules = []
     for raw in lines:
@@ -240,18 +137,13 @@ def _catalogue_entries(rel_path: str, catalogue):
 
 def _resolve_directory_within(root: Path, relative: str) -> Path:
     canonical_root = _canonical_root(root)
-    parts = _relative_parts(relative)
-    candidate = canonical_root.joinpath(*parts)
-    _assert_contained(canonical_root, candidate)
-    _reject_link_components(canonical_root, candidate)
+    safe_root = SafeRoot(canonical_root)
     try:
-        resolved = candidate.resolve(strict=False)
-    except (OSError, RuntimeError) as exc:
+        parts = safe_root.parts(relative)
+        safe_root.verify_directory(relative)
+    except SafeFSError as exc:
         raise _ContainmentError("directory cannot be resolved") from exc
-    _assert_contained(canonical_root, resolved)
-    if not resolved.is_dir():
-        raise _ContainmentError("path is not a directory")
-    return resolved
+    return canonical_root.joinpath(*parts)
 
 
 def _could_contain_guidance(root: Path, relative: str, catalogue) -> bool:
@@ -347,10 +239,11 @@ def _candidate_hash_pairs(root: Path):
     """Recompute candidate hash membership for optional slice freshness checks."""
     try:
         patterns = _load_patterns()
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (SafeFSError, OSError, ValueError, json.JSONDecodeError) as exc:
         raise _ContainmentError("scan membership cannot be recomputed") from exc
     heuristic = patterns["heuristic"]
-    gitignore = _read_gitignore(root)
+    safe_root = SafeRoot(root)
+    gitignore = _read_gitignore(safe_root)
     pairs = []
     walk_errors = []
 
@@ -379,16 +272,18 @@ def _candidate_hash_pairs(root: Path):
             rel_path = _normalise_path(os.path.relpath(str(full_path), str(root)))
             if _excluded(rel_path, False, patterns.get("exclusions", [])) is not None:
                 continue
-            safe_path = _resolve_within(root, rel_path, require_file=True)
+            try:
+                safe_root.verify_file(rel_path)
+            except SafeFSError as exc:
+                raise _ContainmentError("scan membership cannot be recomputed") from exc
             entries = _catalogue_entries(rel_path, patterns["catalogue"])
             if _gitignored(rel_path, False, gitignore) and not entries:
                 continue
-            if not entries and safe_path.suffix.lower() not in set(heuristic["extensions"]):
+            if not entries and full_path.suffix.lower() not in set(heuristic["extensions"]):
                 continue
             try:
-                with safe_path.open("rb") as handle:
-                    raw = handle.read()
-            except OSError as exc:
+                raw = safe_root.read_bytes(rel_path).raw
+            except (SafeFSError, OSError) as exc:
                 raise _ContainmentError("scan membership cannot be recomputed") from exc
             pairs.append((rel_path, _sha256(raw)))
     if walk_errors:
@@ -396,14 +291,10 @@ def _candidate_hash_pairs(root: Path):
     return pairs
 
 
-def _read_file_metadata(path: Path, rel_path: str, size: int, match_reason,
+def _read_file_metadata(raw: bytes, rel_path: str, size: int, match_reason,
                          host_affinity, current_mechanism: str, max_bytes: int,
-                         marker_regexes, root=None):
+                         marker_regexes):
     """Read one candidate once and return metadata without retaining its body."""
-    if root is not None:
-        path = _resolve_within(root, rel_path, require_file=True)
-    with path.open("rb") as handle:
-        raw = handle.read()
     record = {
         "path": rel_path,
         "bytes": size,
@@ -420,7 +311,8 @@ def _read_file_metadata(path: Path, rel_path: str, size: int, match_reason,
     if size > max_bytes:
         record["status"] = "oversize"
         return record
-    if path.suffix.lower() in TEXT_EXTENSIONS or path.name in {
+    rel_as_path = Path(rel_path)
+    if rel_as_path.suffix.lower() in TEXT_EXTENSIONS or rel_as_path.name in {
         "AGENTS.md", "CLAUDE.md", "GEMINI.md", "SKILL.md",
         "CONTRIBUTING.md", "CONVENTIONS.md", ".cursorrules",
         ".windsurfrules"
@@ -441,14 +333,15 @@ def _scan(args):
         return 2
     try:
         patterns = _load_patterns()
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (SafeFSError, OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"error: cannot load pattern catalogue: {exc}", file=sys.stderr)
         return 2
 
     heuristic = patterns["heuristic"]
     max_bytes = args.max_bytes if args.max_bytes is not None else heuristic["max_bytes"]
     marker_regexes = _directive_regexes(heuristic["directive_markers"])
-    gitignore = _read_gitignore(root)
+    safe_root = SafeRoot(root)
+    gitignore = _read_gitignore(safe_root)
     matched_units = []
     skipped = []
     errors = []
@@ -489,8 +382,8 @@ def _scan(args):
                 skipped.append({"path": rel_path, "reason": f"excluded:{exclusion}"})
                 continue
             try:
-                safe_path = _resolve_within(root, rel_path, require_file=True)
-            except _ContainmentError:
+                safe_root.verify_file(rel_path)
+            except SafeFSError:
                 errors.append({"path": rel_path,
                                "error": "candidate rejected by target-root containment"})
                 containment_failed = True
@@ -501,11 +394,6 @@ def _scan(args):
                 skipped.append({"path": rel_path, "reason": "excluded:.gitignore"})
                 continue
             scanned_files += 1
-            try:
-                size = safe_path.stat().st_size
-            except OSError as exc:
-                errors.append({"path": rel_path, "error": str(exc)})
-                continue
             is_heuristic_candidate = (
                 full_path.suffix.lower() in set(heuristic["extensions"])
             )
@@ -520,11 +408,13 @@ def _scan(args):
             else:
                 current_mechanism = "prose-doc"
             try:
+                safe_read = safe_root.read_bytes(rel_path)
+                size = safe_read.stat.st_size
                 record = _read_file_metadata(
-                    safe_path, rel_path, size, reasons, host_affinity,
-                    current_mechanism, max_bytes, marker_regexes, root=root
+                    safe_read.raw, rel_path, size, reasons, host_affinity,
+                    current_mechanism, max_bytes, marker_regexes
                 )
-            except _ContainmentError:
+            except SafeFSError:
                 errors.append({"path": rel_path,
                                "error": "candidate rejected by target-root containment"})
                 containment_failed = True
@@ -562,10 +452,8 @@ def _scan(args):
     rendered = json.dumps(result, indent=2) + "\n"
     if args.out:
         try:
-            output_path = _resolve_output(root, args.out)
-            with output_path.open("w", encoding="utf-8", newline="\n") as handle:
-                handle.write(rendered)
-        except _ContainmentError:
+            safe_root.write_text(args.out, rendered)
+        except SafeFSError:
             print("error: inventory output must stay inside scan root", file=sys.stderr)
             return 2
         except OSError as exc:
@@ -595,10 +483,11 @@ def _slice_output(path: str, start: int, end: int, body: str, max_bytes: int):
 
 
 def _slice(args):
+    safe_root = None
     try:
-        path = _resolve_within(Path(args.root), args.relative_path,
-                                require_file=True)
-    except _ContainmentError:
+        safe_root = SafeRoot(Path(args.root))
+        safe_root.parts(args.relative_path)
+    except SafeFSError:
         print("error: slice path must stay inside target root", file=sys.stderr)
         return 2
     if args.scan_id:
@@ -607,15 +496,15 @@ def _slice(args):
                 _canonical_root(Path(args.root)),
                 _candidate_hash_pairs(Path(args.root)),
             )
-        except _ContainmentError:
+        except (_ContainmentError, SafeFSError):
             print("error: scan membership cannot be verified", file=sys.stderr)
             return 2
         if current_scan_id != args.scan_id:
             print("error: scan id does not match current inventory", file=sys.stderr)
             return 2
     try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
-    except OSError as exc:
+        lines = safe_root.read_text(args.relative_path).splitlines(keepends=True)
+    except (SafeFSError, OSError) as exc:
         print(f"error: cannot read slice path: {exc}", file=sys.stderr)
         return 2
     if args.document:
