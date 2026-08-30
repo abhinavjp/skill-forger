@@ -312,9 +312,10 @@
     "fixtures": ["fixtures/target-unheaded-guidance"],
     "expected": {
       "outcome": {
-        "assertions": [
-          "the document slice preserves a line-span citation",
-          "the document slice stays within its byte bound"
+          "assertions": [
+            "the document slice preserves a line-span citation",
+            "the document slice reports the actual last emitted line",
+            "the document slice stays within its byte bound"
         ]
       }
     },

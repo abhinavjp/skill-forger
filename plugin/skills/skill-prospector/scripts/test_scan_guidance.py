@@ -167,6 +167,105 @@ class ScanGuidanceTests(unittest.TestCase):
             self.assertLessEqual(len(rendered.encode("utf-8")), 64)
             self.assertIn("[truncated]", rendered)
 
+    def test_truncated_slice_preserves_multibyte_complete_lines_and_span(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("αβγδε\nsecond line\n", encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, "guide.md", "--document", "--max-bytes", "35"
+            )
+
+            self.assertEqual(0, code, errors)
+            self.assertEqual(
+                "guide.md:1-1\nαβγδε\n[truncated]", output
+            )
+            self.assertEqual(35, len(output.encode("utf-8")))
+
+    def test_first_line_larger_than_budget_emits_truthful_empty_span(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("🙂" * 20 + "\nsmall\n", encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, "guide.md", "--document", "--max-bytes", "24"
+            )
+
+            self.assertEqual(0, code, errors)
+            self.assertEqual("guide.md:1-0\n[truncated]", output)
+            self.assertEqual(24, len(output.encode("utf-8")))
+
+    def test_truncation_recomputes_end_line_digit_width(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("line\n" * 12, encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, "guide.md", "--document", "--max-bytes", "69"
+            )
+
+            self.assertEqual(0, code, errors)
+            self.assertTrue(output.startswith("guide.md:1-9\n"))
+            self.assertEqual("line\n" * 9, output[len("guide.md:1-9\n"):-len("[truncated]")])
+            self.assertTrue(output.endswith("[truncated]"))
+            self.assertLessEqual(len(output.encode("utf-8")), 69)
+
+    def test_exact_byte_boundary_keeps_full_span_without_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("hello\n", encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, "guide.md", "--document", "--max-bytes", "19"
+            )
+
+            self.assertEqual(0, code, errors)
+            self.assertEqual("guide.md:1-1\nhello\n", output)
+            self.assertNotIn("[truncated]", output)
+
+    def test_empty_document_keeps_empty_full_span(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "empty.md").write_text("", encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, "empty.md", "--document", "--max-bytes", "14"
+            )
+
+            self.assertEqual(0, code, errors)
+            self.assertEqual("empty.md:1-0\n", output)
+            self.assertNotIn("[truncated]", output)
+
+    def test_tiny_limit_fails_closed_without_provenance_loss(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("line\n" * 3, encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, "guide.md", "--document", "--max-bytes", "23"
+            )
+
+            self.assertEqual(2, code)
+            self.assertEqual("", output)
+            self.assertEqual(
+                "error: slice limit is too small for provenance and truncation marker\n",
+                errors,
+            )
+
+    def test_truncated_provenance_does_not_claim_one_thousand_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("line\n" * 1000, encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, "guide.md", "--document", "--max-bytes", "64"
+            )
+
+            self.assertEqual(0, code, errors)
+            self.assertTrue(output.startswith("guide.md:1-8\n"))
+            self.assertNotIn("guide.md:1-1000", output)
+            self.assertEqual("line\n" * 8, output[len("guide.md:1-8\n"):-len("[truncated]")])
+
     def test_json_schema_and_read_only_scan(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -261,7 +360,7 @@ class ScanGuidanceTests(unittest.TestCase):
 
         self.assertEqual(0, code, errors)
         self.assertLessEqual(len(output.encode("utf-8")), 96)
-        self.assertIn("AGENTS.md:1-4", output)
+        self.assertIn("AGENTS.md:1-2", output)
         self.assertIn("Run the deployment check.", output)
 
     def test_document_slice_handles_empty_file(self):

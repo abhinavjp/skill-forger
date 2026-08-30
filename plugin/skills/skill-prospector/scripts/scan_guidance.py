@@ -40,6 +40,10 @@ class _ContainmentError(ValueError):
     """A requested path cannot be safely bound to the target root."""
 
 
+class _SliceOutputError(ValueError):
+    """A bounded slice cannot retain both provenance and its truncation marker."""
+
+
 def _canonical_root(root: Path) -> Path:
     try:
         resolved = root.resolve()
@@ -452,23 +456,27 @@ def _scan(args):
     return 2 if result["errors"] else 0
 
 
-def _slice_output(path: str, start: int, end: int, body: str, max_bytes: int):
-    prefix = f"{path}:{start}-{end}\n"
-    full = prefix + body
+def _slice_output(path: str, start: int, lines: list[str], max_bytes: int):
+    """Render the longest complete-line slice that fits its byte budget."""
+    source_lines = list(lines)
+    full_end = start + len(source_lines) - 1
+    full_header = f"{path}:{start}-{full_end}\n"
+    full_body = "".join(source_lines)
+    full = full_header + full_body
     if len(full.encode("utf-8")) <= max_bytes:
         return full
-    marker = "\n[truncated]"
-    prefix_bytes = len(prefix.encode("utf-8"))
-    marker_bytes = len(marker.encode("utf-8"))
-    if prefix_bytes + marker_bytes <= max_bytes:
-        available = max_bytes - prefix_bytes - marker_bytes
-        encoded_body = body.encode("utf-8")[:available]
-        safe_body = encoded_body.decode("utf-8", errors="ignore")
-        return prefix + safe_body + marker
-    marker_only = "[truncated]"
-    if len(marker_only.encode("utf-8")) <= max_bytes:
-        return marker_only
-    return marker_only.encode("utf-8")[:max_bytes].decode("utf-8", errors="ignore")
+
+    marker = "[truncated]"
+    for count in range(len(source_lines), -1, -1):
+        actual_end = start + count - 1
+        header = f"{path}:{start}-{actual_end}\n"
+        body = "".join(source_lines[:count])
+        separator = "" if not body or body.endswith(("\n", "\r")) else "\n"
+        rendered = header + body + separator + marker
+        if len(rendered.encode("utf-8")) <= max_bytes:
+            return rendered
+
+    raise _SliceOutputError("slice limit is too small for provenance and truncation marker")
 
 
 def _slice(args):
@@ -513,8 +521,7 @@ def _slice(args):
     lines = text.splitlines(keepends=True)
     if args.document:
         start_line = 1
-        end_line = len(lines)
-        body = "".join(lines)
+        selected_lines = lines
     else:
         headings = _headings(lines)
         exact = [heading for heading in headings if heading["title"] == args.section]
@@ -539,11 +546,15 @@ def _slice(args):
                 end_index = heading["index"]
                 break
         start_line = selected["line"]
-        end_line = end_index
-        body = "".join(lines[selected["index"]:end_index])
+        selected_lines = lines[selected["index"]:end_index]
     display_path = _normalise_path(relative_path)
-    sys.stdout.write(_slice_output(display_path, start_line, end_line, body,
-                                   args.max_bytes))
+    try:
+        rendered = _slice_output(display_path, start_line, selected_lines,
+                                 args.max_bytes)
+    except _SliceOutputError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    sys.stdout.write(rendered)
     return 0
 
 

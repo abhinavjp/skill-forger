@@ -310,8 +310,24 @@ def headingless_document_evidence(_check):
         reasons.append(f"document slice exited {code}: {err.getvalue().strip()}")
     if len(rendered.encode("utf-8")) > 96:
         reasons.append("document slice exceeds max bytes")
-    if "AGENTS.md:1-4" not in rendered:
-        reasons.append("document slice lacks line-span provenance")
+    source_lines = (target / "AGENTS.md").read_text(encoding="utf-8").splitlines(
+        keepends=True
+    )
+    valid_spans = []
+    marker = "[truncated]"
+    for count in range(len(source_lines) + 1):
+        actual_end = count if count else 0
+        header = f"AGENTS.md:1-{actual_end}\n"
+        body = "".join(source_lines[:count])
+        separator = "" if not body or body.endswith(("\n", "\r")) else "\n"
+        if rendered == header + body + separator + marker:
+            valid_spans.append(actual_end)
+        if rendered == header + body:
+            valid_spans.append(actual_end)
+    if not valid_spans:
+        reasons.append("document slice lacks truthful line-span provenance")
+    elif valid_spans[-1] != 2:
+        reasons.append(f"document slice reports unexpected emitted end line: {valid_spans[-1]}")
     return not reasons, reasons
 
 
