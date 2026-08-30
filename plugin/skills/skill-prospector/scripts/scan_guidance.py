@@ -20,7 +20,7 @@ import re
 import sys
 from pathlib import Path
 
-from safe_fs import SafeFSError, SafeRoot
+from safe_fs import SafePathError, SafeRoot
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_EXCLUDED_DIRS = {
@@ -92,7 +92,7 @@ def _glob_match(path: str, pattern: str) -> bool:
 def _read_gitignore(safe_root: SafeRoot):
     try:
         lines = safe_root.read_text(".gitignore").splitlines()
-    except (SafeFSError, OSError):
+    except (SafePathError, OSError):
         return []
     rules = []
     for raw in lines:
@@ -139,9 +139,9 @@ def _resolve_directory_within(root: Path, relative: str) -> Path:
     canonical_root = _canonical_root(root)
     safe_root = SafeRoot(canonical_root)
     try:
-        parts = safe_root.parts(relative)
-        safe_root.verify_directory(relative)
-    except SafeFSError as exc:
+        parts = safe_root._parts(relative)
+        safe_root._verify_directory(relative)
+    except SafePathError as exc:
         raise _ContainmentError("directory cannot be resolved") from exc
     return canonical_root.joinpath(*parts)
 
@@ -239,7 +239,7 @@ def _candidate_hash_pairs(root: Path):
     """Recompute candidate hash membership for optional slice freshness checks."""
     try:
         patterns = _load_patterns()
-    except (SafeFSError, OSError, ValueError, json.JSONDecodeError) as exc:
+    except (SafePathError, OSError, ValueError, json.JSONDecodeError) as exc:
         raise _ContainmentError("scan membership cannot be recomputed") from exc
     heuristic = patterns["heuristic"]
     safe_root = SafeRoot(root)
@@ -273,8 +273,8 @@ def _candidate_hash_pairs(root: Path):
             if _excluded(rel_path, False, patterns.get("exclusions", [])) is not None:
                 continue
             try:
-                safe_root.verify_file(rel_path)
-            except SafeFSError as exc:
+                safe_root._verify_file(rel_path)
+            except SafePathError as exc:
                 raise _ContainmentError("scan membership cannot be recomputed") from exc
             entries = _catalogue_entries(rel_path, patterns["catalogue"])
             if _gitignored(rel_path, False, gitignore) and not entries:
@@ -282,8 +282,8 @@ def _candidate_hash_pairs(root: Path):
             if not entries and full_path.suffix.lower() not in set(heuristic["extensions"]):
                 continue
             try:
-                raw = safe_root.read_bytes(rel_path).raw
-            except (SafeFSError, OSError) as exc:
+                raw, _ = safe_root.read_bytes_with_stat(rel_path)
+            except (SafePathError, OSError) as exc:
                 raise _ContainmentError("scan membership cannot be recomputed") from exc
             pairs.append((rel_path, _sha256(raw)))
     if walk_errors:
@@ -333,7 +333,7 @@ def _scan(args):
         return 2
     try:
         patterns = _load_patterns()
-    except (SafeFSError, OSError, ValueError, json.JSONDecodeError) as exc:
+    except (SafePathError, OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"error: cannot load pattern catalogue: {exc}", file=sys.stderr)
         return 2
 
@@ -382,8 +382,8 @@ def _scan(args):
                 skipped.append({"path": rel_path, "reason": f"excluded:{exclusion}"})
                 continue
             try:
-                safe_root.verify_file(rel_path)
-            except SafeFSError:
+                safe_root._verify_file(rel_path)
+            except SafePathError:
                 errors.append({"path": rel_path,
                                "error": "candidate rejected by target-root containment"})
                 containment_failed = True
@@ -408,13 +408,13 @@ def _scan(args):
             else:
                 current_mechanism = "prose-doc"
             try:
-                safe_read = safe_root.read_bytes(rel_path)
-                size = safe_read.stat.st_size
+                raw, info = safe_root.read_bytes_with_stat(rel_path)
+                size = info.st_size
                 record = _read_file_metadata(
-                    safe_read.raw, rel_path, size, reasons, host_affinity,
+                    raw, rel_path, size, reasons, host_affinity,
                     current_mechanism, max_bytes, marker_regexes
                 )
-            except SafeFSError:
+            except SafePathError:
                 errors.append({"path": rel_path,
                                "error": "candidate rejected by target-root containment"})
                 containment_failed = True
@@ -453,7 +453,7 @@ def _scan(args):
     if args.out:
         try:
             safe_root.write_text(args.out, rendered)
-        except SafeFSError:
+        except SafePathError:
             print("error: inventory output must stay inside scan root", file=sys.stderr)
             return 2
         except OSError as exc:
@@ -486,8 +486,8 @@ def _slice(args):
     safe_root = None
     try:
         safe_root = SafeRoot(Path(args.root))
-        safe_root.parts(args.relative_path)
-    except SafeFSError:
+        safe_root._parts(args.relative_path)
+    except SafePathError:
         print("error: slice path must stay inside target root", file=sys.stderr)
         return 2
     if args.scan_id:
@@ -496,7 +496,7 @@ def _slice(args):
                 _canonical_root(Path(args.root)),
                 _candidate_hash_pairs(Path(args.root)),
             )
-        except (_ContainmentError, SafeFSError):
+        except (_ContainmentError, SafePathError):
             print("error: scan membership cannot be verified", file=sys.stderr)
             return 2
         if current_scan_id != args.scan_id:
@@ -504,7 +504,7 @@ def _slice(args):
             return 2
     try:
         lines = safe_root.read_text(args.relative_path).splitlines(keepends=True)
-    except (SafeFSError, OSError) as exc:
+    except (SafePathError, OSError) as exc:
         print(f"error: cannot read slice path: {exc}", file=sys.stderr)
         return 2
     if args.document:

@@ -5,24 +5,16 @@ import ctypes
 import ctypes.wintypes
 import ntpath
 import os
+import errno
 import stat
-from dataclasses import dataclass
 from pathlib import Path
 
 
-class SafeFSError(ValueError):
+class SafePathError(ValueError):
     """A path or leaf object cannot be safely accessed under the root."""
 
 
-@dataclass(frozen=True)
-class SafeStat:
-    st_size: int
-
-
-@dataclass(frozen=True)
-class SafeRead:
-    raw: bytes
-    stat: SafeStat
+_CAPABILITY_ERROR = "safe filesystem operation unavailable"
 
 
 def _is_absolute_or_drive(value: str) -> bool:
@@ -37,9 +29,9 @@ def _is_absolute_or_drive(value: str) -> bool:
 
 def _relative_parts(relative: str) -> tuple[str, ...]:
     if not isinstance(relative, str) or not relative or "\x00" in relative:
-        raise SafeFSError("path is not a contained relative path")
+        raise SafePathError("path is not a contained relative path")
     if _is_absolute_or_drive(relative):
-        raise SafeFSError("path is not a contained relative path")
+        raise SafePathError("path is not a contained relative path")
     normalised = relative.replace("\\", "/")
     parts = tuple(normalised.split("/"))
     if (
@@ -47,7 +39,7 @@ def _relative_parts(relative: str) -> tuple[str, ...]:
         or parts[-1] == ""
         or any(part in ("", ".", "..") for part in parts)
     ):
-        raise SafeFSError("path is not a contained relative path")
+        raise SafePathError("path is not a contained relative path")
     return parts
 
 
@@ -63,9 +55,9 @@ def _absolute_to_relative(root: Path, value: str) -> tuple[str, ...]:
     try:
         common = os.path.commonpath([root_text, candidate_text])
     except ValueError as exc:
-        raise SafeFSError("path is not contained by target root") from exc
+        raise SafePathError("path is not contained by target root") from exc
     if common != root_text:
-        raise SafeFSError("path is not contained by target root")
+        raise SafePathError("path is not contained by target root")
     return _relative_parts(_normalise_path(os.path.relpath(candidate, root)))
 
 
@@ -76,49 +68,50 @@ class SafeRoot:
         try:
             resolved = Path(root).resolve()
         except (OSError, RuntimeError) as exc:
-            raise SafeFSError("target root cannot be resolved") from exc
+            raise SafePathError("target root cannot be resolved") from exc
         if not resolved.is_dir():
-            raise SafeFSError("target root is not a directory")
-        self.path = resolved
+            raise SafePathError("target root is not a directory")
+        self._path = resolved
 
-    def parts(self, relative: str, *, allow_absolute: bool = False) -> tuple[str, ...]:
+    def _parts(self, relative: str, *, allow_absolute: bool = False) -> tuple[str, ...]:
         if allow_absolute and _is_absolute_or_drive(relative):
             if not Path(relative).is_absolute():
-                raise SafeFSError("path is not contained by target root")
-            return _absolute_to_relative(self.path, relative)
+                raise SafePathError("path is not contained by target root")
+            return _absolute_to_relative(self._path, relative)
         return _relative_parts(relative)
 
-    def read_bytes(self, relative: str) -> SafeRead:
-        parts = self.parts(relative)
+    def read_bytes_with_stat(self, relative: str) -> tuple[bytes, os.stat_result]:
+        parts = self._parts(relative)
         if os.name == "nt":
-            return _WindowsSafeRoot(self.path).read_bytes(parts)
-        return _PosixSafeRoot(self.path).read_bytes(parts)
+            return _WindowsSafeRoot(self._path).read_bytes(parts)
+        return _PosixSafeRoot(self._path).read_bytes(parts)
 
     def read_text(self, relative: str) -> str:
-        text = self.read_bytes(relative).raw.decode("utf-8", errors="replace")
+        raw, _ = self.read_bytes_with_stat(relative)
+        text = raw.decode("utf-8", errors="replace")
         return text.replace("\r\n", "\n").replace("\r", "\n")
 
-    def verify_file(self, relative: str) -> None:
-        parts = self.parts(relative)
+    def _verify_file(self, relative: str) -> None:
+        parts = self._parts(relative)
         if os.name == "nt":
-            _WindowsSafeRoot(self.path).verify_file(parts)
+            _WindowsSafeRoot(self._path).verify_file(parts)
         else:
-            _PosixSafeRoot(self.path).verify_file(parts)
+            _PosixSafeRoot(self._path).verify_file(parts)
 
     def write_text(self, relative: str, text: str) -> None:
-        parts = self.parts(relative, allow_absolute=True)
+        parts = self._parts(relative, allow_absolute=True)
         data = text.encode("utf-8")
         if os.name == "nt":
-            _WindowsSafeRoot(self.path).write_bytes(parts, data)
+            _WindowsSafeRoot(self._path).write_bytes(parts, data)
         else:
-            _PosixSafeRoot(self.path).write_bytes(parts, data)
+            _PosixSafeRoot(self._path).write_bytes(parts, data)
 
-    def verify_directory(self, relative: str) -> None:
-        parts = self.parts(relative)
+    def _verify_directory(self, relative: str) -> None:
+        parts = self._parts(relative)
         if os.name == "nt":
-            _WindowsSafeRoot(self.path).verify_directory(parts)
+            _WindowsSafeRoot(self._path).verify_directory(parts)
         else:
-            _PosixSafeRoot(self.path).verify_directory(parts)
+            _PosixSafeRoot(self._path).verify_directory(parts)
 
 
 class _PosixSafeRoot:
@@ -126,21 +119,28 @@ class _PosixSafeRoot:
         self.root = root
 
     @staticmethod
+    def _require_capabilities() -> None:
+        required_flags = (getattr(os, "O_DIRECTORY", 0), getattr(os, "O_NOFOLLOW", 0))
+        if os.open not in getattr(os, "supports_dir_fd", set()) or not all(required_flags):
+            raise SafePathError(_CAPABILITY_ERROR)
+
+    @staticmethod
     def _open_root(path: Path) -> int:
-        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_CLOEXEC", 0)
+        flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0)
         return os.open(os.fspath(path), flags)
 
     @staticmethod
     def _open_child_dir(parent_fd: int, name: str) -> int:
         flags = (
             os.O_RDONLY
-            | getattr(os, "O_DIRECTORY", 0)
-            | getattr(os, "O_NOFOLLOW", 0)
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
             | getattr(os, "O_CLOEXEC", 0)
         )
         return os.open(name, flags, dir_fd=parent_fd)
 
     def _open_parent_chain(self, parts: tuple[str, ...]) -> list[int]:
+        self._require_capabilities()
         descriptors = [self._open_root(self.root)]
         try:
             for part in parts[:-1]:
@@ -150,24 +150,24 @@ class _PosixSafeRoot:
             _close_all(descriptors)
             raise
 
-    def read_bytes(self, parts: tuple[str, ...]) -> SafeRead:
+    def read_bytes(self, parts: tuple[str, ...]) -> tuple[bytes, os.stat_result]:
         descriptors = self._open_parent_chain(parts)
         leaf_fd = None
         try:
-            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+            flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
             leaf_fd = os.open(parts[-1], flags, dir_fd=descriptors[-1])
             info = os.fstat(leaf_fd)
             if not stat.S_ISREG(info.st_mode):
-                raise SafeFSError("path is not a regular file")
+                raise SafePathError("path is not a regular file")
             chunks = []
             while True:
                 chunk = os.read(leaf_fd, 1024 * 1024)
                 if not chunk:
                     break
                 chunks.append(chunk)
-            return SafeRead(b"".join(chunks), SafeStat(info.st_size))
+            return b"".join(chunks), info
         except OSError as exc:
-            raise SafeFSError("path is not a regular file") from exc
+            raise SafePathError("path is not a regular file") from exc
         finally:
             if leaf_fd is not None:
                 os.close(leaf_fd)
@@ -177,21 +177,26 @@ class _PosixSafeRoot:
         descriptors = self._open_parent_chain(parts)
         leaf_fd = None
         try:
-            flags = (
-                os.O_WRONLY
-                | os.O_CREAT
-                | getattr(os, "O_NOFOLLOW", 0)
-                | getattr(os, "O_CLOEXEC", 0)
-                | getattr(os, "O_NONBLOCK", 0)
-            )
-            leaf_fd = os.open(parts[-1], flags, 0o666, dir_fd=descriptors[-1])
+            flags = os.O_WRONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NONBLOCK", 0)
+            try:
+                leaf_fd = os.open(parts[-1], flags, dir_fd=descriptors[-1])
+            except FileNotFoundError:
+                leaf_fd = os.open(
+                    parts[-1], flags | os.O_CREAT | os.O_EXCL, 0o666,
+                    dir_fd=descriptors[-1],
+                )
             info = os.fstat(leaf_fd)
             if not stat.S_ISREG(info.st_mode):
-                raise SafeFSError("path is not a regular file")
+                raise SafePathError("path is not a regular file")
             os.ftruncate(leaf_fd, 0)
-            os.write(leaf_fd, data)
+            remaining = memoryview(data)
+            while remaining:
+                written = os.write(leaf_fd, remaining)
+                if written <= 0:
+                    raise OSError(errno.EIO, "write made no progress")
+                remaining = remaining[written:]
         except OSError as exc:
-            raise SafeFSError("path is not a regular file") from exc
+            raise SafePathError("path is not a regular file") from exc
         finally:
             if leaf_fd is not None:
                 os.close(leaf_fd)
@@ -201,13 +206,13 @@ class _PosixSafeRoot:
         descriptors = self._open_parent_chain(parts)
         leaf_fd = None
         try:
-            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+            flags = os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
             leaf_fd = os.open(parts[-1], flags, dir_fd=descriptors[-1])
             info = os.fstat(leaf_fd)
             if not stat.S_ISREG(info.st_mode):
-                raise SafeFSError("path is not a regular file")
+                raise SafePathError("path is not a regular file")
         except OSError as exc:
-            raise SafeFSError("path is not a regular file") from exc
+            raise SafePathError("path is not a regular file") from exc
         finally:
             if leaf_fd is not None:
                 os.close(leaf_fd)
@@ -317,7 +322,7 @@ class _WindowsSafeRoot:
             None,
         )
         if handle == INVALID_HANDLE_VALUE:
-            raise SafeFSError("path is not a regular file")
+            raise SafePathError("path is not a regular file")
         return handle
 
     @staticmethod
@@ -332,7 +337,7 @@ class _WindowsSafeRoot:
             handle, FileAttributeTagInfo, ctypes.byref(info), ctypes.sizeof(info)
         )
         if not ok:
-            raise SafeFSError("path attributes cannot be verified")
+            raise SafePathError("path attributes cannot be verified")
         return int(info.FileAttributes)
 
     @staticmethod
@@ -344,7 +349,7 @@ class _WindowsSafeRoot:
                 handle, buffer, size, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS
             )
             if needed == 0:
-                raise SafeFSError("path cannot be verified")
+                raise SafePathError("path cannot be verified")
             if needed < size:
                 return buffer.value
             size = needed + 1
@@ -372,9 +377,9 @@ class _WindowsSafeRoot:
         try:
             root_attrs = self._attrs(root_handle)
             if root_attrs & FILE_ATTRIBUTE_REPARSE_POINT:
-                raise SafeFSError("target root cannot be verified")
+                raise SafePathError("target root cannot be verified")
             if not root_attrs & FILE_ATTRIBUTE_DIRECTORY:
-                raise SafeFSError("target root is not a directory")
+                raise SafePathError("target root is not a directory")
             root_final = self._final_path(root_handle)
             current = self.root
             for index, part in enumerate(parts):
@@ -389,43 +394,43 @@ class _WindowsSafeRoot:
                 handles.append(handle)
                 attrs = self._attrs(handle)
                 if attrs & FILE_ATTRIBUTE_REPARSE_POINT:
-                    raise SafeFSError("path traverses a link or reparse point")
+                    raise SafePathError("path traverses a link or reparse point")
                 if is_leaf:
                     if attrs & FILE_ATTRIBUTE_DIRECTORY:
-                        raise SafeFSError("path is not a regular file")
+                        raise SafePathError("path is not a regular file")
                 elif not attrs & FILE_ATTRIBUTE_DIRECTORY:
-                    raise SafeFSError("path is not a directory")
+                    raise SafePathError("path is not a directory")
                 if self._normal_final(self._final_path(handle)) != self._expected_final(root_final, parts[:index + 1]):
-                    raise SafeFSError("path is not contained by target root")
+                    raise SafePathError("path is not contained by target root")
             return handles
         except BaseException:
             self._close_all(handles)
             raise
 
-    def read_bytes(self, parts: tuple[str, ...]) -> SafeRead:
+    def read_bytes(self, parts: tuple[str, ...]) -> tuple[bytes, os.stat_result]:
         handles = self._open_chain(parts, GENERIC_READ, OPEN_EXISTING)
         try:
             leaf = handles[-1]
             size = LARGE_INTEGER()
             if not kernel32.GetFileSizeEx(leaf, ctypes.byref(size)):
-                raise SafeFSError("path size cannot be verified")
+                raise SafePathError("path size cannot be verified")
             raw = self._read_all(leaf, size.QuadPart)
-            return SafeRead(raw, SafeStat(size.QuadPart))
+            return raw, os.stat_result((0, 0, 0, 0, 0, 0, size.QuadPart, 0, 0, 0))
         finally:
             self._close_all(handles)
 
     def write_bytes(self, parts: tuple[str, ...], data: bytes) -> None:
         try:
             handles = self._open_chain(parts, GENERIC_WRITE, OPEN_EXISTING)
-        except SafeFSError:
+        except SafePathError:
             handles = self._open_chain(parts, GENERIC_WRITE, CREATE_NEW)
         try:
             leaf = handles[-1]
             zero = LARGE_INTEGER(0)
             if not kernel32.SetFilePointerEx(leaf, zero, None, 0):
-                raise SafeFSError("path cannot be written")
+                raise SafePathError("path cannot be written")
             if not kernel32.SetEndOfFile(leaf):
-                raise SafeFSError("path cannot be written")
+                raise SafePathError("path cannot be written")
             self._write_all(leaf, data)
         finally:
             self._close_all(handles)
@@ -444,9 +449,9 @@ class _WindowsSafeRoot:
         try:
             root_attrs = self._attrs(root_handle)
             if root_attrs & FILE_ATTRIBUTE_REPARSE_POINT:
-                raise SafeFSError("target root cannot be verified")
+                raise SafePathError("target root cannot be verified")
             if not root_attrs & FILE_ATTRIBUTE_DIRECTORY:
-                raise SafeFSError("target root is not a directory")
+                raise SafePathError("target root is not a directory")
             root_final = self._final_path(root_handle)
             current = self.root
             for index, part in enumerate(parts):
@@ -458,11 +463,11 @@ class _WindowsSafeRoot:
                 handles.append(handle)
                 attrs = self._attrs(handle)
                 if attrs & FILE_ATTRIBUTE_REPARSE_POINT:
-                    raise SafeFSError("path traverses a link or reparse point")
+                    raise SafePathError("path traverses a link or reparse point")
                 if not attrs & FILE_ATTRIBUTE_DIRECTORY:
-                    raise SafeFSError("path is not a directory")
+                    raise SafePathError("path is not a directory")
                 if self._normal_final(self._final_path(handle)) != self._expected_final(root_final, parts[:index + 1]):
-                    raise SafeFSError("path is not contained by target root")
+                    raise SafePathError("path is not contained by target root")
         finally:
             self._close_all(handles)
 
@@ -476,7 +481,7 @@ class _WindowsSafeRoot:
             read = wintypes.DWORD(0)
             ok = kernel32.ReadFile(handle, buffer, count, ctypes.byref(read), None)
             if not ok:
-                raise SafeFSError("path cannot be read")
+                raise SafePathError("path cannot be read")
             if read.value == 0:
                 break
             chunks.append(buffer.raw[:read.value])
@@ -494,7 +499,7 @@ class _WindowsSafeRoot:
                 handle, buffer, len(chunk), ctypes.byref(written), None
             )
             if not ok:
-                raise SafeFSError("path cannot be written")
+                raise SafePathError("path cannot be written")
             offset += written.value
 
     @classmethod

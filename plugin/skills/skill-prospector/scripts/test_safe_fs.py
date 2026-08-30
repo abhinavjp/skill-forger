@@ -14,7 +14,9 @@ from pathlib import Path
 from unittest import mock
 
 import safe_fs
-from safe_fs import SafeFSError, SafeRoot
+from safe_fs import SafeRoot
+
+SafePathError = getattr(safe_fs, "SafePathError", ValueError)
 
 
 class SafeRootTests(unittest.TestCase):
@@ -66,8 +68,19 @@ class SafeRootTests(unittest.TestCase):
             ]
             for bad_path in bad_paths:
                 with self.subTest(path=bad_path):
-                    with self.assertRaises(SafeFSError):
-                        root.parts(bad_path)
+                    with self.assertRaises(SafePathError):
+                        root.read_text(bad_path)
+
+    def test_public_api_is_limited_to_planned_operations(self):
+        self.assertTrue(hasattr(safe_fs, "SafePathError"))
+        public_methods = {
+            name for name, value in vars(SafeRoot).items()
+            if callable(value) and not name.startswith("_")
+        }
+        self.assertEqual(
+            {"read_text", "read_bytes_with_stat", "write_text"},
+            public_methods,
+        )
 
     def test_normal_read_stat_and_write(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -77,9 +90,9 @@ class SafeRootTests(unittest.TestCase):
             (nested / "guide.md").write_bytes(b"hello")
             root = SafeRoot(root_path)
 
-            read = root.read_bytes("docs/guide.md")
-            self.assertEqual(b"hello", read.raw)
-            self.assertEqual(5, read.stat.st_size)
+            raw, info = root.read_bytes_with_stat("docs/guide.md")
+            self.assertEqual(b"hello", raw)
+            self.assertEqual(5, info.st_size)
 
             root.write_text("docs/out.txt", "first\n")
             self.assertEqual("first\n", (nested / "out.txt").read_text(encoding="utf-8"))
@@ -96,14 +109,14 @@ class SafeRootTests(unittest.TestCase):
                 link = root_path / "junction"
                 self.make_dir_link(link, Path(outside))
                 try:
-                    with self.assertRaises(SafeFSError):
-                        root.read_bytes("junction")
+                    with self.assertRaises(SafePathError):
+                        root.read_bytes_with_stat("junction")
                 finally:
                     self.remove_dir_link(link)
             else:
                 self.make_file_symlink(root_path / "link.md", external)
-                with self.assertRaises(SafeFSError):
-                    root.read_bytes("link.md")
+                with self.assertRaises(SafePathError):
+                    root.read_bytes_with_stat("link.md")
 
     def test_intermediate_link_or_reparse_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
@@ -116,8 +129,8 @@ class SafeRootTests(unittest.TestCase):
                 stdout = io.StringIO()
                 stderr = io.StringIO()
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                    with self.assertRaises(SafeFSError):
-                        SafeRoot(root_path).read_bytes("link/secret.md")
+                    with self.assertRaises(SafePathError):
+                        SafeRoot(root_path).read_bytes_with_stat("link/secret.md")
                 self.assertNotIn("OUTSIDE SECRET", stdout.getvalue())
                 self.assertNotIn("OUTSIDE SECRET", stderr.getvalue())
             finally:
@@ -144,7 +157,7 @@ class SafeRootTests(unittest.TestCase):
                     return original_read_all(handle, size)
 
                 with mock.patch.object(safe_fs._WindowsSafeRoot, "_read_all", side_effect=swapping_read):
-                    read = root.read_bytes("guide.md")
+                    raw, _ = root.read_bytes_with_stat("guide.md")
             else:
                 original_fstat = safe_fs.os.fstat
                 attempted = {"done": False}
@@ -157,9 +170,9 @@ class SafeRootTests(unittest.TestCase):
                     return info
 
                 with mock.patch.object(safe_fs.os, "fstat", side_effect=swapping_fstat):
-                    read = root.read_bytes("guide.md")
+                    raw, _ = root.read_bytes_with_stat("guide.md")
 
-            self.assertEqual(b"ORIGINAL", read.raw)
+            self.assertEqual(b"ORIGINAL", raw)
 
     def test_handles_are_closed_after_failure(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
@@ -184,8 +197,8 @@ class SafeRootTests(unittest.TestCase):
 
                     with mock.patch.object(safe_fs._WindowsSafeRoot, "_open", side_effect=recording_open):
                         with mock.patch.object(safe_fs._WindowsSafeRoot, "_close", side_effect=recording_close):
-                            with self.assertRaises(SafeFSError):
-                                SafeRoot(root_path).read_bytes("link/secret.md")
+                            with self.assertRaises(SafePathError):
+                                SafeRoot(root_path).read_bytes_with_stat("link/secret.md")
                     self.assertCountEqual(opened, closed)
                 else:
                     opened = []
@@ -204,8 +217,8 @@ class SafeRootTests(unittest.TestCase):
 
                     with mock.patch.object(safe_fs.os, "open", side_effect=recording_open):
                         with mock.patch.object(safe_fs.os, "close", side_effect=recording_close):
-                            with self.assertRaises(SafeFSError):
-                                SafeRoot(root_path).read_bytes("link/secret.md")
+                            with self.assertRaises(SafePathError):
+                                SafeRoot(root_path).read_bytes_with_stat("link/secret.md")
                     self.assertCountEqual(opened, closed)
             finally:
                 self.remove_dir_link(link)
@@ -232,8 +245,8 @@ class SafeRootTests(unittest.TestCase):
                 return descriptors
 
             with mock.patch.object(safe_fs._PosixSafeRoot, "_open_parent_chain", swap_before_leaf):
-                with self.assertRaises(SafeFSError):
-                    SafeRoot(root_path).read_bytes("docs/guide.md")
+                with self.assertRaises(SafePathError):
+                    SafeRoot(root_path).read_bytes_with_stat("docs/guide.md")
             self.assertEqual("OUTSIDE SECRET\n", external.read_text(encoding="utf-8"))
 
     @unittest.skipIf(os.name != "nt", "Windows junction race probe")
@@ -259,11 +272,11 @@ class SafeRootTests(unittest.TestCase):
 
             with mock.patch.object(safe_fs._WindowsSafeRoot, "_open", side_effect=swap_before_leaf):
                 try:
-                    read = SafeRoot(root_path).read_bytes("docs/guide.md")
-                except SafeFSError:
+                    raw, _ = SafeRoot(root_path).read_bytes_with_stat("docs/guide.md")
+                except SafePathError:
                     pass
                 else:
-                    self.assertNotIn(b"OUTSIDE SECRET", read.raw)
+                    self.assertNotIn(b"OUTSIDE SECRET", raw)
             if docs.exists():
                 with contextlib.suppress(OSError):
                     self.remove_dir_link(docs)
@@ -286,7 +299,7 @@ class SafeRootTests(unittest.TestCase):
                 stdout = io.StringIO()
                 stderr = io.StringIO()
                 with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                    with self.assertRaises(SafeFSError):
+                    with self.assertRaises(SafePathError):
                         SafeRoot(root_path).write_text(relative, "changed\n")
                 self.assertEqual("OUTSIDE SECRET\n", external.read_text(encoding="utf-8"))
                 self.assertNotIn("OUTSIDE SECRET", stdout.getvalue())
@@ -294,6 +307,62 @@ class SafeRootTests(unittest.TestCase):
             finally:
                 if os.name == "nt":
                     self.remove_dir_link(link)
+
+    @unittest.skipIf(os.name == "nt", "POSIX capability guard")
+    def test_posix_missing_descriptor_capability_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root_path = Path(directory)
+            (root_path / "guide.md").write_bytes(b"internal")
+            helper = safe_fs._PosixSafeRoot(root_path)
+            missing_capabilities = (
+                ("O_DIRECTORY", 0),
+                ("O_NOFOLLOW", 0),
+                ("supports_dir_fd", set()),
+            )
+            for name, replacement in missing_capabilities:
+                with self.subTest(capability=name):
+                    with mock.patch.object(safe_fs.os, name, replacement):
+                        with mock.patch.object(safe_fs.os, "open", wraps=os.open) as opened:
+                            with self.assertRaisesRegex(SafePathError, "safe filesystem operation unavailable"):
+                                helper.read_bytes(("guide.md",))
+                    opened.assert_not_called()
+
+    @unittest.skipIf(os.name == "nt", "POSIX exclusive-create race guard")
+    def test_posix_write_refuses_racer_created_leaf(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root_path = Path(directory)
+            target = root_path / "out.txt"
+            helper = safe_fs._PosixSafeRoot(root_path)
+            original_open = safe_fs.os.open
+            first_leaf_open = {"done": False}
+
+            def racer(path, flags, mode=0o777, *, dir_fd=None):
+                if path == "out.txt" and not first_leaf_open["done"]:
+                    first_leaf_open["done"] = True
+                    self.assertFalse(flags & os.O_CREAT)
+                    target.write_bytes(b"RACER")
+                    raise FileNotFoundError(errno.ENOENT, "raced")
+                return original_open(path, flags, mode, dir_fd=dir_fd)
+
+            with mock.patch.object(safe_fs.os, "open", side_effect=racer):
+                with self.assertRaises(SafePathError):
+                    helper.write_bytes(("out.txt",), b"OURS")
+            self.assertEqual(b"RACER", target.read_bytes())
+
+    @unittest.skipIf(os.name == "nt", "POSIX short-write guard")
+    def test_posix_write_retries_short_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root_path = Path(directory)
+            target = root_path / "out.txt"
+            helper = safe_fs._PosixSafeRoot(root_path)
+            original_write = safe_fs.os.write
+
+            def short_write(descriptor, data):
+                return original_write(descriptor, data[:2])
+
+            with mock.patch.object(safe_fs.os, "write", side_effect=short_write):
+                helper.write_bytes(("out.txt",), b"complete payload")
+            self.assertEqual(b"complete payload", target.read_bytes())
 
 
 def stat_is_regular(mode: int) -> bool:
