@@ -51,3 +51,24 @@ boundary in one sentence and rank by reuse, specialised knowledge, evidence
 strength and actionability. Accept at most seven by default. Mark the rest
 `deferred` with its rank and reason. A candidate is not accepted merely because
 the source file was matched by the catalogue.
+
+## Invocation policy
+
+Every accepted candidate records exactly one `invocation policy`:
+`automatic`, `both`, or `explicit-only-required`. Add one sentence of
+`invocation evidence` explaining the reuse/false-positive tradeoff and risk.
+
+- Use `both` for a safe reusable workflow that benefits from discovery and can
+  also be named by the user.
+- Use `automatic` when discoverability is essential and accidental activation
+  has low cost.
+- Use `explicit-only-required` only when accidental activation has meaningful
+  cost or risk. Route it to a host command/workflow when that host can enforce
+  user-only invocation; do not claim portable Skill frontmatter can enforce it.
+- On a host without an enforceable explicit mechanism, disclose
+  `not-enforceable-portably` and keep the candidate `deferred` unless the user
+  accepts the automatic-routing risk.
+
+The plan's `proposed mechanism` remains the `skill-engineer` decision. An
+explicit-only candidate must additionally name the proposed `command` or
+`workflow` where the detected host supports it.

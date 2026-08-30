@@ -34,11 +34,13 @@ block containing these fields, in this order:
 id:
 name:
 boundary:
-trigger:
-sources:
-proposed mechanism:
-portable invocation:
-host enhancements:
+  trigger:
+  sources:
+  proposed mechanism:
+  invocation policy:
+  invocation evidence:
+  portable invocation:
+  host enhancements:
 dependencies:
 eval outline:
 acceptance criteria:
@@ -47,8 +49,11 @@ acceptance criteria:
 `boundary` is one sentence. `sources` contains evidence citations in
 `path:heading` form, with line spans when a slice was used. `proposed mechanism`
 includes the `skill-engineer` CREATE result and its justification; it is not a
-new copy of that Skill's rules. `host enhancements` is optional per detected
-host and must retain the status `enforced`,
+new copy of that Skill's rules. `invocation policy` is exactly `automatic`,
+`both`, or `explicit-only-required`; `invocation evidence` is one sentence
+about reuse, false-positive cost and risk. An explicit-only candidate names a
+host-enforceable command/workflow or records `not-enforceable-portably` and
+`deferred`. `host enhancements` is optional per detected host and must retain the status `enforced`,
 `enforced-with-known-deviation`, or
 `not-enforceable — description discipline only`.
 

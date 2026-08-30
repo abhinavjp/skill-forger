@@ -106,6 +106,7 @@
   competition:
     required_candidates: [skill-prospector, skill-engineer, merge-sentinel]
     expected_policy: coactivation
+    unmeasured_if: catalog-preconditions-absent
   graders:
     - type: host-routing
       check:
@@ -115,4 +116,6 @@
     The two phases legitimately coactivate: prospector owns project discovery
     and the plan; skill-engineer owns candidate creation. merge-sentinel is a
     deliberate neighbouring competitor that must not replace either phase.
+    If the host catalog does not expose all required candidates, grade this
+    case UNMEASURED rather than pass or fail.
   tags: [catalogue-competition, coactivation]

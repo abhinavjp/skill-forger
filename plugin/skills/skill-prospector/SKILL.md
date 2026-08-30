@@ -36,14 +36,18 @@ and emits a creation plan; it does not author candidate Skills.
 5. **Select candidates.** Load `references/candidate-selection.md`; cluster,
    merge and reject before deriving requirements. Record every rejected or
    deferred unit and its routed mechanism. Accept at most seven ranked
-   candidates by default.
+   candidates by default; do not fill the cap speculatively.
 6. **Derive requirements.** Engage `skill-engineer` CREATE once per accepted
-   candidate batch, passing only the evidence bundle already in context. Do
-   not copy its rule text, eval schema or host matrix.
+   candidate batch, passing only the evidence bundle already in context and
+   each proposed invocation mode. Do not copy its rule text, eval schema or
+   host matrix.
 7. **Adapt invocation.** Load `references/host-invocation.md` after detecting
-   host signals. State portable deliberate invocation first, then optional
-   host enhancements only for detected hosts. Record `UNTESTED` behaviour and
-   never claim cross-host equivalence.
+   host signals. Decide `automatic`, `both` or `explicit-only-required` per
+   candidate, with one evidence/risk sentence. Route strict explicit-only
+   candidates to a supported command/workflow; otherwise disclose
+   `not-enforceable-portably` and defer unless the user accepts the risk.
+   Record host status as `standards-compatible`, `tested`, `untested` or
+   `known deviation`; never claim cross-host equivalence.
 8. **Emit and check.** Load `references/plan-format.md`, render one Markdown
    plan in memory, validate it, write a temporary sibling and atomically
    replace the confirmed path. Remove the temporary file on failure, then

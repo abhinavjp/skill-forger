@@ -259,7 +259,9 @@
         Pass only if the response records Cursor as detected, includes the
         known plugin-delivered limitation, and does not propose
         disable-model-invocation: true for a plugin-delivered Cursor Skill
-        without the deviation warning. Do not reward an equivalence claim.
+        without the deviation warning. If native Cursor plugin delivery is not
+        available to the trial, return UNMEASURED rather than pass or fail.
+        Do not reward an equivalence claim.
   tags: [requires-model, cursor, portability]
 
 - version: 1
