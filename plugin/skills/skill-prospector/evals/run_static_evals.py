@@ -167,10 +167,35 @@ def scan_fixture_shape(name: str):
         return False, [f"expectations unreadable: {exc}"]
     if result["errors"]:
         reasons.append(f"scan errors: {result['errors']}")
-    actual = {unit["path"] for unit in result["matched_units"]}
-    missing = set(expectations.get("expected_paths", [])) - actual
+    by_path = {unit["path"]: unit for unit in result["matched_units"]}
+    actual = set(by_path)
+    expected = set(expectations.get("expected_paths", []))
+    missing = expected - actual
     if missing:
         reasons.append(f"expected paths missing from inventory: {sorted(missing)}")
+    unexpected = actual - expected
+    if unexpected:
+        reasons.append(f"unexpected paths in inventory: {sorted(unexpected)}")
+    for path in expectations.get("ignored_catalogue_paths", []):
+        unit = by_path.get(path)
+        if not unit:
+            continue
+        if unit.get("source_scope") != "catalogue":
+            reasons.append(f"ignored path is not catalogue-scoped: {path}")
+        if unit.get("ignored_by_git") is not True:
+            reasons.append(f"catalogue path was not marked gitignored: {path}")
+    skipped = {item.get("path"): item.get("reason") for item in result["skipped"]}
+    for path in expectations.get("ignored_heuristic_paths", []):
+        if path in actual:
+            reasons.append(f"ignored heuristic path was inventoried: {path}")
+        elif skipped.get(path) != "excluded:.gitignore":
+            reasons.append(f"ignored heuristic path lacks gitignore skip: {path}")
+    expected_ignored_count = expectations.get("ignored_guidance_count")
+    if expected_ignored_count is not None and result.get("ignored_guidance_count") != expected_ignored_count:
+        reasons.append(
+            "ignored_guidance_count is "
+            f"{result.get('ignored_guidance_count')}, expected {expected_ignored_count}"
+        )
     if not isinstance(result.get("scanned_files"), int):
         reasons.append("scanned_files is not an integer")
     return not reasons, reasons
@@ -227,7 +252,8 @@ def plan_artifact_shape(check):
 
     candidate_fields = (
         "id", "name", "boundary", "trigger", "sources",
-        "proposed mechanism", "portable invocation", "host enhancements",
+        "proposed mechanism", "invocation policy", "invocation evidence",
+        "portable invocation", "host enhancements",
         "dependencies", "eval outline", "acceptance criteria",
     )
     starts = [index for index, line in enumerate(lines)
@@ -269,6 +295,89 @@ def plan_sections_present(check):
     return plan_artifact_shape(check)
 
 
+def headingless_document_evidence(_check):
+    target = ROOT / "evals" / "fixtures" / "target-unheaded-guidance"
+    out = io.StringIO()
+    err = io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = scan_guidance.main([
+            "slice", str(target), "AGENTS.md", "--document", "--max-bytes", "96"
+        ])
+    rendered = out.getvalue()
+    reasons = []
+    if code != 0:
+        reasons.append(f"document slice exited {code}: {err.getvalue().strip()}")
+    if len(rendered.encode("utf-8")) > 96:
+        reasons.append("document slice exceeds max bytes")
+    if "AGENTS.md:1-4" not in rendered:
+        reasons.append("document slice lacks line-span provenance")
+    return not reasons, reasons
+
+
+def hash_drift(_check):
+    with tempfile.TemporaryDirectory(prefix="prospector-hash-drift-") as directory:
+        root = Path(directory)
+        path = root / "AGENTS.md"
+        path.write_text("Run the original check.\n", encoding="utf-8")
+        result, reasons = _run_scan_path(root)
+        if reasons:
+            return False, reasons
+        scan_id = result.get("scan_id")
+        first_code, first_output, first_error = _capture(
+            scan_guidance.main,
+            ["slice", str(root), "AGENTS.md", "--document", "--scan-id", scan_id],
+        )
+        if first_code != 0 or "Run the original check." not in first_output:
+            reasons.append(f"fresh evidence rejected: {first_error.strip()}")
+        path.write_text("Run the changed check.\n", encoding="utf-8")
+        second_code, second_output, _ = _capture(
+            scan_guidance.main,
+            ["slice", str(root), "AGENTS.md", "--document", "--scan-id", scan_id],
+        )
+        if second_code != 2 or second_output:
+            reasons.append("changed evidence was not rejected")
+        return not reasons, reasons
+
+
+def _run_scan_path(root: Path):
+    code, stdout, stderr = _capture(
+        scan_guidance.main, ["scan", str(root), "--json"]
+    )
+    if code != 0:
+        return None, [f"scan exited {code}: {stderr.strip()}"]
+    try:
+        return json.loads(stdout), []
+    except json.JSONDecodeError as exc:
+        return None, [f"scan emitted invalid JSON: {exc}"]
+
+
+def root_containment(_check):
+    with tempfile.TemporaryDirectory(prefix="prospector-containment-") as directory:
+        with tempfile.TemporaryDirectory(prefix="prospector-outside-") as outside_dir:
+            root = Path(directory)
+            outside = Path(outside_dir)
+            secret = outside / "secret.md"
+            secret.write_text("OUTSIDE SECRET\n", encoding="utf-8")
+            reasons = []
+
+            for relative in ("../secret.md", str(secret)):
+                code, output, _ = _capture(
+                    scan_guidance.main,
+                    ["slice", str(root), relative, "--document"],
+                )
+                if code != 2 or "OUTSIDE SECRET" in output:
+                    reasons.append(f"escape was not rejected: {relative}")
+
+            inventory = outside / "inventory.json"
+            code, _, _ = _capture(
+                scan_guidance.main,
+                ["scan", str(root), "--json", "--out", str(inventory)],
+            )
+            if code != 2 or inventory.exists():
+                reasons.append("outside inventory output was accepted")
+            return not reasons, reasons
+
+
 def idempotent_scan(_check):
     first, reasons = _run_fixture_scan("target-claude-code-rich")
     second, second_reasons = _run_fixture_scan("target-claude-code-rich")
@@ -279,21 +388,6 @@ def idempotent_scan(_check):
         paths = [unit["path"] for unit in first["matched_units"]]
         if len(paths) != len(set(paths)):
             reasons.append("inventory contains duplicate paths")
-    with tempfile.TemporaryDirectory(prefix="prospector-idempotency-") as directory:
-        plan = Path(directory) / "confirmed.md"
-        source = (ROOT / "evals" / "fixtures" / "expected-plan.md").read_text(
-            encoding="utf-8"
-        )
-        plan.write_text(source, encoding="utf-8")
-        plan.write_text(source, encoding="utf-8")
-        candidate_headers = [
-            line for line in plan.read_text(encoding="utf-8").splitlines()
-            if line.startswith("### Candidate:")
-        ]
-        if len(list(Path(directory).iterdir())) != 1:
-            reasons.append("idempotent plan write created more than one file")
-        if len(candidate_headers) != len(set(candidate_headers)):
-            reasons.append("idempotent plan contains duplicate candidate blocks")
     return not reasons, reasons
 
 
@@ -327,6 +421,9 @@ VALIDATORS = {
     "scan_is_read_only": scan_is_read_only,
     "plan_sections_present": plan_sections_present,
     "plan_artifact_shape": plan_artifact_shape,
+    "headingless_document_evidence": headingless_document_evidence,
+    "hash_drift": hash_drift,
+    "root_containment": root_containment,
     "idempotent_scan": idempotent_scan,
     "slice_bounds": slice_bounds,
 }

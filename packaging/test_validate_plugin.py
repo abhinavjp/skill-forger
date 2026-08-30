@@ -71,6 +71,23 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             [], validator.tracked_generated_results(proc.stdout.splitlines())
         )
 
+    def test_skill_prospector_canonical_evals_validate_without_optional_dependencies(self) -> None:
+        """Keeps the packaged canonical eval corpus readable by bundled Python."""
+        eval_validator = (
+            PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
+        )
+        evals = PLUGIN_SKILLS / "skill-prospector" / "evals"
+        proc = subprocess.run(
+            [sys.executable, str(eval_validator), str(evals), "--json"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertGreater(report["case_count"], 0)
+        self.assertEqual([], report["errors"])
+
     def test_generated_results_are_matched_only_at_the_skill_eval_root(self) -> None:
         """Catches a matcher that flags fixture payloads or ignores real result output."""
         self.assertEqual(

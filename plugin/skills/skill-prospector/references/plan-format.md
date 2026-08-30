@@ -76,8 +76,8 @@ inventory source, slice count, candidate count and rejected-with-reason count.
 `## Target and authority` records explicit plan-path confirmation and the
 one-write boundary, with `authority: default`, `authority: explicit`, or
 `authority: redirected`, and `overwrite: yes` or `overwrite: no`. The default
-authority is the contained `docs/plans/skill-prospector-plan.md` path when the
-user requests a plan without supplying one. `## Capabilities not exercised`
+authority is the contained `docs/plans/` plus `skill-prospector-plan.md` path
+when the user requests a plan without supplying one. `## Capabilities not exercised`
 lists every degraded or
 unavailable capability, including host runners and Layers B/D when they have
 not run. Do not call a partial run complete.

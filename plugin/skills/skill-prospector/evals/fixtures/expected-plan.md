@@ -27,6 +27,8 @@ boundary: Run the documented workflow.
 trigger: Use when the workflow is requested.
 sources: docs/runbooks/deploy.md:Deploy
 proposed mechanism: Skill; derived through skill-engineer CREATE.
+invocation policy: both
+invocation evidence: The workflow is safe to discover and useful when named by the user.
 portable invocation: deliberate user invocation.
 host enhancements: none
 dependencies: none

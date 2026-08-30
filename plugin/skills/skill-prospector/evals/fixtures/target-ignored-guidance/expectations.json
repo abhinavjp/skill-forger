@@ -8,5 +8,6 @@
   ],
   "ignored_heuristic_paths": [
     "notes.md"
-  ]
+  ],
+  "ignored_guidance_count": 1
 }
