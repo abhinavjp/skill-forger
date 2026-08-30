@@ -33,6 +33,7 @@ KNOWN_GUIDANCE_BASENAMES = {
 TEXT_EXTENSIONS = {".md", ".markdown", ".mdc", ".txt", ".rst"}
 HEADING_RE = re.compile(r"^ {0,3}(#{1,6})\s+(.+?)\s*$")
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)")
+SCANNER_VERSION = 1
 
 
 class _ContainmentError(ValueError):
@@ -57,7 +58,7 @@ def _load_patterns():
 
 
 def _normalise_path(value: str) -> str:
-    value = value.replace(os.sep, "/")
+    value = value.replace("\\", "/").replace(os.sep, "/")
     return value[2:] if value.startswith("./") else value
 
 
@@ -73,6 +74,8 @@ def _glob_match(path: str, pattern: str) -> bool:
     if not anchored:
         candidates.extend(path.split("/"))
     if fnmatch.fnmatchcase(path, pattern):
+        return True
+    if not anchored and "/" in pattern and fnmatch.fnmatchcase(path, f"*/{pattern}"):
         return True
     if pattern.startswith("**/") and fnmatch.fnmatchcase(path, pattern[3:]):
         return True
@@ -225,30 +228,73 @@ def _sha256(raw: bytes) -> str:
     return digest.hexdigest()
 
 
-def _make_scan_id(root: Path, pairs) -> str:
-    payload = {
-        "root": str(root.resolve()),
-        "files": sorted([[path, digest] for path, digest in pairs]),
-    }
-    rendered = json.dumps(payload, ensure_ascii=False, sort_keys=True,
-                          separators=(",", ":"))
+def _canonical_json_digest(value) -> str:
+    rendered = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return _sha256(rendered.encode("utf-8"))
 
 
-def _candidate_hash_pairs(root: Path):
-    """Recompute candidate hash membership for optional slice freshness checks."""
+def _make_scan_id(root: Path, max_bytes: int, patterns, pairs) -> str:
+    payload = {
+        "root": str(root.resolve()),
+        "scanner_version": SCANNER_VERSION,
+        "pattern_catalogue_sha256": _canonical_json_digest(patterns),
+        "max_bytes": max_bytes,
+        "files": sorted([[path, digest] for path, digest in pairs]),
+    }
+    return f"v2:{max_bytes}:{_canonical_json_digest(payload)}"
+
+
+def _parse_scan_id(value: str) -> tuple[int, str]:
+    version, separator, remainder = value.partition(":")
+    max_text, second_separator, digest = remainder.partition(":")
+    if version != "v2" or separator != ":" or second_separator != ":":
+        raise _ContainmentError("scan id must be a v2 inventory token")
     try:
-        patterns = _load_patterns()
-    except (SafePathError, OSError, ValueError, json.JSONDecodeError) as exc:
-        raise _ContainmentError("scan membership cannot be recomputed") from exc
+        max_bytes = int(max_text)
+    except ValueError as exc:
+        raise _ContainmentError("scan id has invalid max bytes") from exc
+    if max_bytes <= 0 or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise _ContainmentError("scan id is invalid")
+    return max_bytes, digest
+
+
+def _relative_error_path(root: Path, value) -> str:
+    if not value:
+        return ""
+    try:
+        path = Path(value)
+        if path.is_absolute():
+            return _normalise_path(os.path.relpath(str(path), str(root)))
+    except (OSError, ValueError):
+        pass
+    text = _normalise_path(os.fspath(value))
+    if text.startswith("../") or text == "..":
+        return Path(text).name
+    return text
+
+
+def _build_inventory(root: Path, max_bytes: int | None):
+    patterns = _load_patterns()
     heuristic = patterns["heuristic"]
+    if max_bytes is None:
+        max_bytes = heuristic["max_bytes"]
+    marker_regexes = _directive_regexes(heuristic["directive_markers"])
     safe_root = SafeRoot(root)
     gitignore = _read_gitignore(safe_root)
-    pairs = []
-    walk_errors = []
+    matched_units = []
+    skipped = []
+    errors = []
+    scanned_files = 0
+    truncated = False
+    ignored_guidance_count = 0
 
     def onerror(error):
-        walk_errors.append(error)
+        errors.append({
+            "path": _relative_error_path(root, getattr(error, "filename", "")),
+            "error": "walk failed",
+        })
 
     for base, dirs, names in os.walk(str(root), topdown=True, onerror=onerror):
         base_path = Path(base)
@@ -257,38 +303,93 @@ def _candidate_hash_pairs(root: Path):
             full_dir = base_path / dirname
             rel_dir = _normalise_path(os.path.relpath(str(full_dir), str(root)))
             reason = _excluded(rel_dir, True, patterns.get("exclusions", []))
-            if (
-                reason is None
-                and _gitignored(rel_dir, True, gitignore)
-                and not _could_contain_guidance(root, rel_dir, patterns["catalogue"])
-            ):
-                reason = ".gitignore"
-            if reason is None:
+            if reason is not None:
+                skipped.append({"path": rel_dir, "reason": f"excluded:{reason}"})
+            else:
                 kept_dirs.append(dirname)
         dirs[:] = kept_dirs
 
         for filename in sorted(names):
             full_path = base_path / filename
             rel_path = _normalise_path(os.path.relpath(str(full_path), str(root)))
-            if _excluded(rel_path, False, patterns.get("exclusions", [])) is not None:
+            exclusion = _excluded(rel_path, False, patterns.get("exclusions", []))
+            if exclusion is not None:
+                skipped.append({"path": rel_path, "reason": f"excluded:{exclusion}"})
+                continue
+            entries = _catalogue_entries(rel_path, patterns["catalogue"])
+            ignored_by_git = _gitignored(rel_path, False, gitignore)
+            if ignored_by_git and not entries:
+                skipped.append({"path": rel_path, "reason": "excluded:.gitignore"})
                 continue
             try:
                 safe_root._verify_file(rel_path)
-            except SafePathError as exc:
-                raise _ContainmentError("scan membership cannot be recomputed") from exc
-            entries = _catalogue_entries(rel_path, patterns["catalogue"])
-            if _gitignored(rel_path, False, gitignore) and not entries:
+            except SafePathError:
+                errors.append({
+                    "path": rel_path,
+                    "error": "candidate rejected by containment",
+                })
                 continue
-            if not entries and full_path.suffix.lower() not in set(heuristic["extensions"]):
+            scanned_files += 1
+            is_heuristic_candidate = (
+                full_path.suffix.lower() in set(heuristic["extensions"])
+            )
+            if not entries and not is_heuristic_candidate:
                 continue
+
+            reasons = [f"catalogue:{entry['id']}" for entry in entries]
+            host_affinity = [host for entry in entries
+                             for host in entry.get("host_affinity", [])]
+            if entries:
+                current_mechanism = entries[0].get("current_mechanism", "unknown")
+            else:
+                current_mechanism = "prose-doc"
             try:
-                raw, _ = safe_root.read_bytes_with_stat(rel_path)
-            except (SafePathError, OSError) as exc:
-                raise _ContainmentError("scan membership cannot be recomputed") from exc
-            pairs.append((rel_path, _sha256(raw)))
-    if walk_errors:
-        raise _ContainmentError("scan membership cannot be recomputed")
-    return pairs
+                raw, info = safe_root.read_bytes_with_stat(rel_path)
+                size = info.st_size
+                record = _read_file_metadata(
+                    raw, rel_path, size, reasons, host_affinity,
+                    current_mechanism, max_bytes, marker_regexes
+                )
+            except SafePathError:
+                errors.append({
+                    "path": rel_path,
+                    "error": "candidate rejected by containment",
+                })
+                continue
+            except (OSError, UnicodeError):
+                errors.append({"path": rel_path, "error": "candidate read failed"})
+                continue
+
+            record["source_scope"] = "catalogue" if entries else "heuristic"
+            record["ignored_by_git"] = ignored_by_git
+
+            matched = False
+            if record.get("status") == "oversize":
+                record["match_reason"].append("heuristic:oversize")
+                truncated = True
+                matched = True
+            elif entries or record["directive_count"] >= heuristic["min_directives"]:
+                if not entries:
+                    record["match_reason"].append("heuristic:imperative-density")
+                matched = True
+            if matched:
+                matched_units.append(record)
+                if ignored_by_git and entries:
+                    ignored_guidance_count += 1
+
+    scan_pairs = [(unit["path"], unit["sha256"]) for unit in matched_units]
+    result = {
+        "version": 1,
+        "root": str(root.resolve()),
+        "scanned_files": scanned_files,
+        "matched_units": matched_units,
+        "skipped": skipped,
+        "scan_id": _make_scan_id(root, max_bytes, patterns, scan_pairs),
+        "ignored_guidance_count": ignored_guidance_count,
+        "truncated": truncated,
+        "errors": errors,
+    }
+    return result, {path: digest for path, digest in scan_pairs}
 
 
 def _read_file_metadata(raw: bytes, rel_path: str, size: int, match_reason,
@@ -331,124 +432,12 @@ def _scan(args):
         print("error: scan root is not a directory or is not readable",
               file=sys.stderr)
         return 2
+    safe_root = SafeRoot(root)
     try:
-        patterns = _load_patterns()
+        result, _ = _build_inventory(root, args.max_bytes)
     except (SafePathError, OSError, ValueError, json.JSONDecodeError) as exc:
         print(f"error: cannot load pattern catalogue: {exc}", file=sys.stderr)
         return 2
-
-    heuristic = patterns["heuristic"]
-    max_bytes = args.max_bytes if args.max_bytes is not None else heuristic["max_bytes"]
-    marker_regexes = _directive_regexes(heuristic["directive_markers"])
-    safe_root = SafeRoot(root)
-    gitignore = _read_gitignore(safe_root)
-    matched_units = []
-    skipped = []
-    errors = []
-    scanned_files = 0
-    truncated = False
-    containment_failed = False
-    ignored_guidance_count = 0
-    scan_pairs = []
-
-    def onerror(error):
-        errors.append({"path": _normalise_path(str(getattr(error, "filename", ""))),
-                       "error": str(error)})
-
-    for base, dirs, names in os.walk(str(root), topdown=True, onerror=onerror):
-        base_path = Path(base)
-        kept_dirs = []
-        for dirname in sorted(dirs):
-            full_dir = base_path / dirname
-            rel_dir = _normalise_path(os.path.relpath(str(full_dir), str(root)))
-            reason = _excluded(rel_dir, True, patterns.get("exclusions", []))
-            if (
-                reason is None
-                and _gitignored(rel_dir, True, gitignore)
-                and not _could_contain_guidance(root, rel_dir, patterns["catalogue"])
-            ):
-                reason = ".gitignore"
-            if reason is not None:
-                skipped.append({"path": rel_dir, "reason": f"excluded:{reason}"})
-            else:
-                kept_dirs.append(dirname)
-        dirs[:] = kept_dirs
-
-        for filename in sorted(names):
-            full_path = base_path / filename
-            rel_path = _normalise_path(os.path.relpath(str(full_path), str(root)))
-            exclusion = _excluded(rel_path, False, patterns.get("exclusions", []))
-            if exclusion is not None:
-                skipped.append({"path": rel_path, "reason": f"excluded:{exclusion}"})
-                continue
-            try:
-                safe_root._verify_file(rel_path)
-            except SafePathError:
-                errors.append({"path": rel_path,
-                               "error": "candidate rejected by target-root containment"})
-                containment_failed = True
-                continue
-            entries = _catalogue_entries(rel_path, patterns["catalogue"])
-            ignored_by_git = _gitignored(rel_path, False, gitignore)
-            if ignored_by_git and not entries:
-                skipped.append({"path": rel_path, "reason": "excluded:.gitignore"})
-                continue
-            scanned_files += 1
-            is_heuristic_candidate = (
-                full_path.suffix.lower() in set(heuristic["extensions"])
-            )
-            if not entries and not is_heuristic_candidate:
-                continue
-
-            reasons = [f"catalogue:{entry['id']}" for entry in entries]
-            host_affinity = [host for entry in entries
-                             for host in entry.get("host_affinity", [])]
-            if entries:
-                current_mechanism = entries[0].get("current_mechanism", "unknown")
-            else:
-                current_mechanism = "prose-doc"
-            try:
-                raw, info = safe_root.read_bytes_with_stat(rel_path)
-                size = info.st_size
-                record = _read_file_metadata(
-                    raw, rel_path, size, reasons, host_affinity,
-                    current_mechanism, max_bytes, marker_regexes
-                )
-            except SafePathError:
-                errors.append({"path": rel_path,
-                               "error": "candidate rejected by target-root containment"})
-                containment_failed = True
-                continue
-            except (OSError, UnicodeError) as exc:
-                errors.append({"path": rel_path, "error": str(exc)})
-                continue
-
-            record["source_scope"] = "catalogue" if entries else "heuristic"
-            record["ignored_by_git"] = ignored_by_git
-            scan_pairs.append((rel_path, record["sha256"]))
-            if ignored_by_git and entries:
-                ignored_guidance_count += 1
-
-            if record.get("status") == "oversize":
-                record["match_reason"].append("heuristic:oversize")
-                matched_units.append(record)
-                truncated = True
-            elif entries or record["directive_count"] >= heuristic["min_directives"]:
-                if not entries:
-                    record["match_reason"].append("heuristic:imperative-density")
-                matched_units.append(record)
-
-    result = {
-        "version": 1,
-        "root": str(root.resolve()),
-        "scanned_files": scanned_files,
-        "matched_units": matched_units,
-        "skipped": skipped,
-        "scan_id": _make_scan_id(root, scan_pairs),
-        "ignored_guidance_count": ignored_guidance_count,
-        "truncated": truncated,
-        "errors": errors,
-    }
     rendered = json.dumps(result, indent=2) + "\n"
     if args.out:
         try:
@@ -460,7 +449,7 @@ def _scan(args):
             print(f"error: cannot write inventory: {exc}", file=sys.stderr)
             return 2
     sys.stdout.write(rendered)
-    return 2 if containment_failed else 0
+    return 2 if result["errors"] else 0
 
 
 def _slice_output(path: str, start: int, end: int, body: str, max_bytes: int):
@@ -483,30 +472,45 @@ def _slice_output(path: str, start: int, end: int, body: str, max_bytes: int):
 
 
 def _slice(args):
-    safe_root = None
     try:
-        safe_root = SafeRoot(Path(args.root))
-        safe_root._parts(args.relative_path)
-    except SafePathError:
+        root = _canonical_root(Path(args.root))
+        safe_root = SafeRoot(root)
+        relative_path = "/".join(safe_root._parts(args.relative_path))
+    except (SafePathError, _ContainmentError):
         print("error: slice path must stay inside target root", file=sys.stderr)
         return 2
+    matched_digest = None
     if args.scan_id:
         try:
-            current_scan_id = _make_scan_id(
-                _canonical_root(Path(args.root)),
-                _candidate_hash_pairs(Path(args.root)),
-            )
-        except (_ContainmentError, SafePathError):
+            inventory_max_bytes, _ = _parse_scan_id(args.scan_id)
+        except _ContainmentError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        try:
+            result, matched_pairs = _build_inventory(root, inventory_max_bytes)
+        except (SafePathError, OSError, ValueError, json.JSONDecodeError):
             print("error: scan membership cannot be verified", file=sys.stderr)
             return 2
-        if current_scan_id != args.scan_id:
+        if result["errors"]:
+            print("error: scan membership cannot be verified", file=sys.stderr)
+            return 2
+        if result["scan_id"] != args.scan_id:
             print("error: scan id does not match current inventory", file=sys.stderr)
             return 2
+        matched_digest = matched_pairs.get(relative_path)
+        if matched_digest is None:
+            print("error: slice path is absent from scan inventory", file=sys.stderr)
+            return 2
     try:
-        lines = safe_root.read_text(args.relative_path).splitlines(keepends=True)
-    except (SafePathError, OSError) as exc:
-        print(f"error: cannot read slice path: {exc}", file=sys.stderr)
+        raw, _ = safe_root.read_bytes_with_stat(relative_path)
+    except (SafePathError, OSError):
+        print("error: cannot read slice path", file=sys.stderr)
         return 2
+    if matched_digest is not None and _sha256(raw) != matched_digest:
+        print("error: slice path digest does not match inventory", file=sys.stderr)
+        return 2
+    text = raw.decode("utf-8", errors="replace").replace("\r\n", "\n").replace("\r", "\n")
+    lines = text.splitlines(keepends=True)
     if args.document:
         start_line = 1
         end_line = len(lines)
@@ -537,7 +541,7 @@ def _slice(args):
         start_line = selected["line"]
         end_line = end_index
         body = "".join(lines[selected["index"]:end_index])
-    display_path = _normalise_path(args.relative_path)
+    display_path = _normalise_path(relative_path)
     sys.stdout.write(_slice_output(display_path, start_line, end_line, body,
                                    args.max_bytes))
     return 0

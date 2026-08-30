@@ -17,6 +17,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from unittest import mock
 
 
 HERE = Path(__file__).resolve().parent
@@ -351,6 +352,18 @@ def _run_scan_path(root: Path):
         return None, [f"scan emitted invalid JSON: {exc}"]
 
 
+def _run_scan_path_with_max(root: Path, max_bytes: int):
+    code, stdout, stderr = _capture(
+        scan_guidance.main, ["scan", str(root), "--json", "--max-bytes", str(max_bytes)]
+    )
+    if code != 0:
+        return None, [f"scan exited {code}: {stderr.strip()}"]
+    try:
+        return json.loads(stdout), []
+    except json.JSONDecodeError as exc:
+        return None, [f"scan emitted invalid JSON: {exc}"]
+
+
 def root_containment(_check):
     with tempfile.TemporaryDirectory(prefix="prospector-containment-") as directory:
         with tempfile.TemporaryDirectory(prefix="prospector-outside-") as outside_dir:
@@ -409,6 +422,164 @@ def slice_bounds(_check):
     return not reasons, reasons
 
 
+def inventory_bound_slice(_check):
+    with tempfile.TemporaryDirectory(prefix="prospector-inventory-bound-") as directory:
+        root = Path(directory)
+        (root / "AGENTS.md").write_text("# Rules\nRun the check.\n", encoding="utf-8")
+        (root / "secret.json").write_text('{"secret": true}\n', encoding="utf-8")
+        (root / "notes.md").write_text("Read once.\n", encoding="utf-8")
+        (root / "package-lock.json").write_text(
+            '{"name": "ignored-lock"}\n', encoding="utf-8"
+        )
+        (root / "ignored.md").write_text("\n".join(["Run ignored prose."] * 8), encoding="utf-8")
+        (root / ".gitignore").write_text("ignored.md\n", encoding="utf-8")
+        (root / "node_modules").mkdir()
+        (root / "node_modules" / "AGENTS.md").write_text("Run ignored dependency.\n", encoding="utf-8")
+
+        result, reasons = _run_scan_path(root)
+        if reasons:
+            return False, reasons
+        token = result.get("scan_id")
+        if not isinstance(token, str) or not token.startswith("v2:"):
+            reasons.append("scan_id is not a v2 inventory token")
+            return False, reasons
+        paths = {unit["path"] for unit in result.get("matched_units", [])}
+        if paths != {"AGENTS.md"}:
+            reasons.append(f"unexpected matched inventory paths: {sorted(paths)}")
+
+        valid_code, valid_output, valid_error = _capture(
+            scan_guidance.main,
+            ["slice", str(root), "AGENTS.md", "--document", "--scan-id", token],
+        )
+        if valid_code != 0 or "Run the check." not in valid_output:
+            reasons.append(f"matched inventory path was rejected: {valid_error.strip()}")
+
+        for relative in (
+            "secret.json",
+            "notes.md",
+            "package-lock.json",
+            "ignored.md",
+            "node_modules/AGENTS.md",
+        ):
+            code, output, stderr = _capture(
+                scan_guidance.main,
+                ["slice", str(root), relative, "--document", "--scan-id", token],
+            )
+            if code != 2 or output:
+                reasons.append(f"non-inventory path was authorized: {relative}")
+            if "secret" in output or "secret" in stderr:
+                reasons.append("non-inventory file content leaked")
+
+        old_code, old_output, _ = _capture(
+            scan_guidance.main,
+            ["slice", str(root), "AGENTS.md", "--document", "--scan-id", "old-v1-token"],
+        )
+        if old_code != 2 or old_output:
+            reasons.append("v1 scan id was accepted")
+
+        custom, custom_reasons = _run_scan_path_with_max(root, 16)
+        reasons.extend(custom_reasons)
+        custom_token = custom.get("scan_id") if custom else None
+        if custom_token and not custom_token.startswith("v2:16:"):
+            reasons.append("custom max bytes was not encoded in token")
+        return not reasons, reasons
+
+
+def nested_ignored_catalogue(_check):
+    with tempfile.TemporaryDirectory(prefix="prospector-nested-ignored-") as directory:
+        root = Path(directory)
+        workspace = root / "sandbox"
+        (workspace / ".cursor" / "rules").mkdir(parents=True)
+        (workspace / ".github").mkdir(parents=True)
+        (workspace / "docs" / "runbooks").mkdir(parents=True)
+        (workspace / "scratch").mkdir(parents=True)
+        (workspace / "deep" / "local").mkdir(parents=True)
+        (workspace / ".cursor" / "rules" / "review.mdc").write_text(
+            "Always review locally.\n", encoding="utf-8"
+        )
+        (workspace / ".github" / "copilot-instructions.md").write_text(
+            "Use the Copilot rules.\n", encoding="utf-8"
+        )
+        (workspace / "docs" / "runbooks" / "deploy.md").write_text(
+            "Run the deploy checklist.\n", encoding="utf-8"
+        )
+        (workspace / "deep" / "local" / "AGENTS.md").write_text(
+            "Use the deep rules.\n", encoding="utf-8"
+        )
+        (workspace / "scratch" / "notes.md").write_text(
+            "\n".join(["Run this ignored prose."] * 8) + "\n", encoding="utf-8"
+        )
+        (root / ".gitignore").write_text("sandbox/\n", encoding="utf-8")
+
+        result, reasons = _run_scan_path(root)
+        if reasons:
+            return False, reasons
+        by_path = {unit["path"]: unit for unit in result.get("matched_units", [])}
+        expected = {
+            "sandbox/.cursor/rules/review.mdc",
+            "sandbox/.github/copilot-instructions.md",
+            "sandbox/docs/runbooks/deploy.md",
+            "sandbox/deep/local/AGENTS.md",
+        }
+        missing = expected - set(by_path)
+        if missing:
+            reasons.append(f"nested ignored catalogue paths missing: {sorted(missing)}")
+        if "sandbox/scratch/notes.md" in by_path:
+            reasons.append("ignored heuristic prose was inventoried")
+        for path in expected & set(by_path):
+            if by_path[path].get("ignored_by_git") is not True:
+                reasons.append(f"nested ignored catalogue path lacks ignored provenance: {path}")
+        return not reasons, reasons
+
+
+def scan_error_exit_two(_check):
+    with tempfile.TemporaryDirectory(prefix="prospector-scan-error-") as directory:
+        root = Path(directory)
+        (root / "AGENTS.md").write_text("Read this.\n", encoding="utf-8")
+        original_read = scan_guidance.SafeRoot.read_bytes_with_stat
+
+        def failing_read(safe_root, relative):
+            if relative == "AGENTS.md":
+                raise scan_guidance.SafePathError("D:/private/AGENTS.md")
+            return original_read(safe_root, relative)
+
+        with mock.patch.object(scan_guidance.SafeRoot, "read_bytes_with_stat", failing_read):
+            code, stdout, stderr = _capture(scan_guidance.main, ["scan", str(root), "--json"])
+        reasons = []
+        if code != 2:
+            reasons.append(f"read-error scan exited {code}, expected 2")
+        if stderr:
+            reasons.append("read-error scan wrote stderr before JSON")
+        try:
+            result = json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            return False, [f"read-error scan emitted invalid JSON: {exc}"]
+        if result.get("errors") != [{"path": "AGENTS.md", "error": "candidate rejected by containment"}]:
+            reasons.append(f"read-error scan errors were unstable: {result.get('errors')}")
+
+        def broken_walk(_root, topdown=True, onerror=None):
+            error = OSError("D:/private/walk detail")
+            error.filename = os.fspath(root / "blocked")
+            onerror(error)
+            return iter(())
+
+        with mock.patch.object(scan_guidance.os, "walk", broken_walk):
+            walk_code, walk_stdout, walk_stderr = _capture(
+                scan_guidance.main, ["scan", str(root), "--json"]
+            )
+        if walk_code != 2:
+            reasons.append(f"walk-error scan exited {walk_code}, expected 2")
+        if walk_stderr:
+            reasons.append("walk-error scan wrote stderr before JSON")
+        try:
+            walk_result = json.loads(walk_stdout)
+        except json.JSONDecodeError as exc:
+            return False, reasons + [f"walk-error scan emitted invalid JSON: {exc}"]
+        if walk_result.get("errors") != [{"path": "blocked", "error": "walk failed"}]:
+            reasons.append(f"walk-error scan errors were unstable: {walk_result.get('errors')}")
+        return not reasons, reasons
+
+
 def _scan_validator(check):
     name = check["validator"]
     prefix = "scan_"
@@ -426,6 +597,9 @@ VALIDATORS = {
     "root_containment": root_containment,
     "idempotent_scan": idempotent_scan,
     "slice_bounds": slice_bounds,
+    "inventory_bound_slice": inventory_bound_slice,
+    "nested_ignored_catalogue": nested_ignored_catalogue,
+    "scan_error_exit_two": scan_error_exit_two,
 }
 
 

@@ -380,6 +380,85 @@
   },
   {
     "version": 1,
+    "id": "EP-019",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Bind slice authorization to the exact matched scan inventory.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "a valid token authorizes matched guidance",
+          "the same token rejects absent, below-threshold, ignored, and hard-excluded paths",
+          "v1 tokens are rejected",
+          "custom max-byte settings round trip through the token"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "inventory_bound_slice"
+        }
+      }
+    ],
+    "tags": ["slice", "inventory", "deterministic"]
+  },
+  {
+    "version": 1,
+    "id": "EP-021",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Discover arbitrarily nested ignored catalogue guidance without inventorying ignored heuristic prose.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "nested ignored catalogue roots are inventoried",
+          "ignored catalogue paths retain ignored provenance",
+          "ignored high-directive prose remains absent"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "nested_ignored_catalogue"
+        }
+      }
+    ],
+    "tags": ["scan", "gitignore", "catalogue"]
+  },
+  {
+    "version": 1,
+    "id": "EP-022",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Return exit 2 with valid JSON and stable messages for scan failures.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "walk and secure read failures exit 2",
+          "failure scans emit complete JSON",
+          "failure messages are stable and path-neutral"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "scan_error_exit_two"
+        }
+      }
+    ],
+    "tags": ["scan", "errors", "deterministic"]
+  },
+  {
+    "version": 1,
     "id": "EP-016",
     "kind": "execution",
     "category": "boundary",
