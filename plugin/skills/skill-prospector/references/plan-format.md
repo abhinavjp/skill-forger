@@ -57,6 +57,12 @@ host-enforceable command/workflow or records `not-enforceable-portably` and
 `enforced-with-known-deviation`, or
 `not-enforceable — description discipline only`.
 
+The generated-plan validator requires every listed candidate field exactly once,
+in this order, with a non-empty value. The candidate header id must equal its
+`id:` value, and candidate ids are unique. `invocation policy` must be exactly
+`automatic`, `both`, or `explicit-only-required`. Fields in other top-level
+sections do not satisfy a candidate block.
+
 ## Inventory terminal states
 
 The inventory table must include every `matched_units[].path` exactly once and
@@ -68,6 +74,12 @@ assign exactly one terminal state:
 | `stays-as-<mechanism>` | Leave it in its current or routed mechanism |
 | `deferred` | Candidate work is over the cap or needs more evidence |
 | `unreadable` | The scanner recorded an error and classification cannot proceed |
+
+The validator reads only this table: each path must be non-empty and unique,
+each row must have one valid terminal state, and every
+`covered-by-candidate:<id>` reference must name a candidate in the same plan.
+A plan with zero candidates remains valid when no inventory row covers a
+candidate.
 
 ## Run accounting
 
