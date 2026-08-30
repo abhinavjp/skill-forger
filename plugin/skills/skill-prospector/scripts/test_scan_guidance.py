@@ -183,9 +183,9 @@ class ScanGuidanceTests(unittest.TestCase):
             self.assertEqual(0, code)
             self.assertEqual(before, after)
             self.assertEqual(
-                {"version", "root", "scanned_files", "matched_units", "skipped",
-                 "truncated", "errors"},
-                set(result),
+                 {"version", "root", "scanned_files", "matched_units", "skipped",
+                  "ignored_guidance_count", "truncated", "errors"},
+                 set(result),
             )
             self.assertEqual(0, len(result["errors"]))
 
@@ -193,6 +193,61 @@ class ScanGuidanceTests(unittest.TestCase):
         code, _, errors = self.run_scan(Path("missing-target"))
         self.assertEqual(2, code)
         self.assertIn("not a directory", errors)
+
+    def test_ignored_catalogue_guidance_is_scanned_but_prose_is_not(self):
+        fixture = (
+            Path(__file__).resolve().parent.parent
+            / "evals" / "fixtures" / "target-ignored-guidance"
+        )
+
+        code, result, _ = self.run_scan(fixture)
+
+        self.assertEqual(0, code)
+        by_path = {unit["path"]: unit for unit in result["matched_units"]}
+        self.assertIn(".claude/commands/local-review.md", by_path)
+        command = by_path[".claude/commands/local-review.md"]
+        self.assertEqual("catalogue", command["source_scope"])
+        self.assertTrue(command["ignored_by_git"])
+        self.assertNotIn("notes.md", by_path)
+        self.assertEqual(1, result["ignored_guidance_count"])
+
+    def test_ignored_nested_known_basename_is_scanned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ignored = root / "local-config"
+            ignored.mkdir()
+            (ignored / "AGENTS.md").write_text("Use the rules.\n", encoding="utf-8")
+            (root / ".gitignore").write_text("local-config/\n", encoding="utf-8")
+
+            code, result, _ = self.run_scan(root)
+
+            self.assertEqual(0, code)
+            unit = result["matched_units"][0]
+            self.assertEqual("local-config/AGENTS.md", unit["path"])
+            self.assertEqual("catalogue", unit["source_scope"])
+            self.assertTrue(unit["ignored_by_git"])
+
+    def test_ignored_arbitrary_directory_and_hard_exclusion_are_pruned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ignored = root / "archive"
+            ignored.mkdir()
+            (ignored / "notes.md").write_text(
+                "\n".join(["Read this."] * 8) + "\n", encoding="utf-8"
+            )
+            dependencies = root / "node_modules"
+            dependencies.mkdir()
+            (dependencies / "AGENTS.md").write_text("Use this.\n", encoding="utf-8")
+            (root / ".gitignore").write_text("archive/\n", encoding="utf-8")
+
+            code, result, _ = self.run_scan(root)
+
+            self.assertEqual(0, code)
+            self.assertEqual([], result["matched_units"])
+            skipped = {item["path"]: item["reason"] for item in result["skipped"]}
+            self.assertEqual("excluded:.gitignore", skipped["archive"])
+            self.assertEqual("excluded:default-directory", skipped["node_modules"])
+            self.assertNotIn("archive/notes.md", skipped)
 
     def test_scan_rejects_file_symlink_outside_root(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:

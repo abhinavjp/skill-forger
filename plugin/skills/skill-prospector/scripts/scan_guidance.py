@@ -27,6 +27,10 @@ PATTERNS_PATH = HERE / "patterns.json"
 DEFAULT_EXCLUDED_DIRS = {
     ".git", "node_modules", "vendor", "dist", "build", "target", ".venv"
 }
+KNOWN_GUIDANCE_BASENAMES = {
+    "AGENTS.md", "CLAUDE.md", "GEMINI.md", "SKILL.md",
+    "CONTRIBUTING.md", "CONVENTIONS.md",
+}
 TEXT_EXTENSIONS = {".md", ".markdown", ".mdc", ".txt", ".rst"}
 HEADING_RE = re.compile(r"^ {0,3}(#{1,6})\s+(.+?)\s*$")
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)")
@@ -234,6 +238,34 @@ def _catalogue_entries(rel_path: str, catalogue):
     ]
 
 
+def _resolve_directory_within(root: Path, relative: str) -> Path:
+    canonical_root = _canonical_root(root)
+    parts = _relative_parts(relative)
+    candidate = canonical_root.joinpath(*parts)
+    _assert_contained(canonical_root, candidate)
+    _reject_link_components(canonical_root, candidate)
+    try:
+        resolved = candidate.resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        raise _ContainmentError("directory cannot be resolved") from exc
+    _assert_contained(canonical_root, resolved)
+    if not resolved.is_dir():
+        raise _ContainmentError("path is not a directory")
+    return resolved
+
+
+def _could_contain_guidance(root: Path, relative: str, catalogue) -> bool:
+    """Permit ignored directories only for known roots or direct guidance names."""
+    if _catalogue_entries(relative, catalogue):
+        return True
+    try:
+        directory = _resolve_directory_within(root, relative)
+        with os.scandir(directory) as entries:
+            return any(entry.name in KNOWN_GUIDANCE_BASENAMES for entry in entries)
+    except (OSError, _ContainmentError):
+        return False
+
+
 def _directive_regexes(patterns):
     return [re.compile(marker, re.IGNORECASE) for marker in patterns]
 
@@ -360,6 +392,7 @@ def _scan(args):
     scanned_files = 0
     truncated = False
     containment_failed = False
+    ignored_guidance_count = 0
 
     def onerror(error):
         errors.append({"path": _normalise_path(str(getattr(error, "filename", ""))),
@@ -372,7 +405,11 @@ def _scan(args):
             full_dir = base_path / dirname
             rel_dir = _normalise_path(os.path.relpath(str(full_dir), str(root)))
             reason = _excluded(rel_dir, True, patterns.get("exclusions", []))
-            if reason is None and _gitignored(rel_dir, True, gitignore):
+            if (
+                reason is None
+                and _gitignored(rel_dir, True, gitignore)
+                and not _could_contain_guidance(root, rel_dir, patterns["catalogue"])
+            ):
                 reason = ".gitignore"
             if reason is not None:
                 skipped.append({"path": rel_dir, "reason": f"excluded:{reason}"})
@@ -394,7 +431,9 @@ def _scan(args):
                                "error": "candidate rejected by target-root containment"})
                 containment_failed = True
                 continue
-            if _gitignored(rel_path, False, gitignore):
+            entries = _catalogue_entries(rel_path, patterns["catalogue"])
+            ignored_by_git = _gitignored(rel_path, False, gitignore)
+            if ignored_by_git and not entries:
                 skipped.append({"path": rel_path, "reason": "excluded:.gitignore"})
                 continue
             scanned_files += 1
@@ -403,7 +442,6 @@ def _scan(args):
             except OSError as exc:
                 errors.append({"path": rel_path, "error": str(exc)})
                 continue
-            entries = _catalogue_entries(rel_path, patterns["catalogue"])
             is_heuristic_candidate = (
                 full_path.suffix.lower() in set(heuristic["extensions"])
             )
@@ -431,6 +469,11 @@ def _scan(args):
                 errors.append({"path": rel_path, "error": str(exc)})
                 continue
 
+            record["source_scope"] = "catalogue" if entries else "heuristic"
+            record["ignored_by_git"] = ignored_by_git
+            if ignored_by_git and entries:
+                ignored_guidance_count += 1
+
             if record.get("status") == "oversize":
                 record["match_reason"].append("heuristic:oversize")
                 matched_units.append(record)
@@ -446,6 +489,7 @@ def _scan(args):
         "scanned_files": scanned_files,
         "matched_units": matched_units,
         "skipped": skipped,
+        "ignored_guidance_count": ignored_guidance_count,
         "truncated": truncated,
         "errors": errors,
     }
