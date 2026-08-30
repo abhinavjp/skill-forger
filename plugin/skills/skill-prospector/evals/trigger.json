@@ -1,0 +1,136 @@
+[
+  {
+    "version": 1,
+    "id": "TP-001",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Audit our repo's conventions and tell us what should be a Skill. Keep universal rules, scripts, hooks and plain reference docs in their proper mechanisms, and give me a creation plan for the real candidates.",
+    "trials": 3,
+    "expected": {
+      "trigger": true
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-prospector",
+          "selected": true
+        }
+      }
+    ],
+    "tags": ["project-audit", "positive"]
+  },
+  {
+    "version": 1,
+    "id": "TP-002",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "Look through this project's agent instructions, runbooks and conventions. Decide which reusable procedures deserve Skills and write the plan, but don't build them yet.",
+    "trials": 3,
+    "expected": {
+      "trigger": true
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-prospector",
+          "selected": true
+        }
+      }
+    ],
+    "tags": ["project-audit", "paraphrase"]
+  },
+  {
+    "version": 1,
+    "id": "TP-003",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "Review this SKILL.md for broken references, unsafe scripts and trigger problems. Tell me what to fix.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-prospector",
+          "selected": false
+        }
+      }
+    ],
+    "notes": "Reviewing an existing Skill belongs to skill-engineer, not this project guidance prospector.",
+    "tags": ["boundary", "existing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "TP-004",
+    "kind": "trigger",
+    "category": "near-neighbour",
+    "prompt": "Create a new Skill that converts our invoice notes into a clean report. Work out its description, references and evals.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-prospector",
+          "selected": false
+        }
+      }
+    ],
+    "notes": "This asks for direct Skill creation without auditing an existing project's guidance; skill-engineer is the intended competitor.",
+    "tags": ["boundary", "create"]
+  },
+  {
+    "version": 1,
+    "id": "TP-005",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Audit the repository guidance and tell me which procedures should remain rules or scripts and which, if any, deserve a Skill. Do not author a Skill.",
+    "trials": 3,
+    "expected": {
+      "trigger": true
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-prospector",
+          "selected": true
+        }
+      }
+    ],
+    "tags": ["mechanism-selection", "boundary"]
+  },
+  {
+    "version": 1,
+    "id": "TP-006",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Audit our repository's guidance, produce the candidate Skill creation plan, and then have the Skill engineer turn the accepted candidates into Skills.",
+    "trials": 3,
+    "expected": {
+      "trigger": true
+    },
+    "competition": {
+      "required_candidates": ["skill-prospector", "skill-engineer", "merge-sentinel"],
+      "expected_policy": "coactivation",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-prospector",
+          "selected": true
+        }
+      }
+    ],
+    "notes": "The two phases legitimately coactivate: prospector owns project discovery and the plan; skill-engineer owns candidate creation. merge-sentinel is a deliberate neighbouring competitor that must not replace either phase. If the host catalog does not expose all required candidates, grade this case UNMEASURED rather than pass or fail.",
+    "tags": ["catalogue-competition", "coactivation"]
+  }
+]

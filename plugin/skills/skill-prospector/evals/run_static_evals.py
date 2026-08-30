@@ -60,13 +60,9 @@ def _capture(entry, argv):
 
 
 def _load_data(path: Path):
-    if path.suffix.lower() == ".json":
-        return json.loads(path.read_text(encoding="utf-8"))
-    try:
-        import yaml
-    except ImportError as exc:
-        raise RuntimeError(f"PyYAML is required for YAML evals: {exc}")
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    if path.suffix.lower() != ".json":
+        raise RuntimeError("canonical evals must use JSON")
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _case_files(evals_path: Path):
@@ -76,7 +72,7 @@ def _case_files(evals_path: Path):
         raise RuntimeError(f"no such eval path: {evals_path}")
     return sorted(
         path for path in evals_path.iterdir()
-        if path.suffix.lower() in {".yaml", ".yml", ".json"}
+        if path.suffix.lower() == ".json"
     )
 
 
@@ -307,7 +303,8 @@ def slice_bounds(_check):
     err = io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         code = scan_guidance.main([
-            "slice", str(target), "--section", "Deploy", "--max-bytes", "64"
+            "slice", str(target.parent.parent.parent),
+            "docs/runbooks/deploy.md", "--section", "Deploy", "--max-bytes", "64"
         ])
     rendered = out.getvalue()
     reasons = []
