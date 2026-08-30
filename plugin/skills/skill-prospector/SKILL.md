@@ -22,13 +22,15 @@ and emits a creation plan; it does not author candidate Skills.
    Capture its JSON inventory. Use `--out` only when that inventory path is
    separately authorised; otherwise keep the machine-readable inventory in
    context and include it in the plan's discovery section.
-3. **Classify from metadata.** For every inventory unit, assign its current and
-   proposed mechanism using `skill-engineer`'s mechanism rule. Use path,
-   outline, directive counts, hashes and host signals; do not reread bodies.
-4. **Resolve only real ambiguity.** For a unit whose mechanism cannot be
-   settled from metadata, run `scripts/scan_guidance.py slice <path> --section
-   <heading>` once for that heading. Never load a whole guidance file or fetch
-   the same `(path, heading)` twice.
+3. **Classify structural facts.** Use metadata alone only when location/type
+   entails the current mechanism (for example an existing `SKILL.md`, hook,
+   command or CI declaration). Every semantic mechanism or candidate decision
+   needs bounded content evidence; never infer it from a filename alone.
+4. **Resolve ambiguity once.** Run `scripts/scan_guidance.py slice <root>
+   <relative-path> --section <heading>` once per unresolved heading, or use
+   `--document` once for a headingless file. Pass the inventory `scan_id` when
+   available. Cache `(path, selector)`; a changed hash invalidates prior
+   evidence. Never follow cross-references or fetch a selector twice.
 5. **Select candidates.** Load `references/candidate-selection.md`; cluster,
    merge and reject before deriving requirements. Record every rejected or
    deferred unit and its routed mechanism. Accept at most seven ranked
@@ -70,10 +72,13 @@ Never hardcode a `skill-engineer` filesystem path.
 ## Capability degradation
 
 - With shell and Python 3.8+, use the deterministic scanner and report its
-  inventory path or stdout source.
+  inventory path or stdout source. Preserve its `scan_id` and source scope.
 - Without Python, perform one equivalent host file-search walk using
-  `scripts/patterns.json`; mark the plan `discovery: heuristic (unscripted)`
-  and list scripted discovery under **Capabilities not exercised**.
+  `scripts/patterns.json`; capture bounded content evidence for each semantic
+  decision (one section span, or one whole headingless document), and mark
+  anything not read `deferred`, never guessed. Mark the plan
+  `discovery: heuristic (unscripted)` and list scripted discovery under
+  **Capabilities not exercised**.
 - Without shell or file tools, stop. Report that discovery did not run and do
   not emit a plan claiming that it did.
 
@@ -86,8 +91,8 @@ only intended write, and no candidate Skill file or directory is created.
 Call the run complete only when the confirmed plan exists and has every stable
 heading required by `plan-format.md`; every inventory unit has exactly one of
 `covered-by-candidate:<id>`, `stays-as-<mechanism>`, `deferred` or `unreadable`;
-each accepted candidate has a boundary, trigger sketch, cited sources,
-mechanism justification and eval outline; and **Capabilities not exercised**
-lists every degraded or unavailable step. Otherwise report `partial` with the
-reason. Report inventory path/source, accepted count and rejected-with-reason
-count.
+  each accepted candidate has a boundary, trigger sketch, cited bounded sources,
+  mechanism justification and eval outline; and **Capabilities not exercised**
+  lists every degraded or unavailable step. Otherwise report `partial` with the
+  reason. Evidence-free semantic decisions remain `deferred`. Report inventory
+  path/source, accepted count and rejected-with-reason count.

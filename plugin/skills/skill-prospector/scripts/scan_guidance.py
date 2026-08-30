@@ -333,6 +333,69 @@ def _sha256(raw: bytes) -> str:
     return digest.hexdigest()
 
 
+def _make_scan_id(root: Path, pairs) -> str:
+    payload = {
+        "root": str(root.resolve()),
+        "files": sorted([[path, digest] for path, digest in pairs]),
+    }
+    rendered = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                          separators=(",", ":"))
+    return _sha256(rendered.encode("utf-8"))
+
+
+def _candidate_hash_pairs(root: Path):
+    """Recompute candidate hash membership for optional slice freshness checks."""
+    try:
+        patterns = _load_patterns()
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise _ContainmentError("scan membership cannot be recomputed") from exc
+    heuristic = patterns["heuristic"]
+    gitignore = _read_gitignore(root)
+    pairs = []
+    walk_errors = []
+
+    def onerror(error):
+        walk_errors.append(error)
+
+    for base, dirs, names in os.walk(str(root), topdown=True, onerror=onerror):
+        base_path = Path(base)
+        kept_dirs = []
+        for dirname in sorted(dirs):
+            full_dir = base_path / dirname
+            rel_dir = _normalise_path(os.path.relpath(str(full_dir), str(root)))
+            reason = _excluded(rel_dir, True, patterns.get("exclusions", []))
+            if (
+                reason is None
+                and _gitignored(rel_dir, True, gitignore)
+                and not _could_contain_guidance(root, rel_dir, patterns["catalogue"])
+            ):
+                reason = ".gitignore"
+            if reason is None:
+                kept_dirs.append(dirname)
+        dirs[:] = kept_dirs
+
+        for filename in sorted(names):
+            full_path = base_path / filename
+            rel_path = _normalise_path(os.path.relpath(str(full_path), str(root)))
+            if _excluded(rel_path, False, patterns.get("exclusions", [])) is not None:
+                continue
+            safe_path = _resolve_within(root, rel_path, require_file=True)
+            entries = _catalogue_entries(rel_path, patterns["catalogue"])
+            if _gitignored(rel_path, False, gitignore) and not entries:
+                continue
+            if not entries and safe_path.suffix.lower() not in set(heuristic["extensions"]):
+                continue
+            try:
+                with safe_path.open("rb") as handle:
+                    raw = handle.read()
+            except OSError as exc:
+                raise _ContainmentError("scan membership cannot be recomputed") from exc
+            pairs.append((rel_path, _sha256(raw)))
+    if walk_errors:
+        raise _ContainmentError("scan membership cannot be recomputed")
+    return pairs
+
+
 def _read_file_metadata(path: Path, rel_path: str, size: int, match_reason,
                          host_affinity, current_mechanism: str, max_bytes: int,
                          marker_regexes, root=None):
@@ -393,6 +456,7 @@ def _scan(args):
     truncated = False
     containment_failed = False
     ignored_guidance_count = 0
+    scan_pairs = []
 
     def onerror(error):
         errors.append({"path": _normalise_path(str(getattr(error, "filename", ""))),
@@ -471,6 +535,7 @@ def _scan(args):
 
             record["source_scope"] = "catalogue" if entries else "heuristic"
             record["ignored_by_git"] = ignored_by_git
+            scan_pairs.append((rel_path, record["sha256"]))
             if ignored_by_git and entries:
                 ignored_guidance_count += 1
 
@@ -489,6 +554,7 @@ def _scan(args):
         "scanned_files": scanned_files,
         "matched_units": matched_units,
         "skipped": skipped,
+        "scan_id": _make_scan_id(root, scan_pairs),
         "ignored_guidance_count": ignored_guidance_count,
         "truncated": truncated,
         "errors": errors,
@@ -535,36 +601,53 @@ def _slice(args):
     except _ContainmentError:
         print("error: slice path must stay inside target root", file=sys.stderr)
         return 2
+    if args.scan_id:
+        try:
+            current_scan_id = _make_scan_id(
+                _canonical_root(Path(args.root)),
+                _candidate_hash_pairs(Path(args.root)),
+            )
+        except _ContainmentError:
+            print("error: scan membership cannot be verified", file=sys.stderr)
+            return 2
+        if current_scan_id != args.scan_id:
+            print("error: scan id does not match current inventory", file=sys.stderr)
+            return 2
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     except OSError as exc:
         print(f"error: cannot read slice path: {exc}", file=sys.stderr)
         return 2
-    headings = _headings(lines)
-    exact = [heading for heading in headings if heading["title"] == args.section]
-    matches = exact or [
-        heading for heading in headings
-        if heading["title"].casefold() == args.section.casefold()
-    ]
-    if not matches:
-        print(f"error: section not found: {args.section}", file=sys.stderr)
-        return 4
-    if len(matches) > 1:
-        print(f"error: section is ambiguous: {args.section}", file=sys.stderr)
-        for heading in matches:
-            print(f"  {heading['line']}: {heading['title']}", file=sys.stderr)
-        return 3
-    selected = matches[0]
-    end_index = len(lines)
-    for heading in headings:
-        if heading["index"] <= selected["index"]:
-            continue
-        if heading["level"] <= selected["level"]:
-            end_index = heading["index"]
-            break
-    start_line = selected["line"]
-    end_line = end_index
-    body = "".join(lines[selected["index"]:end_index])
+    if args.document:
+        start_line = 1
+        end_line = len(lines)
+        body = "".join(lines)
+    else:
+        headings = _headings(lines)
+        exact = [heading for heading in headings if heading["title"] == args.section]
+        matches = exact or [
+            heading for heading in headings
+            if heading["title"].casefold() == args.section.casefold()
+        ]
+        if not matches:
+            print(f"error: section not found: {args.section}", file=sys.stderr)
+            return 4
+        if len(matches) > 1:
+            print(f"error: section is ambiguous: {args.section}", file=sys.stderr)
+            for heading in matches:
+                print(f"  {heading['line']}: {heading['title']}", file=sys.stderr)
+            return 3
+        selected = matches[0]
+        end_index = len(lines)
+        for heading in headings:
+            if heading["index"] <= selected["index"]:
+                continue
+            if heading["level"] <= selected["level"]:
+                end_index = heading["index"]
+                break
+        start_line = selected["line"]
+        end_line = end_index
+        body = "".join(lines[selected["index"]:end_index])
     display_path = _normalise_path(args.relative_path)
     sys.stdout.write(_slice_output(display_path, start_line, end_line, body,
                                    args.max_bytes))
@@ -589,8 +672,11 @@ def _parser():
     slice_parser = subparsers.add_parser("slice", help="read one heading span")
     slice_parser.add_argument("root")
     slice_parser.add_argument("relative_path")
-    slice_parser.add_argument("--section", required=True)
+    selector = slice_parser.add_mutually_exclusive_group(required=True)
+    selector.add_argument("--section")
+    selector.add_argument("--document", action="store_true")
     slice_parser.add_argument("--max-bytes", type=_positive_int, default=8192)
+    slice_parser.add_argument("--scan-id")
     return parser
 
 

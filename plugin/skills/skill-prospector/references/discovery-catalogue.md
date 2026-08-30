@@ -34,6 +34,11 @@ For each candidate, record the relative path, byte size, extension, reason for
 matching, host signal, heading outline, directive count, and any read error.
 Apply the same minimum-directive threshold; do not invent a new threshold.
 
+For semantic classification, capture one bounded content slice per unresolved
+heading, or one bounded whole-document slice for a headingless file. Preserve
+the relative path and line span with the evidence. Do not follow links or
+reread a selector; anything not read remains `deferred`, not guessed.
+
 Keep the resulting inventory in context unless the user has separately
 confirmed a file path for it. Mark the plan `discovery: heuristic (unscripted)`
 and list Python/scripted discovery under **Capabilities not exercised**. If

@@ -1,0 +1,8 @@
+{
+  "fixture": "target-unheaded-guidance",
+  "expected_paths": [
+    "AGENTS.md"
+  ],
+  "evidence_mode": "document",
+  "expected_document_span": "AGENTS.md:1-4"
+}

@@ -184,7 +184,7 @@ class ScanGuidanceTests(unittest.TestCase):
             self.assertEqual(before, after)
             self.assertEqual(
                  {"version", "root", "scanned_files", "matched_units", "skipped",
-                  "ignored_guidance_count", "truncated", "errors"},
+                  "scan_id", "ignored_guidance_count", "truncated", "errors"},
                  set(result),
             )
             self.assertEqual(0, len(result["errors"]))
@@ -248,6 +248,68 @@ class ScanGuidanceTests(unittest.TestCase):
             self.assertEqual("excluded:.gitignore", skipped["archive"])
             self.assertEqual("excluded:default-directory", skipped["node_modules"])
             self.assertNotIn("archive/notes.md", skipped)
+
+    def test_document_slice_supports_headingless_files_and_byte_bound(self):
+        fixture = (
+            Path(__file__).resolve().parent.parent
+            / "evals" / "fixtures" / "target-unheaded-guidance"
+        )
+
+        code, output, errors = self.run_slice(
+            fixture, "AGENTS.md", "--document", "--max-bytes", "96"
+        )
+
+        self.assertEqual(0, code, errors)
+        self.assertLessEqual(len(output.encode("utf-8")), 96)
+        self.assertIn("AGENTS.md:1-4", output)
+        self.assertIn("Run the deployment check.", output)
+
+    def test_document_slice_handles_empty_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "empty.md").write_text("", encoding="utf-8")
+
+            code, output, errors = self.run_slice(root, "empty.md", "--document")
+
+            self.assertEqual(0, code, errors)
+            self.assertEqual("empty.md:1-0\n", output)
+
+    def test_document_and_section_selectors_are_mutually_exclusive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "guide.md").write_text("# Intro\nbody\n", encoding="utf-8")
+            output, errors = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                with self.assertRaises(SystemExit) as raised:
+                    scan_guidance.main([
+                        "slice", str(root), "guide.md", "--document",
+                        "--section", "Intro",
+                    ])
+            self.assertEqual(2, raised.exception.code)
+
+    def test_scan_id_rejects_changed_file_before_document_slice(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "AGENTS.md"
+            original = "Run the deployment check.\n"
+            path.write_text(original, encoding="utf-8")
+            code, result, errors = self.run_scan(root)
+            self.assertEqual(0, code, errors)
+            scan_id = result["scan_id"]
+
+            code, output, errors = self.run_slice(
+                root, "AGENTS.md", "--document", "--scan-id", scan_id
+            )
+            self.assertEqual(0, code, errors)
+            self.assertIn(original, output)
+
+            path.write_text("Changed after scan.\n", encoding="utf-8")
+            code, output, errors = self.run_slice(
+                root, "AGENTS.md", "--document", "--scan-id", scan_id
+            )
+            self.assertEqual(2, code)
+            self.assertEqual("", output)
+            self.assertNotIn("Changed after scan", errors)
 
     def test_scan_rejects_file_symlink_outside_root(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
