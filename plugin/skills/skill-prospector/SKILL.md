@@ -13,11 +13,13 @@ and emits a creation plan; it does not author candidate Skills.
 
 1. **Establish target and authority.** Record the target root, whether it is
    the current directory, whether `skill-engineer` is reachable, and the
-   proposed output `<target-root>/docs/plans/<name>.md`. Get explicit path
-   confirmation, accepting a redirect. The single write authority is the
-   confirmed plan path and, only when needed, its confirmed parent directory.
-   Never create a candidate `SKILL.md`, stub, empty directory or frontmatter
-   shell. No candidate directory is ever created.
+   output path. If the user requested a plan without a path, use and announce
+   `<target-root>/docs/plans/skill-prospector-plan.md`; that contained default
+   is already authorised. Ask only for an outside-root redirect or overwrite
+   of an existing file lacking both generated-plan marker lines. Record
+   `authority: default|explicit|redirected` and `overwrite: yes|no`. The
+   confirmed plan path is the single write authority; no candidate directory,
+   stub, or frontmatter shell is ever created.
 2. **Discover once.** Run `scripts/scan_guidance.py scan <root> --json` once.
    Capture its JSON inventory. Use `--out` only when that inventory path is
    separately authorised; otherwise keep the machine-readable inventory in
@@ -42,10 +44,11 @@ and emits a creation plan; it does not author candidate Skills.
    host signals. State portable deliberate invocation first, then optional
    host enhancements only for detected hosts. Record `UNTESTED` behaviour and
    never claim cross-host equivalence.
-8. **Emit and check.** Load `references/plan-format.md`, write one Markdown
-   plan at the confirmed path (regenerate in place, never append), and verify
-   its headings, candidate fields, inventory terminal states, counts and
-   capability disclosures against the artefact.
+8. **Emit and check.** Load `references/plan-format.md`, render one Markdown
+   plan in memory, validate it, write a temporary sibling and atomically
+   replace the confirmed path. Remove the temporary file on failure, then
+   reread and verify marker lines, headings, candidate fields, inventory
+   terminal states, counts and capability disclosures against the artefact.
 
 ## Conditional references
 
