@@ -51,12 +51,24 @@
     "expected": {
       "trigger": false
     },
+    "competition": {
+      "required_candidates": ["skill-prospector", "skill-engineer"],
+      "expected_policy": "skill-engineer-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
     "graders": [
       {
         "type": "host-routing",
         "check": {
           "selected_skill": "skill-prospector",
           "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-engineer",
+          "selected": true
         }
       }
     ],
@@ -73,6 +85,11 @@
     "expected": {
       "trigger": false
     },
+    "competition": {
+      "required_candidates": ["skill-prospector", "skill-engineer"],
+      "expected_policy": "skill-engineer-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
     "graders": [
       {
         "type": "host-routing",
@@ -80,10 +97,51 @@
           "selected_skill": "skill-prospector",
           "selected": false
         }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-engineer",
+          "selected": true
+        }
       }
     ],
     "notes": "This asks for direct Skill creation without auditing an existing project's guidance; skill-engineer is the intended competitor.",
     "tags": ["boundary", "create"]
+  },
+  {
+    "version": 1,
+    "id": "TP-007",
+    "kind": "trigger",
+    "category": "near-neighbour",
+    "prompt": "Review this local diff or merge request for correctness, regressions and unsafe changes, then tell me what must be fixed.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": ["skill-prospector", "merge-sentinel"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "skill-prospector",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "merge-sentinel",
+          "selected": true
+        }
+      }
+    ],
+    "notes": "A local diff or merge-request review belongs to merge-sentinel, not project-guidance discovery. If the host catalog does not expose both candidates, grade this case UNMEASURED.",
+    "tags": ["boundary", "diff-review", "catalogue-competition"]
   },
   {
     "version": 1,

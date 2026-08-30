@@ -2,6 +2,7 @@
 """Mutation tests for the deterministic generated-plan validator."""
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -122,6 +123,63 @@ class PlanArtifactShapeTests(unittest.TestCase):
             1,
         )
         self.assert_invalid(content, "authority field")
+
+
+class TriggerCorpusQualityTests(unittest.TestCase):
+    def test_negative_and_near_neighbour_cases_require_positive_competitor(self):
+        path = run_static_evals.ROOT / "evals" / "trigger.json"
+        cases = json.loads(path.read_text(encoding="utf-8"))
+        expected_competition = {
+            "TP-003": {
+                "required_candidates": ["skill-prospector", "skill-engineer"],
+                "expected_policy": "skill-engineer-wins",
+                "unmeasured_if": "catalog-preconditions-absent",
+            },
+            "TP-004": {
+                "required_candidates": ["skill-prospector", "skill-engineer"],
+                "expected_policy": "skill-engineer-wins",
+                "unmeasured_if": "catalog-preconditions-absent",
+            },
+            "TP-007": {
+                "required_candidates": ["skill-prospector", "merge-sentinel"],
+                "expected_policy": "competitor-wins",
+                "unmeasured_if": "catalog-preconditions-absent",
+            },
+        }
+        selected_by_case = {}
+        for case in cases:
+            if case.get("category") not in {"negative", "near-neighbour"}:
+                continue
+            checks = [
+                grader.get("check", {})
+                for grader in case.get("graders", [])
+                if grader.get("type") == "host-routing"
+            ]
+            selected_by_case[case["id"]] = checks
+            self.assertTrue(
+                any(
+                    check.get("selected_skill") == "skill-prospector"
+                    and check.get("selected") is False
+                    for check in checks
+                ),
+                case["id"],
+            )
+            positive = {
+                check.get("selected_skill")
+                for check in checks
+                if check.get("selected") is True
+                and check.get("selected_skill") != "skill-prospector"
+            }
+            self.assertTrue(positive, case["id"])
+            competition = case.get("competition")
+            self.assertIsInstance(competition, dict, case["id"])
+            self.assertEqual(expected_competition[case["id"]], competition, case["id"])
+            required = set(competition.get("required_candidates", []))
+            asserted = {
+                check.get("selected_skill") for check in checks
+            }
+            self.assertTrue(asserted <= required, case["id"])
+        self.assertEqual({"TP-003", "TP-004", "TP-007"}, set(selected_by_case))
 
 
 if __name__ == "__main__":
