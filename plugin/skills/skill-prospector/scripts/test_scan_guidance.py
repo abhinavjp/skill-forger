@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,6 +23,25 @@ class ScanGuidanceTests(unittest.TestCase):
             code = scan_guidance.main(["scan", str(root), "--json", *extra])
         rendered = output.getvalue()
         return code, json.loads(rendered) if rendered else {}, errors.getvalue()
+
+    def run_slice(self, root: Path, relative: str, *extra: str):
+        output = io.StringIO()
+        errors = io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+            code = scan_guidance.main(["slice", str(root), relative, *extra])
+        return code, output.getvalue(), errors.getvalue()
+
+    def make_file_symlink(self, link: Path, target: Path):
+        try:
+            link.symlink_to(target)
+        except (NotImplementedError, OSError) as exc:
+            unsupported = getattr(exc, "winerror", None) in {1314, 1920}
+            unsupported = unsupported or getattr(exc, "errno", None) in {
+                errno.EPERM, errno.ENOSYS, errno.EOPNOTSUPP,
+            }
+            if unsupported:
+                self.skipTest(f"file symlinks unavailable: {exc}")
+            raise
 
     def test_catalogue_and_heuristic_matches(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -99,27 +120,35 @@ class ScanGuidanceTests(unittest.TestCase):
             )
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main(["slice", str(path), "--section", "Rollback"])
+                code = scan_guidance.main([
+                    "slice", str(path.parent), "guide.md", "--section", "Rollback"
+                ])
             self.assertEqual(0, code)
             self.assertIn("rollback body", out.getvalue())
             self.assertIn(":3-4", out.getvalue())
 
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main(["slice", str(path), "--section", "deploy"])
+                code = scan_guidance.main([
+                    "slice", str(path.parent), "guide.md", "--section", "deploy"
+                ])
             self.assertEqual(0, code)
             self.assertIn("deploy body", out.getvalue())
 
             path.write_text("# Repeat\none\n# repeat\ntwo\n", encoding="utf-8")
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main(["slice", str(path), "--section", "REPEAT"])
+                code = scan_guidance.main([
+                    "slice", str(path.parent), "guide.md", "--section", "REPEAT"
+                ])
             self.assertEqual(3, code)
             self.assertIn("ambiguous", err.getvalue())
 
             out, err = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main(["slice", str(path), "--section", "Missing"])
+                code = scan_guidance.main([
+                    "slice", str(path.parent), "guide.md", "--section", "Missing"
+                ])
             self.assertEqual(4, code)
             self.assertIn("not found", err.getvalue())
 
@@ -130,7 +159,8 @@ class ScanGuidanceTests(unittest.TestCase):
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
                 code = scan_guidance.main([
-                    "slice", str(path), "--section", "Intro", "--max-bytes", "64"
+                    "slice", str(path.parent), "guide.md", "--section", "Intro",
+                    "--max-bytes", "64"
                 ])
             rendered = out.getvalue()
             self.assertEqual(0, code)
@@ -163,6 +193,79 @@ class ScanGuidanceTests(unittest.TestCase):
         code, _, errors = self.run_scan(Path("missing-target"))
         self.assertEqual(2, code)
         self.assertIn("not a directory", errors)
+
+    def test_scan_rejects_file_symlink_outside_root(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            external = Path(outside) / "secret.md"
+            external.write_text("OUTSIDE SECRET\n", encoding="utf-8")
+            self.make_file_symlink(root / "AGENTS.md", external)
+
+            code, result, errors = self.run_scan(root)
+
+            self.assertEqual(2, code)
+            self.assertNotIn("OUTSIDE SECRET", json.dumps(result))
+            self.assertNotIn("OUTSIDE SECRET", errors)
+            self.assertEqual([], result["matched_units"])
+            self.assertTrue(result["errors"])
+
+    def test_slice_rejects_parent_escape(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "root"
+            root.mkdir()
+            external = root.parent / "outside.md"
+            external.write_text("# Intro\nOUTSIDE SECRET\n", encoding="utf-8")
+            try:
+                code, output, errors = self.run_slice(
+                    root, "../outside.md", "--section", "Intro"
+                )
+                self.assertEqual(2, code)
+                self.assertNotIn("OUTSIDE SECRET", output)
+                self.assertNotIn("OUTSIDE SECRET", errors)
+            finally:
+                external.unlink()
+
+    def test_slice_rejects_absolute_path(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            external = Path(outside) / "secret.md"
+            external.write_text("# Intro\nOUTSIDE SECRET\n", encoding="utf-8")
+
+            code, output, errors = self.run_slice(
+                root, os.fspath(external), "--section", "Intro"
+            )
+
+            self.assertEqual(2, code)
+            self.assertNotIn("OUTSIDE SECRET", output)
+            self.assertNotIn("OUTSIDE SECRET", errors)
+
+    def test_slice_rejects_symlink_escape(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            external = Path(outside) / "secret.md"
+            external.write_text("# Intro\nOUTSIDE SECRET\n", encoding="utf-8")
+            self.make_file_symlink(root / "link.md", external)
+
+            code, output, errors = self.run_slice(
+                root, "link.md", "--section", "Intro"
+            )
+
+            self.assertEqual(2, code)
+            self.assertNotIn("OUTSIDE SECRET", output)
+            self.assertNotIn("OUTSIDE SECRET", errors)
+
+    def test_out_must_stay_inside_root(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            (root / "AGENTS.md").write_text("Use this.\n", encoding="utf-8")
+            target = Path(outside) / "inventory.json"
+
+            code, result, errors = self.run_scan(root, "--out", os.fspath(target))
+
+            self.assertEqual(2, code)
+            self.assertNotIn("OUTSIDE", json.dumps(result))
+            self.assertNotIn("OUTSIDE", errors)
+            self.assertFalse(target.exists())
 
 
 if __name__ == "__main__":

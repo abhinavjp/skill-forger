@@ -15,6 +15,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import ntpath
 import os
 import re
 import sys
@@ -29,6 +30,117 @@ DEFAULT_EXCLUDED_DIRS = {
 TEXT_EXTENSIONS = {".md", ".markdown", ".mdc", ".txt", ".rst"}
 HEADING_RE = re.compile(r"^ {0,3}(#{1,6})\s+(.+?)\s*$")
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s]+)")
+REPARSE_POINT = 0x400
+
+
+class _ContainmentError(ValueError):
+    """A requested path cannot be safely bound to the target root."""
+
+
+def _canonical_root(root: Path) -> Path:
+    try:
+        resolved = root.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise _ContainmentError("target root cannot be resolved") from exc
+    if not resolved.is_dir():
+        raise _ContainmentError("target root is not a directory")
+    return resolved
+
+
+def _is_absolute_or_drive(value: str) -> bool:
+    normalised = value.replace("\\", "/")
+    return (
+        os.path.isabs(value)
+        or normalised.startswith("/")
+        or ntpath.isabs(value)
+        or bool(ntpath.splitdrive(value)[0])
+    )
+
+
+def _relative_parts(relative: str):
+    if not isinstance(relative, str) or not relative or "\x00" in relative:
+        raise _ContainmentError("path is not a contained relative path")
+    normalised = relative.replace("\\", "/")
+    if _is_absolute_or_drive(relative):
+        raise _ContainmentError("path is not a contained relative path")
+    parts = [part for part in normalised.split("/") if part not in ("", ".")]
+    if not parts or any(part == ".." for part in parts):
+        raise _ContainmentError("path is not a contained relative path")
+    return parts
+
+
+def _assert_contained(root: Path, candidate: Path):
+    root_text = os.path.normcase(os.path.abspath(os.fspath(root)))
+    candidate_text = os.path.normcase(os.path.abspath(os.fspath(candidate)))
+    try:
+        common = os.path.commonpath([root_text, candidate_text])
+    except ValueError as exc:
+        raise _ContainmentError("path is not contained by target root") from exc
+    if common != root_text:
+        raise _ContainmentError("path is not contained by target root")
+
+
+def _is_link_or_reparse(path: Path) -> bool:
+    try:
+        if path.is_symlink() or os.path.islink(os.fspath(path)):
+            return True
+        if os.name == "nt":
+            attributes = os.stat(
+                os.fspath(path), follow_symlinks=False
+            ).st_file_attributes
+            return bool(attributes & REPARSE_POINT)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return False
+    return False
+
+
+def _reject_link_components(root: Path, candidate: Path):
+    try:
+        relative = candidate.relative_to(root)
+    except ValueError as exc:
+        raise _ContainmentError("path is not contained by target root") from exc
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if _is_link_or_reparse(current):
+            raise _ContainmentError("path traverses a link or reparse point")
+
+
+def _resolve_candidate(root: Path, candidate: Path, *, require_file: bool) -> Path:
+    _assert_contained(root, candidate)
+    _reject_link_components(root, candidate)
+    try:
+        resolved = candidate.resolve(strict=False)
+    except (OSError, RuntimeError) as exc:
+        raise _ContainmentError("path cannot be resolved") from exc
+    _assert_contained(root, resolved)
+    if resolved.exists() and not resolved.is_file():
+        raise _ContainmentError("path is not a regular file")
+    if require_file and not resolved.is_file():
+        raise _ContainmentError("path is not a regular file")
+    return resolved
+
+
+def _resolve_within(root: Path, relative: str, *, require_file: bool) -> Path:
+    """Resolve a repository-relative path without crossing links or root."""
+    canonical_root = _canonical_root(root)
+    parts = _relative_parts(relative)
+    candidate = canonical_root.joinpath(*parts)
+    return _resolve_candidate(canonical_root, candidate, require_file=require_file)
+
+
+def _resolve_output(root: Path, value: str) -> Path:
+    if not isinstance(value, str) or not value or "\x00" in value:
+        raise _ContainmentError("inventory output must stay inside target root")
+    if not _is_absolute_or_drive(value):
+        return _resolve_within(root, value, require_file=False)
+    if not Path(value).is_absolute():
+        raise _ContainmentError("inventory output must stay inside target root")
+    canonical_root = _canonical_root(root)
+    candidate = Path(os.path.abspath(value))
+    return _resolve_candidate(canonical_root, candidate, require_file=False)
 
 
 def _load_patterns():
@@ -73,8 +185,9 @@ def _glob_match(path: str, pattern: str) -> bool:
 
 
 def _read_gitignore(root: Path):
-    path = root / ".gitignore"
-    if not path.is_file():
+    try:
+        path = _resolve_within(root, ".gitignore", require_file=True)
+    except (_ContainmentError, OSError):
         return []
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -189,9 +302,11 @@ def _sha256(raw: bytes) -> str:
 
 
 def _read_file_metadata(path: Path, rel_path: str, size: int, match_reason,
-                        host_affinity, current_mechanism: str, max_bytes: int,
-                        marker_regexes):
+                         host_affinity, current_mechanism: str, max_bytes: int,
+                         marker_regexes, root=None):
     """Read one candidate once and return metadata without retaining its body."""
+    if root is not None:
+        path = _resolve_within(root, rel_path, require_file=True)
     with path.open("rb") as handle:
         raw = handle.read()
     record = {
@@ -223,9 +338,11 @@ def _read_file_metadata(path: Path, rel_path: str, size: int, match_reason,
 
 
 def _scan(args):
-    root = Path(args.root)
-    if not root.is_dir():
-        print(f"error: scan root is not a directory: {root}", file=sys.stderr)
+    try:
+        root = _canonical_root(Path(args.root))
+    except _ContainmentError:
+        print("error: scan root is not a directory or is not readable",
+              file=sys.stderr)
         return 2
     try:
         patterns = _load_patterns()
@@ -242,6 +359,7 @@ def _scan(args):
     errors = []
     scanned_files = 0
     truncated = False
+    containment_failed = False
 
     def onerror(error):
         errors.append({"path": _normalise_path(str(getattr(error, "filename", ""))),
@@ -265,16 +383,23 @@ def _scan(args):
         for filename in sorted(names):
             full_path = base_path / filename
             rel_path = _normalise_path(os.path.relpath(str(full_path), str(root)))
-            if _gitignored(rel_path, False, gitignore):
-                skipped.append({"path": rel_path, "reason": "excluded:.gitignore"})
-                continue
             exclusion = _excluded(rel_path, False, patterns.get("exclusions", []))
             if exclusion is not None:
                 skipped.append({"path": rel_path, "reason": f"excluded:{exclusion}"})
                 continue
+            try:
+                safe_path = _resolve_within(root, rel_path, require_file=True)
+            except _ContainmentError:
+                errors.append({"path": rel_path,
+                               "error": "candidate rejected by target-root containment"})
+                containment_failed = True
+                continue
+            if _gitignored(rel_path, False, gitignore):
+                skipped.append({"path": rel_path, "reason": "excluded:.gitignore"})
+                continue
             scanned_files += 1
             try:
-                size = full_path.stat().st_size
+                size = safe_path.stat().st_size
             except OSError as exc:
                 errors.append({"path": rel_path, "error": str(exc)})
                 continue
@@ -294,9 +419,14 @@ def _scan(args):
                 current_mechanism = "prose-doc"
             try:
                 record = _read_file_metadata(
-                    full_path, rel_path, size, reasons, host_affinity,
-                    current_mechanism, max_bytes, marker_regexes
+                    safe_path, rel_path, size, reasons, host_affinity,
+                    current_mechanism, max_bytes, marker_regexes, root=root
                 )
+            except _ContainmentError:
+                errors.append({"path": rel_path,
+                               "error": "candidate rejected by target-root containment"})
+                containment_failed = True
+                continue
             except (OSError, UnicodeError) as exc:
                 errors.append({"path": rel_path, "error": str(exc)})
                 continue
@@ -322,13 +452,17 @@ def _scan(args):
     rendered = json.dumps(result, indent=2) + "\n"
     if args.out:
         try:
-            with open(args.out, "w", encoding="utf-8", newline="\n") as handle:
+            output_path = _resolve_output(root, args.out)
+            with output_path.open("w", encoding="utf-8", newline="\n") as handle:
                 handle.write(rendered)
+        except _ContainmentError:
+            print("error: inventory output must stay inside scan root", file=sys.stderr)
+            return 2
         except OSError as exc:
             print(f"error: cannot write inventory: {exc}", file=sys.stderr)
             return 2
     sys.stdout.write(rendered)
-    return 0
+    return 2 if containment_failed else 0
 
 
 def _slice_output(path: str, start: int, end: int, body: str, max_bytes: int):
@@ -351,7 +485,12 @@ def _slice_output(path: str, start: int, end: int, body: str, max_bytes: int):
 
 
 def _slice(args):
-    path = Path(args.path)
+    try:
+        path = _resolve_within(Path(args.root), args.relative_path,
+                                require_file=True)
+    except _ContainmentError:
+        print("error: slice path must stay inside target root", file=sys.stderr)
+        return 2
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     except OSError as exc:
@@ -382,7 +521,9 @@ def _slice(args):
     start_line = selected["line"]
     end_line = end_index
     body = "".join(lines[selected["index"]:end_index])
-    sys.stdout.write(_slice_output(args.path, start_line, end_line, body, args.max_bytes))
+    display_path = _normalise_path(args.relative_path)
+    sys.stdout.write(_slice_output(display_path, start_line, end_line, body,
+                                   args.max_bytes))
     return 0
 
 
@@ -402,7 +543,8 @@ def _parser():
     scan.add_argument("--out")
     scan.add_argument("--max-bytes", type=_positive_int)
     slice_parser = subparsers.add_parser("slice", help="read one heading span")
-    slice_parser.add_argument("path")
+    slice_parser.add_argument("root")
+    slice_parser.add_argument("relative_path")
     slice_parser.add_argument("--section", required=True)
     slice_parser.add_argument("--max-bytes", type=_positive_int, default=8192)
     return parser
