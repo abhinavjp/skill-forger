@@ -1,0 +1,419 @@
+[
+  {
+    "version": 1,
+    "id": "RG-001",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Inspect this Skill package itself.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "intentionally defective fixtures do not contaminate the host package facts",
+          "the host package reports no broken references and no hardcoded paths"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": ".",
+          "expect_exit": 0,
+          "stdout_contains": [
+            "\"broken_references\": []",
+            "\"hardcoded_paths\": []"
+          ],
+          "stdout_not_contains": [
+            "references/runbook.md",
+            "/var/releases/log.txt"
+          ]
+        }
+      }
+    ],
+    "notes": "Observed 2026-08-15: the first inspector build scanned evals/fixtures/,\nso the planted defects in the defective fixtures were reported as defects\nof skill-engineer itself. Fixed by excluding evals/fixtures/ from content\nscanning while still inventorying it; inspecting a fixture directly as its\nown root still scans it normally (EX-002/EX-003 cover that direction).\n",
+    "tags": [
+      "inspector",
+      "fixture-isolation"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-003",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Inspect a Skill whose scripts carry `#!/usr/bin/env python3` shebangs.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "shebang lines are not reported as hardcoded paths"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": ".",
+          "expect_exit": 0,
+          "stdout_not_contains": [
+            "/usr/bin/env"
+          ]
+        }
+      }
+    ],
+    "notes": "Observed 2026-08-15: the hardcoded-path detector flagged every script's\nshebang, which is interpreter resolution rather than host coupling. A\ndetector that cries wolf on correct files makes R22 evidence worthless.\n",
+    "tags": [
+      "inspector",
+      "false-positive"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-004",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Inspect a Skill that names an absolute host path and an illustrative path\ninside a fenced code block.\n",
+    "fixtures": [
+      "fixtures/defective-unsafe-mutation"
+    ],
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the absolute path is reported as a hardcoded path only",
+          "it is not also reported as a broken reference"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": "evals/fixtures/defective-unsafe-mutation",
+          "expect_exit": 0,
+          "stdout_contains": [
+            "\"broken_reference_count\": 0",
+            "/var/releases/log.txt"
+          ]
+        }
+      }
+    ],
+    "notes": "Observed 2026-08-15 in three separate review trials: the inspector resolved\n`/var/releases/log.txt` as a package-relative reference, failed, and\nreported it broken. Reviewers then raised a High \"broken reference\" finding\nwith confidence \"certain\" — a false positive laundered into evidence by a\ndeterministic tool. Absolute paths are now handled by hardcoded_paths only,\nand reference records carry fence/link/prose context.\n",
+    "tags": [
+      "inspector",
+      "false-positive",
+      "R7",
+      "R22"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-005",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Inspect a Skill whose name and description exceed the format's length\nlimits.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "over-length name and description are reported as metadata errors"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": "evals/fixtures/oversized-metadata",
+          "expect_exit": 0,
+          "stdout_contains": [
+            "name exceeds 64 characters",
+            "description exceeds 1024 characters"
+          ]
+        }
+      }
+    ],
+    "notes": "Observed 2026-08-15: the inspector accepted a 93-character name and a\n1179-character description in silence, so a review could report \"no\nmetadata errors\" on a Skill that hosts truncate or refuse to load.\n",
+    "tags": [
+      "inspector",
+      "false-negative",
+      "R3"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-006",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Validate a corpus containing two cases with the same id.\n",
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validate-evals",
+          "target": "evals/fixtures/duplicate-ids.json",
+          "expect_exit": 1,
+          "stdout_contains": [
+            "duplicate case id"
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "duplicate ids are rejected"
+        ]
+      }
+    },
+    "notes": "Results are reported and tracked by case id; duplicates silently produce\ntwo rows with one id, so a regression can pass and fail simultaneously.\n",
+    "tags": [
+      "validator"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-002",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Validate an eval file whose case omits required schema fields.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the validator exits non-zero and names the offending field"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validate-evals",
+          "target": "evals/fixtures/bad-case.json",
+          "expect_exit": 1,
+          "stdout_contains": [
+            "missing required field"
+          ]
+        }
+      }
+    ],
+    "notes": "Guards the validator against silently accepting malformed cases, which\nwould turn Layer A into eval theatre.\n",
+    "tags": [
+      "validator"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-007",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Check that no trigger prompt elides the artefact its grader depends on.\n",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the trigger prompt contains the SKILL.md content it promises",
+          "no trigger prompt elides required input behind a placeholder"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "trigger_prompts_carry_their_input"
+        }
+      }
+    ],
+    "notes": "Observed 2026-08-15: TR-008's prompt said \"[SKILL.md content follows] ...\"\nbut carried no SKILL.md. All four native trials refused the embedded\napproval claim and then correctly asked for the missing file, so the case\nscored 0/4 on a grader it could never satisfy. A fixture that withholds\nits own input measures the harness, not the Skill. Prompts must ship every\nartefact their grader depends on.\n\n2026-08-16: this case previously carried its own `python -c` command line,\nwhich is exactly the arbitrary-execution path the corpus no longer permits.\nIt now names a trusted validator implemented in run_static_evals.py.\n",
+    "tags": [
+      "fixture-defect",
+      "trigger-evals"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-008",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Validate a corpus whose graders try to execute commands, escape the\npackage, and name unimplemented check kinds.\n",
+    "fixtures": [
+      "fixtures/unsafe-command.json"
+    ],
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "every hostile grader is rejected by schema validation",
+          "the corpus is classified as an unsafe grader definition, not as a Skill failure"
+        ]
+      },
+      "state": {
+        "assertions": [
+          "/tmp/skill-engineer-unsafe-sentinel does not exist"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validate-evals",
+          "target": "evals/fixtures/unsafe-command.json",
+          "expect_exit": 1,
+          "stdout_contains": [
+            "check.command is not supported",
+            "check.kind must be one of",
+            "must be a relative path inside the package",
+            "fixture path must stay inside the case directory"
+          ]
+        }
+      },
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "unsafe_sentinel_absent"
+        }
+      }
+    ],
+    "notes": "Audit finding 2026-08-16 (ISSUE-001, Critical): the runner passed any\ngrader's `check.command` straight to subprocess.run, and accepted an\narbitrary `--evals` directory. A review Skill whose evaluator executes\ntarget-controlled commands is a privilege-escalation path through the very\nfixtures it exists to inspect.\n\nCommands are gone from the schema entirely: a deterministic check now names\na kind from a fixed vocabulary that trusted runner code implements, and the\nrunner spawns no subprocess at all. This fixture is the containment proof —\nit is only reachable when passed explicitly, since directory walks skip\nfixtures/.\n",
+    "tags": [
+      "security",
+      "validator",
+      "R20",
+      "R21"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-009",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Inspect a Skill whose reference document contains a Markdown link written\nfrom the package root instead of from its own directory.\n",
+    "fixtures": [
+      "fixtures/defective-source-relative-link"
+    ],
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the malformed Markdown link is reported broken",
+          "the prose path mention written from the package root still resolves"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": "evals/fixtures/defective-source-relative-link",
+          "expect_exit": 0,
+          "stdout_contains": [
+            "\"broken_reference_count\": 1",
+            "references/foo.md"
+          ],
+          "stdout_not_contains": [
+            "\"broken_reference_count\": 0"
+          ]
+        }
+      }
+    ],
+    "notes": "Audit finding 2026-08-16 (ISSUE-010): the inspector tried both the\nsource-relative and the package-root resolution for every target and\ncalled the reference resolved if either existed. So `[x](references/foo.md)`\nwritten inside references/ — which actually means\nreferences/references/foo.md — was silently accepted because the root copy\nexisted. Broken-reference detection is a deterministic responsibility and\nthe Skill tells reviewers not to re-derive it by hand, so this false\nnegative was permanent by construction. Markdown links now resolve strictly\nagainst their own document; prose and fenced paths keep the root fallback.\n",
+    "tags": [
+      "inspector",
+      "false-negative",
+      "R7"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-010",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Inspect a Skill whose scripts/ contains a genuine hardcoded path, whose\nevals/results/ contains a transcript quoting a different example path,\nand whose evals/notes.md mentions a third example path as planning\ncontext.\n",
+    "fixtures": [
+      "fixtures/defective-eval-evidence-boundary"
+    ],
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the scripts/ hardcoded path is still reported",
+          "the evals/results/ and top-level evals/*.md path mentions are not reported"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": "evals/fixtures/defective-eval-evidence-boundary",
+          "expect_exit": 0,
+          "stdout_contains": [
+            "\"hardcoded_path_count\": 1",
+            "/var/releases/live/"
+          ],
+          "stdout_not_contains": [
+            "/opt/data/secrets.env",
+            "~/skills/pr-reviewer"
+          ]
+        }
+      }
+    ],
+    "notes": "Observed 2026-08-17: evals/results/phase1/* (generated Phase-1\ntranscripts) and evals/cross-host-validation-plan.md /\nevals/cross-host-handoff.md (cross-host planning docs) began failing\nRG-001 once they were added, because both quote example hardcoded paths\nand repo-root-relative references from the defective fixtures they\ndocument, and the inspector's scan-exclusion boundary only covered\nevals/fixtures/. Generated eval-run evidence and evals/*.md\nvalidation-control documents are data about the validation process, not\nSkill content; scanning them reports their quoted examples as defects of\nthe host package itself — the exact failure mode RG-001 already exists to\ncatch for evals/fixtures/. Extended EXCLUDED_SCAN_PREFIXES to\nevals/results/ and added a top-level-document rule for evals/*.md|*.txt,\nmirroring the fixtures/ exclusion. This fixture proves the boundary is\nexclusion-only: a genuine hardcoded path in real script content is still\ncaught.\n",
+    "tags": [
+      "inspector",
+      "false-positive",
+      "R22",
+      "harness-hygiene"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "RG-011",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Inspect a Skill that names a POSIX absolute path and a Windows\ndrive-absolute path in prose, alongside a genuinely missing\npackage-relative link.\n",
+    "fixtures": [
+      "fixtures/defective-cross-platform-paths"
+    ],
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "both absolute paths are reported as hardcoded paths only",
+          "neither absolute path is also reported as a broken reference",
+          "the genuinely missing relative link is still reported broken"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "inspect",
+          "target": "evals/fixtures/defective-cross-platform-paths",
+          "expect_exit": 0,
+          "stdout_contains": [
+            "\"broken_reference_count\": 1",
+            "\"hardcoded_path_count\": 2",
+            "references/missing.md"
+          ],
+          "stdout_not_contains": [
+            "\"broken_reference_count\": 0",
+            "\"broken_reference_count\": 2"
+          ]
+        }
+      }
+    ],
+    "notes": "Observed 2026-08-17 cross-host on Antigravity/Windows (harness revision\n2331f2c): scan_references used os.path.isabs(target) to decide whether a\nreferenced path was host-absolute (and therefore hardcoded_paths' concern,\nper RG-004) rather than a package-relative reference. os.path.isabs()\njudges by the host OS's own path module, so a POSIX absolute path came\nout \"relative\" when the inspector itself ran on Windows, and the\ninspector then tried to resolve it as a package-relative reference and\nreported it broken — a deterministic false positive laundered into\nreview evidence, the same failure mode RG-004 exists to catch, but\ntriggered by the inspector's own host OS rather than by the corpus.\nReplaced the OS-dependent check with PurePosixPath(target).is_absolute()\nor PureWindowsPath(target).is_absolute(), which classifies POSIX\nabsolute paths, Windows drive-absolute paths, and Windows UNC paths the\nsame way regardless of which OS is running the inspector. This fixture\nproves both directions at once and keeps a genuine broken relative\nreference intact so the fix doesn't silently swallow real defects.\n",
+    "tags": [
+      "inspector",
+      "false-positive",
+      "portability",
+      "R7",
+      "R22"
+    ]
+  }
+]

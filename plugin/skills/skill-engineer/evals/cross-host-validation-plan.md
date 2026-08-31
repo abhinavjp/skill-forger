@@ -152,7 +152,7 @@ Legend: `REUSE_EXISTING` / `CROSS_HOST_REQUIRED` / `HOST_SPECIFIC` /
 
 One initial trial each, run serially, no retries, no escalation without a
 human decision. Existing fixtures and prompts are reused verbatim from
-`execution.yaml` / `trigger.yaml` — no new fixtures were written for this
+`execution.json` / `trigger.json` — no new fixtures were written for this
 plan.
 
 | Case | Portability question | Existing evidence reusable? | Why another host adds information | Deterministic alternative? | Initial host calls | Escalation condition |
@@ -243,7 +243,7 @@ that cannot be settled without a second host.
   one trial each, serial, no retries, no automatic escalation.
 - Deterministic local commands: unlimited, 0 model calls, run first as a gate.
 - No model-judge call beyond the frozen rubrics already shipped in
-  `execution.yaml`/`trigger.yaml` — grading stays deterministic where
+  `execution.json`/`trigger.json` — grading stays deterministic where
   `run_static_evals.py` covers it (none of CH-1..CH-5 are Layer A, so all five
   need the target host's own model, graded against the frozen rubric text,
   same as Claude Phase 1's method).

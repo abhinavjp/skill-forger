@@ -2145,9 +2145,9 @@ skill-engineer/
 │   └── validate-evals
 │
 └── evals/
-    ├── trigger.yaml
-    ├── execution.yaml
-    └── regressions.yaml
+    ├── trigger.json
+    ├── execution.json
+    └── regressions.json
 ```
 
 Add only when required:

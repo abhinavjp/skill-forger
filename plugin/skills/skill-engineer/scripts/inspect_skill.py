@@ -116,7 +116,6 @@ def parse_frontmatter(text):
             if re.match(r"^\w[\w-]*\s*:", line):
                 key, _, value = line.partition(":")
                 data[key.strip()] = value.strip().strip("'\"")
-        errors.append("PyYAML unavailable: frontmatter parsed line-by-line")
         return data, body, errors
 
 
