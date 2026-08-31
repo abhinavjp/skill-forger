@@ -47,12 +47,10 @@ class _SliceOutputError(ValueError):
 
 def _canonical_root(root: Path) -> Path:
     try:
-        resolved = root.resolve()
-    except (OSError, RuntimeError) as exc:
+        safe_root = SafeRoot(root)
+    except SafePathError as exc:
         raise _ContainmentError("target root cannot be resolved") from exc
-    if not resolved.is_dir():
-        raise _ContainmentError("target root is not a directory")
-    return resolved
+    return safe_root._path
 
 
 def _load_patterns():
@@ -244,7 +242,7 @@ def _canonical_json_digest(value) -> str:
 
 def _make_scan_id(root: Path, max_bytes: int, patterns, pairs) -> str:
     payload = {
-        "root": str(root.resolve()),
+        "root": str(root),
         "scanner_version": SCANNER_VERSION,
         "pattern_catalogue_sha256": _canonical_json_digest(patterns),
         "max_bytes": max_bytes,
@@ -393,7 +391,7 @@ def _build_inventory(root: Path, max_bytes: int | None):
     scan_pairs = [(unit["path"], unit["sha256"]) for unit in matched_units]
     result = {
         "version": 1,
-        "root": str(root.resolve()),
+        "root": str(root),
         "scanned_files": scanned_files,
         "matched_units": matched_units,
         "skipped": skipped,

@@ -118,6 +118,40 @@ class SafeRootTests(unittest.TestCase):
                 with self.assertRaises(SafePathError):
                     root.read_bytes_with_stat("link.md")
 
+    def test_supplied_root_link_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            link = Path(directory) / "linked-root"
+            self.make_dir_link(link, Path(outside))
+            try:
+                with self.assertRaises(SafePathError):
+                    SafeRoot(link)
+            finally:
+                self.remove_dir_link(link)
+
+    def test_root_replacement_after_construction_cannot_redirect_read_or_write(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root_path = Path(directory) / "root"
+            root_path.mkdir()
+            (root_path / "guide.md").write_text("INTERNAL\n", encoding="utf-8")
+            external = Path(outside)
+            external_secret = external / "guide.md"
+            external_secret.write_text("OUTSIDE SECRET\n", encoding="utf-8")
+            external_output = external / "created.txt"
+            root = SafeRoot(root_path)
+
+            renamed_root = Path(directory) / "renamed-root"
+            root_path.rename(renamed_root)
+            self.make_dir_link(root_path, external)
+            try:
+                with self.assertRaises(SafePathError):
+                    root.read_text("guide.md")
+                with self.assertRaises(SafePathError):
+                    root.write_text("created.txt", "changed\n")
+                self.assertEqual("OUTSIDE SECRET\n", external_secret.read_text(encoding="utf-8"))
+                self.assertFalse(external_output.exists())
+            finally:
+                self.remove_dir_link(root_path)
+
     def test_intermediate_link_or_reparse_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
             root_path = Path(directory)

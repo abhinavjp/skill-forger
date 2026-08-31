@@ -66,12 +66,16 @@ class SafeRoot:
 
     def __init__(self, root: Path | str):
         try:
-            resolved = Path(root).resolve()
-        except (OSError, RuntimeError) as exc:
+            self._path = Path(os.path.abspath(os.fspath(root)))
+        except (OSError, RuntimeError, TypeError) as exc:
             raise SafePathError("target root cannot be resolved") from exc
-        if not resolved.is_dir():
-            raise SafePathError("target root is not a directory")
-        self._path = resolved
+        if os.name == "nt":
+            verifier = _WindowsSafeRoot(self._path)
+            handle, _ = verifier._open_root()
+            verifier._close(handle)
+        else:
+            descriptor = _PosixSafeRoot(self._path)._open_root()
+            _close_all([descriptor])
 
     def _parts(self, relative: str, *, allow_absolute: bool = False) -> tuple[str, ...]:
         if allow_absolute and _is_absolute_or_drive(relative):
@@ -126,8 +130,28 @@ class _PosixSafeRoot:
 
     @staticmethod
     def _open_root(path: Path) -> int:
-        flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0)
-        return os.open(os.fspath(path), flags)
+        _PosixSafeRoot._require_capabilities()
+        flags = (
+            os.O_RDONLY
+            | os.O_DIRECTORY
+            | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+        descriptor = None
+        try:
+            descriptor = os.open(os.fspath(path), flags)
+            info = os.fstat(descriptor)
+            if not stat.S_ISDIR(info.st_mode):
+                raise SafePathError("target root is not a directory")
+            return descriptor
+        except SafePathError:
+            if descriptor is not None:
+                _close_all([descriptor])
+            raise
+        except OSError as exc:
+            if descriptor is not None:
+                _close_all([descriptor])
+            raise SafePathError("target root cannot be verified") from exc
 
     @staticmethod
     def _open_child_dir(parent_fd: int, name: str) -> int:
@@ -367,20 +391,33 @@ class _WindowsSafeRoot:
         suffix = "\\".join(parts)
         return self._normal_final(root_final + ("\\" + suffix if suffix else ""))
 
+    def _open_root(self):
+        handle = None
+        try:
+            handle = self._open(
+                self.root, GENERIC_READ, OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            )
+            attrs = self._attrs(handle)
+            if attrs & FILE_ATTRIBUTE_REPARSE_POINT:
+                raise SafePathError("target root cannot be verified")
+            if not attrs & FILE_ATTRIBUTE_DIRECTORY:
+                raise SafePathError("target root is not a directory")
+            return handle, self._normal_final(self._final_path(handle))
+        except SafePathError as exc:
+            self._close(handle)
+            if str(exc) in {
+                "target root cannot be verified",
+                "target root is not a directory",
+            }:
+                raise
+            raise SafePathError("target root cannot be verified") from exc
+
     def _open_chain(self, parts: tuple[str, ...], leaf_access: int, leaf_creation: int):
         handles = []
-        root_handle = self._open(
-            self.root, GENERIC_READ, OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
-        )
+        root_handle, root_final = self._open_root()
         handles.append(root_handle)
         try:
-            root_attrs = self._attrs(root_handle)
-            if root_attrs & FILE_ATTRIBUTE_REPARSE_POINT:
-                raise SafePathError("target root cannot be verified")
-            if not root_attrs & FILE_ATTRIBUTE_DIRECTORY:
-                raise SafePathError("target root is not a directory")
-            root_final = self._final_path(root_handle)
             current = self.root
             for index, part in enumerate(parts):
                 current = current / part
@@ -441,18 +478,9 @@ class _WindowsSafeRoot:
 
     def verify_directory(self, parts: tuple[str, ...]) -> None:
         handles = []
-        root_handle = self._open(
-            self.root, GENERIC_READ, OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
-        )
+        root_handle, root_final = self._open_root()
         handles.append(root_handle)
         try:
-            root_attrs = self._attrs(root_handle)
-            if root_attrs & FILE_ATTRIBUTE_REPARSE_POINT:
-                raise SafePathError("target root cannot be verified")
-            if not root_attrs & FILE_ATTRIBUTE_DIRECTORY:
-                raise SafePathError("target root is not a directory")
-            root_final = self._final_path(root_handle)
             current = self.root
             for index, part in enumerate(parts):
                 current = current / part

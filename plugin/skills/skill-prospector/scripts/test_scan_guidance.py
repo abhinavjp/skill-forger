@@ -7,6 +7,7 @@ import errno
 import io
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -47,6 +48,30 @@ class ScanGuidanceTests(unittest.TestCase):
             if unsupported:
                 self.skipTest(f"file symlinks unavailable: {exc}")
             raise
+
+    def make_dir_link(self, link: Path, target: Path):
+        if os.name == "nt":
+            command = ["cmd.exe", "/d", "/c", "mklink", "/J", os.fspath(link), os.fspath(target)]
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode != 0:
+                self.skipTest(f"junctions unavailable: {result.stderr or result.stdout}")
+            return
+        try:
+            link.symlink_to(target, target_is_directory=True)
+        except (NotImplementedError, OSError) as exc:
+            unsupported = getattr(exc, "errno", None) in {
+                errno.EPERM, errno.ENOSYS, errno.EOPNOTSUPP,
+            }
+            if unsupported:
+                self.skipTest(f"directory symlinks unavailable: {exc}")
+            raise
+
+    def remove_dir_link(self, link: Path):
+        if link.exists() or link.is_symlink():
+            if os.name == "nt":
+                os.rmdir(link)
+            else:
+                link.unlink()
 
     def test_catalogue_and_heuristic_matches(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -287,6 +312,25 @@ class ScanGuidanceTests(unittest.TestCase):
         code, _, errors = self.run_scan(Path("missing-target"))
         self.assertEqual(2, code)
         self.assertIn("not a directory", errors)
+
+    def test_scan_rejects_supplied_root_link_without_inventory(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            external = Path(outside)
+            (external / "AGENTS.md").write_text("OUTSIDE SECRET\n", encoding="utf-8")
+            linked_root = Path(directory) / "linked-root"
+            self.make_dir_link(linked_root, external)
+            try:
+                code, result, errors = self.run_scan(linked_root)
+            finally:
+                self.remove_dir_link(linked_root)
+
+            self.assertEqual(2, code)
+            self.assertEqual({}, result)
+            self.assertEqual(
+                "error: scan root is not a directory or is not readable\n",
+                errors,
+            )
+            self.assertNotIn("OUTSIDE SECRET", errors)
 
     def test_ignored_catalogue_guidance_is_scanned_but_prose_is_not(self):
         fixture = (
