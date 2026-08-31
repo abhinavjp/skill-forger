@@ -431,8 +431,7 @@ def _validate_quality_inputs(root: Path, report: dict, errors):
         if not isinstance(record, dict):
             _error(errors, label, "record must be an object")
             continue
-        for key in sorted(QUALITY_INPUT_RECORD_KEYS - set(record)):
-            _error(errors, label, f"missing required field: {key}")
+        _validate_exact_record_keys(record, QUALITY_INPUT_RECORD_KEYS, label, errors)
         case_id = record.get("id")
         valid_id = _non_empty_string(case_id, f"{label}.id", errors)
         if valid_id and case_id in by_id:
@@ -460,8 +459,7 @@ def _validate_quality_contracts(root: Path, report: dict, errors):
         if not isinstance(record, dict):
             _error(errors, label, "record must be an object")
             continue
-        for key in sorted(QUALITY_CONTRACT_RECORD_KEYS - set(record)):
-            _error(errors, label, f"missing required field: {key}")
+        _validate_exact_record_keys(record, QUALITY_CONTRACT_RECORD_KEYS, label, errors)
         case_id = record.get("id")
         valid_id = _non_empty_string(case_id, f"{label}.id", errors)
         if valid_id and case_id in by_id:
@@ -494,8 +492,7 @@ def _validate_quality_cases(root: Path, report: dict, errors):
         if not isinstance(record, dict):
             _error(errors, label, "record must be an object")
             continue
-        for key in sorted(QUALITY_CASE_RECORD_KEYS - set(record)):
-            _error(errors, label, f"missing required field: {key}")
+        _validate_exact_record_keys(record, QUALITY_CASE_RECORD_KEYS, label, errors)
         case_id = record.get("id")
         valid_id = _non_empty_string(case_id, f"{label}.id", errors)
         if valid_id and case_id in seen:

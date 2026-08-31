@@ -82,6 +82,36 @@ class SafeRootTests(unittest.TestCase):
             public_methods,
         )
 
+    def test_posix_root_constructor_passes_path_to_opener(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with mock.patch.object(safe_fs.os, "name", "posix"), \
+                 mock.patch.object(
+                     safe_fs._PosixSafeRoot, "_open_root", return_value=41
+                 ) as open_root, \
+                 mock.patch.object(safe_fs, "_close_all") as close_all:
+                root_path = Path(directory)
+                SafeRoot(root_path)
+
+            open_root.assert_called_once_with(root_path)
+            close_all.assert_called_once_with([41])
+
+    def test_posix_intermediate_open_failure_is_safe_path_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            helper = safe_fs._PosixSafeRoot(Path(directory))
+            with mock.patch.object(helper, "_require_capabilities"), \
+                 mock.patch.object(helper, "_open_root", return_value=41), \
+                 mock.patch.object(
+                     helper,
+                     "_open_child_dir",
+                     side_effect=PermissionError("intermediate denied"),
+                 ), \
+                 mock.patch.object(safe_fs, "_close_all") as close_all:
+                with self.assertRaises(SafePathError) as raised:
+                    helper._open_parent_chain(("docs", "guide.md"))
+
+            self.assertIsInstance(raised.exception.__cause__, PermissionError)
+            close_all.assert_called_once_with([41])
+
     def test_normal_read_stat_and_write(self):
         with tempfile.TemporaryDirectory() as directory:
             root_path = Path(directory)

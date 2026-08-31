@@ -74,7 +74,7 @@ class SafeRoot:
             handle, _ = verifier._open_root()
             verifier._close(handle)
         else:
-            descriptor = _PosixSafeRoot(self._path)._open_root()
+            descriptor = _PosixSafeRoot(self._path)._open_root(self._path)
             _close_all([descriptor])
 
     def _parts(self, relative: str, *, allow_absolute: bool = False) -> tuple[str, ...]:
@@ -170,6 +170,9 @@ class _PosixSafeRoot:
             for part in parts[:-1]:
                 descriptors.append(self._open_child_dir(descriptors[-1], part))
             return descriptors
+        except OSError as exc:
+            _close_all(descriptors)
+            raise SafePathError("path cannot be verified") from exc
         except BaseException:
             _close_all(descriptors)
             raise

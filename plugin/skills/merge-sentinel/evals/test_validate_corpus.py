@@ -96,6 +96,23 @@ class ValidateCorpusTests(unittest.TestCase):
 
         self.assert_mutation_error(mutate, "quality-inputs.json: duplicate JSON key")
 
+    def test_quality_record_unexpected_key_is_rejected(self):
+        for filename in (
+            "quality-inputs.json",
+            "quality-contracts.json",
+            "quality-cases.json",
+        ):
+            def mutate(root: Path, filename=filename) -> None:
+                value = self.read_json(root, filename)
+                value["cases"][0]["obsolete"] = True
+                self.write_json(root, filename, value)
+
+            with self.subTest(filename=filename):
+                self.assert_mutation_error(
+                    mutate,
+                    f"{filename}[clean-preserved-contract]: unexpected field: obsolete",
+                )
+
     def test_quality_contract_divergence_is_rejected(self):
         def mutate(root: Path) -> None:
             contracts = self.read_json(root, "quality-contracts.json")
