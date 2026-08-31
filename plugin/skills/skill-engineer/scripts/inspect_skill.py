@@ -95,28 +95,34 @@ def _read(path):
 
 
 def parse_frontmatter(text):
-    """Return (frontmatter_dict, body, errors). Tolerates missing PyYAML."""
-    errors = []
-    if not text.startswith("---"):
-        return {}, text, ["SKILL.md has no YAML frontmatter block"]
-    end = text.find("\n---", 3)
-    if end == -1:
-        return {}, text, ["frontmatter block is not terminated by '---'"]
-    raw = text[text.find("\n", 3) + 1:end]
-    body = text[end + 4:].lstrip("\n")
+    """Return (frontmatter_dict, body, errors, parser_status)."""
     try:
         import yaml
+    except ImportError:
+        yaml = None
+        parser_status = {"backend": "line-fallback", "degraded": True}
+    else:
+        parser_status = {"backend": "pyyaml", "degraded": False}
+
+    if not text.startswith("---"):
+        return {}, text, ["SKILL.md has no YAML frontmatter block"], parser_status
+    end = text.find("\n---", 3)
+    if end == -1:
+        return {}, text, ["frontmatter block is not terminated by '---'"], parser_status
+    raw = text[text.find("\n", 3) + 1:end]
+    body = text[end + 4:].lstrip("\n")
+    if yaml is not None:
         data = yaml.safe_load(raw) or {}
         if not isinstance(data, dict):
-            return {}, body, ["frontmatter is not a mapping"]
-        return data, body, errors
-    except ImportError:
-        data = {}
-        for line in raw.splitlines():
-            if re.match(r"^\w[\w-]*\s*:", line):
-                key, _, value = line.partition(":")
-                data[key.strip()] = value.strip().strip("'\"")
-        return data, body, errors
+            return {}, body, ["frontmatter is not a mapping"], parser_status
+        return data, body, [], parser_status
+
+    data = {}
+    for line in raw.splitlines():
+        if re.match(r"^\w[\w-]*\s*:", line):
+            key, _, value = line.partition(":")
+            data[key.strip()] = value.strip().strip("'\"")
+    return data, body, ["PyYAML unavailable: frontmatter parsed line-by-line"], parser_status
 
 
 def inventory(root):
@@ -234,7 +240,7 @@ def inspect(root):
         raise RuntimeError(f"no SKILL.md in {root}")
 
     text = _read(skill_md)
-    frontmatter, body, fm_errors = parse_frontmatter(text)
+    frontmatter, body, fm_errors, parser_status = parse_frontmatter(text)
 
     metadata_errors = list(fm_errors)
     name = frontmatter.get("name")
@@ -282,6 +288,7 @@ def inspect(root):
         "skill_path": os.path.abspath(root),
         "metadata": {
             "frontmatter": frontmatter,
+            "parser": parser_status,
             "name": name,
             "description": description,
             "description_chars": len(description or ""),

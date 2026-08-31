@@ -495,6 +495,28 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual(sorted(EXPECTED_SKILL_IDS), sorted(names))
         self.assertEqual(len(names), len(set(names)))
 
+    def test_inspector_discloses_pyyaml_fallback(self) -> None:
+        """The no-site probe must expose degraded frontmatter parsing."""
+        inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
+        fixture = PLUGIN_SKILLS / "skill-engineer" / "evals" / "fixtures" / "good-release-notes"
+        proc = subprocess.run(
+            [sys.executable, "-S", str(inspector), str(fixture)],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual(
+            {"backend": "line-fallback", "degraded": True},
+            report["metadata"]["parser"],
+        )
+        self.assertEqual(
+            ["PyYAML unavailable: frontmatter parsed line-by-line"],
+            report["metadata"]["errors"],
+        )
+        self.assertEqual(1, report["metrics"]["metadata_error_count"])
+
 
 if __name__ == "__main__":
     unittest.main()

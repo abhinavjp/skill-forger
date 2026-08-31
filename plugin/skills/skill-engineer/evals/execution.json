@@ -13,7 +13,7 @@
         "assertions": [
           "inspector exits 0",
           "no broken references reported",
-          "no metadata errors reported"
+          "parser capability is reported"
         ]
       }
     },
@@ -25,7 +25,7 @@
           "target": "evals/fixtures/good-release-notes",
           "expect_exit": 0,
           "stdout_contains": [
-            "\"metadata_error_count\": 0",
+            "\"parser\": {",
             "\"broken_reference_count\": 0",
             "\"hardcoded_path_count\": 0"
           ]
