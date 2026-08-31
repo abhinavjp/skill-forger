@@ -17,7 +17,7 @@ the plan itself for evidence trails.
   Antigravity before trusting any Stage 1 result**, do not assume the old
   Stage 0 failure carries forward.
 - Target: `skill-engineer/` at repo root (this repo).
-- Do not modify `SKILL.md`, `references/`, `scripts/`, or `evals/*.yaml`
+- Do not modify `SKILL.md`, `references/`, `scripts/`, or `evals/*.json`
   before or during this phase.
 
 ## What to run, in order
@@ -30,22 +30,22 @@ python skill-engineer/evals/run_static_evals.py
 python skill-engineer/scripts/inspect_skill.py skill-engineer
 ```
 
-If either fails or errors, STOP — fix the environment (Python 3.8+, PyYAML
-for YAML eval files) before spending any model call. This is not new
+If either fails or errors, STOP — fix the environment (Python 3.8+ and readable
+canonical JSON eval files) before spending any model call. This is not new
 evidence about the Skill; it is a sanity gate (plan §0/§9.1).
 
 **Stage 1 — 5 initial model calls, one trial each, serial, no retries:**
 
 | ID | Source case | Prompt / target | What it answers |
 |---|---|---|---|
-| CH-1 | EX-006 (`execution.yaml`) | "Review the Skill at evals/fixtures/defective-unsafe-mutation and report findings." | Inspector actually invoked? Both required findings reproduced (R21 exfil Critical, R15 unenforced-invariant)? |
-| CH-2 | EX-014 (`execution.yaml`) | "Design a skill for our PR review conventions. We're on Claude Code today, and I want the review to be blocked outright if someone touches infra/secrets — but we may move hosts next year, so it can't be locked to one vendor." | Portable core stays host-neutral? Hard block placed in a real mechanism, not prose? Standards-compatible vs. tested distinguished? |
-| CH-3 | TR-002 (`trigger.yaml`) | "we've got a skill at ~/skills/pr-reviewer that keeps firing on questions that have nothing to do with PRs, and when it does fire it reads like six files before doing anything. can you audit it properly and tell me what to cut" | Does implicit routing select `skill-engineer` on this host? |
-| CH-4 | EX-007 (`execution.yaml`) | "Review the Skill at evals/fixtures/good-release-notes." | False-positive control on a non-mutating known-good fixture: no invented Critical/High, no `adjudicated_non_defects` feature flagged (see `fixtures/good-release-notes/defects.json`) |
-| CH-5 | EX-017 (`execution.yaml`) | Pasted `standup-notes` SKILL.md (verbatim in `execution.yaml`) | Correctly distinguishes "could not check — nothing on disk" from "checked and clean"? No path demanded first? |
+| CH-1 | EX-006 (`execution.json`) | "Review the Skill at evals/fixtures/defective-unsafe-mutation and report findings." | Inspector actually invoked? Both required findings reproduced (R21 exfil Critical, R15 unenforced-invariant)? |
+| CH-2 | EX-014 (`execution.json`) | "Design a skill for our PR review conventions. We're on Claude Code today, and I want the review to be blocked outright if someone touches infra/secrets — but we may move hosts next year, so it can't be locked to one vendor." | Portable core stays host-neutral? Hard block placed in a real mechanism, not prose? Standards-compatible vs. tested distinguished? |
+| CH-3 | TR-002 (`trigger.json`) | "we've got a skill at ~/skills/pr-reviewer that keeps firing on questions that have nothing to do with PRs, and when it does fire it reads like six files before doing anything. can you audit it properly and tell me what to cut" | Does implicit routing select `skill-engineer` on this host? |
+| CH-4 | EX-007 (`execution.json`) | "Review the Skill at evals/fixtures/good-release-notes." | False-positive control on a non-mutating known-good fixture: no invented Critical/High, no `adjudicated_non_defects` feature flagged (see `fixtures/good-release-notes/defects.json`) |
+| CH-5 | EX-017 (`execution.json`) | Pasted `standup-notes` SKILL.md (verbatim in `execution.json`) | Correctly distinguishes "could not check — nothing on disk" from "checked and clean"? No path demanded first? |
 
-Grade each against the frozen rubric text already in `execution.yaml` /
-`trigger.yaml` for that case id — do not write a new rubric. Use the same
+Grade each against the frozen rubric text already in `execution.json` /
+`trigger.json` for that case id — do not write a new rubric. Use the same
 compact evidence record Claude Phase 1 used
 (`evals/validation-plan.md` §"Context discipline"): case_id, outcome,
 rubric_item_results, minimum supporting evidence quote, rule_modules_loaded,
@@ -97,14 +97,14 @@ inspector_invoked (y/n + target), transcript_path, failure_classification.
    Cursor, Antigravity) — if this host is none of those, note its actual
    hook/permission/CI primitive before grading CH-2, don't invent one during
    grading.
-5. Python 3.8+ available? PyYAML available (only needed for YAML eval files;
-   JSON fixtures work without it)?
+5. Python 3.8+ available? Canonical JSON eval files readable without optional
+   dependencies?
 
 ## Where the fixtures and prompts live
 
-- `skill-engineer/evals/execution.yaml` — CH-1, CH-2, CH-4, CH-5 case
+- `skill-engineer/evals/execution.json` — CH-1, CH-2, CH-4, CH-5 case
   definitions and frozen rubrics.
-- `skill-engineer/evals/trigger.yaml` — CH-3 case definition and grader.
+- `skill-engineer/evals/trigger.json` — CH-3 case definition and grader.
 - `skill-engineer/evals/fixtures/defective-unsafe-mutation/` — CH-1 target.
 - `skill-engineer/evals/fixtures/good-release-notes/` — CH-4 target
   (`defects.json` lists `adjudicated_non_defects` — do not grade those as
@@ -115,5 +115,5 @@ inspector_invoked (y/n + target), transcript_path, failure_classification.
 ## Full rationale
 
 `evals/cross-host-validation-plan.md` — case-by-case classification of every
-case in `execution.yaml`/`trigger.yaml`/`regressions.yaml`, why each of
+case in `execution.json`/`trigger.json`/`regressions.json`, why each of
 CH-1..CH-5 was selected over its alternatives, and what stays deferred.

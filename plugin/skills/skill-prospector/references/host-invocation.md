@@ -17,23 +17,26 @@ an inference, not proof of the installed host.
 
 ## Candidate invocation contract
 
-Every candidate states this portable intent: invoke it deliberately by the
-user, not by model auto-selection. If a host cannot enforce that, use narrow
-description discipline and disclose the limitation. The `user-invocable`
-distinction below is UNVERIFIED until the current host documentation confirms
-it. Never use
-`user-invocable: false` for this purpose: that control hides a Skill from a
-menu while leaving model invocation possible. Setting it together with
-`disable-model-invocation` makes the Skill unreachable.
+Each candidate records one policy: `automatic`, `both`, or
+`explicit-only-required`, plus one sentence of evidence/risk justification.
+Default to `both` for safe reusable workflows. Use `automatic` when
+discoverability is essential and false positives are low. Use
+`explicit-only-required` only when accidental activation has meaningful cost or
+risk. A strict explicit-only requirement must use a host-enforceable
+command/workflow, or be disclosed as non-enforceable and deferred unless the
+user accepts automatic-routing risk.
 
-| Host | Optional proposal | Evidence and status |
-|---|---|---|
-| Claude Code | `disable-model-invocation: true`; leave `user-invocable` at its default | [Claude Code issue #26251](https://github.com/anthropics/claude-code/issues/26251); `enforced-with-known-deviation` because explicit slash invocation was reported unreachable |
-| Cursor | Use the key only for project-level Skills, never plugin-delivered Skills | [Cursor forum #155748](https://forum.cursor.com/t/disable-model-invocation-true-completely-hides-plugin-delivered-skills-from-command-palette/155748); `enforced-with-known-deviation` |
-| OpenAI Codex | No host key proposed; description discipline only | UNVERIFIED equivalent; `not-enforceable — description discipline only` |
-| Google Antigravity | No host key proposed; description discipline only | UNVERIFIED suppression control; `not-enforceable — description discipline only` |
+Host statements have separate status: `standards-compatible`, `tested`,
+`untested`, or `known deviation`. Repository signals do not prove an installed
+host, and no host-only field belongs in portable `SKILL.md` frontmatter.
 
-The Claude and Cursor entries describe known deviations, not behavioural
-equivalence. Re-check the host's current feature set and `skill-engineer`'s
-`platform-extensions.md` before carrying any other host-specific field into a
-candidate. Never propose a host key for an undetected host.
+| Host | Automatic routing | Explicit route | Explicit-only enforcement | Status/evidence |
+|---|---|---|---|---|
+| Claude Code | Skills are automatically loaded when relevant | `/skill-name` | `disable-model-invocation: true`; `user-invocable: false` is a visibility control, not suppression | `standards-compatible`; official contract verified 2026-08-30 at [Claude Code Skills/slash commands](https://code.claude.com/docs/en/slash-commands). Plugin delivery `untested`; dated reports such as [issue #26251](https://github.com/anthropics/claude-code/issues/26251) are deviation evidence only. |
+| OpenAI Codex | Portable `name`/`description` catalog routing | Named Skill / `$skill-name` where surfaced | No portable suppression field established; use `not-enforceable-portably` or another host mechanism | `standards-compatible`; official sample/source verified 2026-08-30 at [Codex skill creator](https://github.com/openai/codex/blob/main/codex-rs/skills/src/assets/samples/skill-creator/SKILL.md). Native catalog trial `untested`. |
+| Cursor | Agent Skill routing where installed | `/skill-name` | `disable-model-invocation: true` in the current Cursor contract | `standards-compatible`; official contract verified 2026-08-30 at [Cursor Agent Skills](https://cursor.com/docs/skills). Exact project/plugin delivery `untested`; [forum report #155748](https://forum.cursor.com/t/disable-model-invocation-true-completely-hides-plugin-delivered-skills-from-command-palette/155748) is dated deviation evidence only. |
+| Antigravity | On-demand Skill selected from its `description` | User-triggered `/` Workflow; some surfaces expose Skill slash invocation | Workflow is the documented strict user-triggered mechanism; no portable Skill suppression key established | `standards-compatible`; official behavior verified 2026-08-30 at [Antigravity SDD codelab](https://codelabs.developers.google.com/sdd-adk-antigravity) and [Antigravity Skills codelab](https://codelabs.developers.google.com/getting-started-with-antigravity-skills). Native trial `untested`. |
+
+For an unknown host, keep the portable core only and label runtime behavior
+`untested`. Never present a repository issue, forum report, or signal as a host
+contract, and never propose a host key for an undetected host.

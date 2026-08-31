@@ -13,37 +13,47 @@ and emits a creation plan; it does not author candidate Skills.
 
 1. **Establish target and authority.** Record the target root, whether it is
    the current directory, whether `skill-engineer` is reachable, and the
-   proposed output `<target-root>/docs/plans/<name>.md`. Get explicit path
-   confirmation, accepting a redirect. The single write authority is the
-   confirmed plan path and, only when needed, its confirmed parent directory.
-   Never create a candidate `SKILL.md`, stub, empty directory or frontmatter
-   shell. No candidate directory is ever created.
+   output path. If the user requested a plan without a path, use and announce
+   `<target-root>/docs/plans/skill-prospector-plan.md`; that contained default
+   is already authorised. Ask only for an outside-root redirect or overwrite
+   of an existing file lacking both generated-plan marker lines. Record
+   `authority: default|explicit|redirected` and `overwrite: yes|no`. The
+   confirmed plan path is the single write authority; no candidate directory,
+   stub, or frontmatter shell is ever created.
 2. **Discover once.** Run `scripts/scan_guidance.py scan <root> --json` once.
    Capture its JSON inventory. Use `--out` only when that inventory path is
    separately authorised; otherwise keep the machine-readable inventory in
    context and include it in the plan's discovery section.
-3. **Classify from metadata.** For every inventory unit, assign its current and
-   proposed mechanism using `skill-engineer`'s mechanism rule. Use path,
-   outline, directive counts, hashes and host signals; do not reread bodies.
-4. **Resolve only real ambiguity.** For a unit whose mechanism cannot be
-   settled from metadata, run `scripts/scan_guidance.py slice <path> --section
-   <heading>` once for that heading. Never load a whole guidance file or fetch
-   the same `(path, heading)` twice.
+3. **Classify structural facts.** Use metadata alone only when location/type
+   entails the current mechanism (for example an existing `SKILL.md`, hook,
+   command or CI declaration). Every semantic mechanism or candidate decision
+   needs bounded content evidence; never infer it from a filename alone.
+4. **Resolve ambiguity once.** Run `scripts/scan_guidance.py slice <root>
+   <relative-path> --scan-id <token> --section <heading>` once per unresolved
+   heading, or use `--document` once for a headingless file. Use the exact
+   `scan_id` from the preceding inventory; a changed hash invalidates prior
+   evidence. Cache `(path, selector)`; never follow cross-references or fetch
+   a selector twice.
 5. **Select candidates.** Load `references/candidate-selection.md`; cluster,
    merge and reject before deriving requirements. Record every rejected or
    deferred unit and its routed mechanism. Accept at most seven ranked
-   candidates by default.
+   candidates by default; do not fill the cap speculatively.
 6. **Derive requirements.** Engage `skill-engineer` CREATE once per accepted
-   candidate batch, passing only the evidence bundle already in context. Do
-   not copy its rule text, eval schema or host matrix.
+   candidate batch, passing only the evidence bundle already in context and
+   each proposed invocation mode. Do not copy its rule text, eval schema or
+   host matrix.
 7. **Adapt invocation.** Load `references/host-invocation.md` after detecting
-   host signals. State portable deliberate invocation first, then optional
-   host enhancements only for detected hosts. Record `UNTESTED` behaviour and
-   never claim cross-host equivalence.
-8. **Emit and check.** Load `references/plan-format.md`, write one Markdown
-   plan at the confirmed path (regenerate in place, never append), and verify
-   its headings, candidate fields, inventory terminal states, counts and
-   capability disclosures against the artefact.
+   host signals. Decide `automatic`, `both` or `explicit-only-required` per
+   candidate, with one evidence/risk sentence. Route strict explicit-only
+   candidates to a supported command/workflow; otherwise disclose
+   `not-enforceable-portably` and defer unless the user accepts the risk.
+   Record host status as `standards-compatible`, `tested`, `untested` or
+   `known deviation`; never claim cross-host equivalence.
+8. **Emit and check.** Load `references/plan-format.md`, render one Markdown
+   plan in memory, validate it, write a temporary sibling and atomically
+   replace the confirmed path. Remove the temporary file on failure, then
+   reread and verify marker lines, headings, candidate fields, inventory
+   terminal states, counts and capability disclosures against the artefact.
 
 ## Conditional references
 
@@ -70,10 +80,13 @@ Never hardcode a `skill-engineer` filesystem path.
 ## Capability degradation
 
 - With shell and Python 3.8+, use the deterministic scanner and report its
-  inventory path or stdout source.
+  inventory path or stdout source. Preserve its `scan_id` and source scope.
 - Without Python, perform one equivalent host file-search walk using
-  `scripts/patterns.json`; mark the plan `discovery: heuristic (unscripted)`
-  and list scripted discovery under **Capabilities not exercised**.
+  `scripts/patterns.json`; capture bounded content evidence for each semantic
+  decision (one section span, or one whole headingless document), and mark
+  anything not read `deferred`, never guessed. Mark the plan
+  `discovery: heuristic (unscripted)` and list scripted discovery under
+  **Capabilities not exercised**.
 - Without shell or file tools, stop. Report that discovery did not run and do
   not emit a plan claiming that it did.
 
@@ -86,8 +99,8 @@ only intended write, and no candidate Skill file or directory is created.
 Call the run complete only when the confirmed plan exists and has every stable
 heading required by `plan-format.md`; every inventory unit has exactly one of
 `covered-by-candidate:<id>`, `stays-as-<mechanism>`, `deferred` or `unreadable`;
-each accepted candidate has a boundary, trigger sketch, cited sources,
-mechanism justification and eval outline; and **Capabilities not exercised**
-lists every degraded or unavailable step. Otherwise report `partial` with the
-reason. Report inventory path/source, accepted count and rejected-with-reason
-count.
+  each accepted candidate has a boundary, trigger sketch, cited bounded sources,
+  mechanism justification and eval outline; and **Capabilities not exercised**
+  lists every degraded or unavailable step. Otherwise report `partial` with the
+  reason. Evidence-free semantic decisions remain `deferred`. Report inventory
+  path/source, accepted count and rejected-with-reason count.

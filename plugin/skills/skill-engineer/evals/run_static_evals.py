@@ -66,7 +66,7 @@ def _capture(entry, argv):
 
 def trigger_prompts_carry_their_input(_check):
     """No trigger prompt may elide the artefact its grader depends on (RG-007)."""
-    path = os.path.join(ROOT, "evals", "trigger.yaml")
+    path = os.path.join(ROOT, "evals", "trigger.json")
     cases = validate_evals._load(path)
     offenders = [
         case["id"] for case in cases

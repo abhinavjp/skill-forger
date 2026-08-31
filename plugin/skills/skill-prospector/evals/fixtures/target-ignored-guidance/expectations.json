@@ -1,0 +1,13 @@
+{
+  "fixture": "target-ignored-guidance",
+  "expected_paths": [
+    ".claude/commands/local-review.md"
+  ],
+  "ignored_catalogue_paths": [
+    ".claude/commands/local-review.md"
+  ],
+  "ignored_heuristic_paths": [
+    "notes.md"
+  ],
+  "ignored_guidance_count": 1
+}

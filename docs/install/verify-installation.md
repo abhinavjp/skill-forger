@@ -1,36 +1,45 @@
 # Verify an installation
 
-Run this checklist after installing through any host guide
+Run this checklist after installing through a host guide
 ([Claude Code](claude-code.md), [OpenAI Codex](openai-codex.md), [Cursor](cursor.md),
-[Antigravity](antigravity.md)). It applies unchanged to every host.
+[Antigravity](antigravity.md)). The checks are shared; invocation, delivery and
+explicit-only controls are host-specific and must not be inferred from another host.
 
-1. **Only one installation source is enabled.** You installed through exactly one route for this
-   host — not the plugin route and a standalone copy at the same time.
-2. **`skill-engineer` is discoverable.** The host lists or can invoke a Skill named
-   `skill-engineer`.
-3. **`merge-sentinel` is discoverable.** The host lists or can invoke a Skill named
-   `merge-sentinel`.
-4. **`skill-prospector` is discoverable.** The host lists or can invoke a Skill named
+1. **Record the trial snapshot.** Write down host and version, model, delivery
+   route, visible Skill catalog, and the date. Mark unavailable catalog or native
+   runners `UNTESTED`.
+2. **Only one installation source is enabled.** Use exactly one route for this
+   host, not the plugin route and a standalone copy together.
+3. **The three canonical Skills are discoverable.** Confirm the host lists or
+   can invoke `skill-engineer`, `merge-sentinel`, and `skill-prospector`.
+4. **Positive project-audit trigger.** Ask: "audit our conventions and tell me
+   what should be a Skill". Confirm `skill-prospector` activates and records a
+   plan, without authoring a candidate Skill.
+5. **Near-neighbour negative trigger.** Ask for direct creation of a new Skill
+   from notes, without auditing existing guidance. Confirm this routes to
+   `skill-engineer`, not `skill-prospector`.
+6. **Existing-Skill review boundary.** Ask to review a `SKILL.md` for broken
+   references or trigger problems. Confirm this routes to `skill-engineer`, not
    `skill-prospector`.
-5. **An implicit MR-review prompt selects `merge-sentinel`.** Ask the host to "review this merge
-   request for defects" (no explicit Skill name) and confirm `merge-sentinel` is the one that
-   activates.
-6. **An implicit project-guidance prompt selects `skill-prospector`, not `skill-engineer`.** Ask
-   the host to "audit our conventions and tell us what should be a Skill" and confirm
-   `skill-prospector` activates.
-7. **A skill-editing prompt selects `skill-engineer`, not `merge-sentinel`.** Ask the host to
-   "update this Skill so it does X" and confirm `skill-engineer` activates instead.
-8. **Relative references and scripts load from the installed Skill root.** Trigger a reference
-   load (for example, ask `merge-sentinel` to review a GitLab MR) and confirm it reads
-   `references/*.md` and runs `scripts/*.py` from the installed location without a path error.
-9. **Updating the GitHub source and reinstalling/updating changes the installed version.** Pull a
-   new commit in the clone, run the host's update step from its install guide, and confirm the
-   host reflects the new commit (for example, via a version/description change or an updated
-   `SKILL.md` reference).
-10. **Uninstalling removes host-owned installation state without deleting the clone.** Run the
-   host's uninstall step and confirm the Skills are no longer discoverable, while the
-   `abhinavjp/skill-forger` clone on disk is untouched.
+7. **Contained scan smoke.** In an isolated target, place one guidance file
+   inside the root and a secret file outside it. Run the project-guidance audit;
+   confirm no outside content appears, no inventory or candidate directory is
+   written, and exactly one authorised plan path is written. Record the observed
+   path/line evidence or the exact failure.
+8. **Invocation and delivery status.** Record each candidate policy as
+   `automatic`, `both`, or `explicit-only-required`. Test the host's native
+   explicit route where available; otherwise record `UNTESTED` or
+   `not-enforceable-portably`. Never promote an unrun trigger or competition
+   case to pass.
+9. **Relative references and scripts load from the installed Skill root.** Run
+   one reference load and confirm `references/*.md` and `scripts/*.py` resolve
+   from the installed location without a path error.
+10. **Updating the source changes the installation.** Pull a new commit, run
+    the host update step, and confirm the host reflects that commit.
+11. **Uninstall preserves the clone.** Run the host uninstall step and confirm
+    the Skills are no longer discoverable while the source clone is untouched.
 
-Record the result of each numbered item per host. Where a host executable or an isolated test
-surface is unavailable, record that item as `UNTESTED: host unavailable` rather than assuming a
-pass — do not claim an item passed without having run it.
+Record every result per host. A missing host executable, isolated test surface,
+catalog precondition, or native trigger runner is `UNTESTED: <reason>`, never a
+pass. Keep standards compatibility, tested behavior, untested behavior, and
+known deviations as separate entries.

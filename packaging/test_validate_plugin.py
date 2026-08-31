@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,11 @@ from unittest import mock
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
 EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"}
+CANONICAL_EVAL_VALIDATORS = {
+    "merge-sentinel": PLUGIN_SKILLS / "merge-sentinel" / "evals" / "validate_corpus.py",
+    "skill-engineer": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
+    "skill-prospector": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
+}
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
 )
@@ -70,6 +76,160 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual(
             [], validator.tracked_generated_results(proc.stdout.splitlines())
         )
+
+    def canonical_eval_command(self, skill_id: str, evals: Path):
+        """Return the trusted bundled-Python validator for one Skill corpus."""
+        return [
+            sys.executable,
+            str(CANONICAL_EVAL_VALIDATORS[skill_id]),
+            str(evals),
+            "--json",
+        ]
+
+    def validate_canonical_eval_corpora(self, runner=None):
+        """Return per-Skill failures without short-circuiting the corpus loop."""
+        runner = runner or subprocess.run
+        failures = []
+        for skill_id in sorted(EXPECTED_SKILL_IDS):
+            evals = PLUGIN_SKILLS / skill_id / "evals"
+            proc = runner(
+                self.canonical_eval_command(skill_id, evals),
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode != 0:
+                failures.append(f"{skill_id}: validator exit {proc.returncode}: {proc.stderr}")
+                continue
+            try:
+                report = json.loads(proc.stdout)
+            except json.JSONDecodeError as exc:
+                failures.append(f"{skill_id}: invalid validator JSON: {exc}")
+                continue
+            if not isinstance(report, dict):
+                failures.append(f"{skill_id}: validator output is not a JSON object")
+                continue
+            case_count = report.get("case_count")
+            if isinstance(case_count, bool) or not isinstance(case_count, int) or case_count <= 0:
+                failures.append(f"{skill_id}: canonical corpus has no cases")
+            errors = report.get("errors")
+            if not isinstance(errors, list) or errors:
+                failures.append(f"{skill_id}: canonical corpus errors: {report.get('errors')}")
+        return failures
+
+    def test_every_packaged_skill_canonical_evals_validate_without_optional_dependencies(self) -> None:
+        """Keeps every packaged canonical eval corpus readable by bundled Python."""
+        self.assertEqual([], self.validate_canonical_eval_corpora())
+
+    def test_each_canonical_corpus_failure_is_independently_gated(self) -> None:
+        """Catches a package gate that stops after the first Skill or ignores empty/error reports."""
+        expected_ids = sorted(EXPECTED_SKILL_IDS)
+        valid_report = json.dumps({"case_count": 1, "errors": []})
+        for failing_skill in expected_ids:
+            for mutation in ("zero-cases", "one-error"):
+                calls = []
+
+                def fake_run(argv, **_kwargs):
+                    evals_arg = next(
+                        arg for arg in argv
+                        if Path(arg).name == "evals"
+                        and Path(arg).parent.name in EXPECTED_SKILL_IDS
+                    )
+                    skill_id = Path(evals_arg).parent.name
+                    calls.append(skill_id)
+                    if skill_id == failing_skill:
+                        report = (
+                            {"case_count": 0, "errors": []}
+                            if mutation == "zero-cases"
+                            else {"case_count": 1, "errors": [{"error": "mutated"}]}
+                        )
+                        return subprocess.CompletedProcess(
+                            argv, 0, json.dumps(report), ""
+                        )
+                    return subprocess.CompletedProcess(argv, 0, valid_report, "")
+
+                failures = self.validate_canonical_eval_corpora(fake_run)
+                self.assertEqual(expected_ids, calls, mutation)
+                self.assertTrue(
+                    any(failing_skill in failure for failure in failures),
+                    f"{failing_skill}/{mutation}: {failures}",
+                )
+
+    def test_merge_sentinel_validator_rejects_canonical_mutations(self) -> None:
+        source = PLUGIN_SKILLS / "merge-sentinel" / "evals"
+
+        def missing_record_field(root: Path) -> None:
+            path = root / "cases.json"
+            cases = json.loads(path.read_text(encoding="utf-8"))
+            del cases[0]["split"]
+            path.write_text(json.dumps(cases, indent=2) + "\n", encoding="utf-8")
+
+        def broken_fixture_reference(root: Path) -> None:
+            path = root / "cases.json"
+            cases = json.loads(path.read_text(encoding="utf-8"))
+            cases[0]["input"] = "fixtures/clean-mr/missing.json"
+            path.write_text(json.dumps(cases, indent=2) + "\n", encoding="utf-8")
+
+        def quality_contract_divergence(root: Path) -> None:
+            path = root / "quality-contracts.json"
+            contracts = json.loads(path.read_text(encoding="utf-8"))
+            contracts["cases"][0]["expected_findings"] = ["drifted"]
+            path.write_text(json.dumps(contracts, indent=2) + "\n", encoding="utf-8")
+
+        mutations = (
+            ("missing record field", missing_record_field, "cases.json[clean-mr]"),
+            ("broken fixture reference", broken_fixture_reference, "cases.json[clean-mr].input"),
+            ("quality contract divergence", quality_contract_divergence, "quality-cases.json[clean-preserved-contract]"),
+        )
+        for name, mutate, expected in mutations:
+            with self.subTest(mutation=name):
+                with tempfile.TemporaryDirectory(prefix="merge-sentinel-corpus-") as directory:
+                    root = Path(directory) / "evals"
+                    shutil.copytree(source, root)
+                    mutate(root)
+                    proc = subprocess.run(
+                        self.canonical_eval_command("merge-sentinel", root),
+                        cwd=REPO_ROOT,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertNotEqual(0, proc.returncode, proc.stdout)
+                    report = json.loads(proc.stdout)
+                    self.assertTrue(
+                        any(expected in error.get("case", "") for error in report["errors"]),
+                        report["errors"],
+                    )
+
+    def test_canonical_eval_roots_are_json_and_fixture_json_is_excluded(self) -> None:
+        """Canonical roots use JSON while fixture inputs remain outside validator traversal."""
+        for skill_id in sorted(EXPECTED_SKILL_IDS):
+            evals = PLUGIN_SKILLS / skill_id / "evals"
+            root_files = [path for path in evals.iterdir() if path.is_file()]
+            self.assertTrue(
+                any(path.suffix.lower() == ".json" for path in root_files),
+                skill_id,
+            )
+            self.assertEqual(
+                [],
+                [path.name for path in root_files if path.suffix.lower() in {".yaml", ".yml"}],
+                skill_id,
+            )
+            fixture_files = list((evals / "fixtures").rglob("*.json"))
+            if not fixture_files:
+                continue
+            proc = subprocess.run(
+                self.canonical_eval_command(skill_id, evals),
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, proc.returncode, proc.stderr)
+            report = json.loads(proc.stdout)
+            reported = {Path(path).resolve() for path in report["files"]}
+            self.assertTrue(
+                reported.isdisjoint(path.resolve() for path in fixture_files),
+                skill_id,
+            )
 
     def test_generated_results_are_matched_only_at_the_skill_eval_root(self) -> None:
         """Catches a matcher that flags fixture payloads or ignores real result output."""
@@ -334,6 +494,28 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
 
         self.assertEqual(sorted(EXPECTED_SKILL_IDS), sorted(names))
         self.assertEqual(len(names), len(set(names)))
+
+    def test_inspector_discloses_pyyaml_fallback(self) -> None:
+        """The no-site probe must expose degraded frontmatter parsing."""
+        inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
+        fixture = PLUGIN_SKILLS / "skill-engineer" / "evals" / "fixtures" / "good-release-notes"
+        proc = subprocess.run(
+            [sys.executable, "-S", str(inspector), str(fixture)],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual(
+            {"backend": "line-fallback", "degraded": True},
+            report["metadata"]["parser"],
+        )
+        self.assertEqual(
+            ["PyYAML unavailable: frontmatter parsed line-by-line"],
+            report["metadata"]["errors"],
+        )
+        self.assertEqual(1, report["metrics"]["metadata_error_count"])
 
 
 if __name__ == "__main__":

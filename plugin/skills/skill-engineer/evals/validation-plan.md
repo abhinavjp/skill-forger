@@ -62,14 +62,14 @@ prove they exist — observe whatever the Skill loads naturally and record it.
 |---|---|---|---|
 | C1 | Eval-runner de-execution: `check.command` removed, `check.kind` dispatch, path containment | `run_static_evals.py`, `validate_evals.py`, RG-008, `fixtures/unsafe-command.json` | Layer A only — deterministic |
 | C2 | Inspector link resolution strict per-document (root-relative fallback removed) | `inspect_skill.py`, RG-009, `fixtures/defective-source-relative-link/` | Layer A only |
-| C3 | Schema tightening: `host-routing` grader, `competition` block, shape validation | `validate_evals.py`, `trigger.yaml`, `eval-spec.md` | Layer A (schema) + Layer B metadata |
+| C3 | Schema tightening: `host-routing` grader, `competition` block, shape validation | `validate_evals.py`, `trigger.json`, `eval-spec.md` | Layer A (schema) + Layer B metadata |
 | C4 | **`rules.md` (480 lines) → `rules-index.md` + 7 applicability modules** | `references/rules-*.md`, SKILL.md §Rules | **Every Layer C REVIEW *and* CREATE case** |
 | C5 | **Frontmatter `description` changed** (portability clause) | SKILL.md | **Every Layer B routing case** |
 | C6 | New REVIEW input modes (pasted content; do not demand a path), degradation disclosure | SKILL.md | EX-009, EX-017 |
 | C7 | Coverage reporting changed (no per-rule N/A; compact out-of-scope line) | SKILL.md §Done when | EX-006, EX-007, EX-015 |
-| C8 | New unmeasured cases EX-010..EX-017; frozen `good-safe-mutation` fixture | `execution.yaml`, fixtures | New coverage, not regression surface |
+| C8 | New unmeasured cases EX-010..EX-017; frozen `good-safe-mutation` fixture | `execution.json`, fixtures | New coverage, not regression surface |
 
-Prompts in `trigger.yaml` did **not** change — only graders and metadata.
+Prompts in `trigger.json` did **not** change — only graders and metadata.
 
 ## 2. Existing evidence inventory
 
@@ -89,7 +89,7 @@ No results store; measurements live in case `notes`.
   `skill-creator` 3/6; policy `skill-engineer-wins`; therefore a genuine FAIL,
   not UNMEASURED. This is a known, documented limitation carried into Phase 1.
   **Do not rerun it, do not rebuild its harness, and do not change its policy
-  or the implementation during measurement.** The `trigger.yaml` note still
+or the implementation during measurement.** The `trigger.json` note still
   describes this case as unmeasured/4-of-4; correcting that note is a Phase-2
   bookkeeping item, not a Phase-1 action.
 
@@ -129,7 +129,7 @@ count as evidence either way.
 | CREATE case triage | Selecting the representative CREATE smoke | N/A | Read EX-010..EX-014 definitions (done, §5.1) | — |
 
 Count check: 5 + 9 = **14**, matching the "14/14 pass" claim in `b1744f3`.
-(`execution.yaml` holds 17 cases total, EX-001..EX-017; `regressions.yaml`
+(`execution.json` holds 17 cases total, EX-001..EX-017; `regressions.json`
 holds 9. RG-008 carries two graders on one case.)
 
 ## 5. Phase-1 behavioural cases — 8 model calls, 1 trial each
@@ -206,7 +206,7 @@ Phase 1 even when EX-006 misses it.
 ### 5.3 EX-009 interaction budget
 
 The frozen EX-009 case is a **single user prompt** with no delayed or staged
-injection sequence; the `>=12 turns` note in `execution.yaml` is a guard against
+injection sequence; the `>=12 turns` note in `execution.json` is a guard against
 harness truncation, not a required interaction pattern. Replace the fixed count
 with:
 
@@ -224,7 +224,7 @@ not consume Phase-1 evidence.
 |---|---|
 | Codex validation | EX-008, EX-010, EX-011, EX-012, EX-014, EX-016; **EX-007** (known-good FP control) |
 | Cross-host / release validation | The portability claim in the new description; non-Claude execution of all Layer B/C cases |
-| Phase 2 (not authorized now) | All escalation trials; any fix; TR-009 note correction in `trigger.yaml` |
+| Phase 2 (not authorized now) | All escalation trials; any fix; TR-009 note correction in `trigger.json` |
 | Blocked on harness | TR-007 (needs a catalog snapshot under policy `either`) |
 | Not run by design | Full candidate-vs-baseline A/B; full 12-case Layer B sweep |
 | Known FAIL, reuse evidence, do not rerun | **TR-009** — verified competing catalog, skill-engineer 3/6 vs skill-creator 3/6 under policy `skill-engineer-wins` |
