@@ -1,22 +1,23 @@
 # Install in Google Antigravity
 
-Antigravity reads a plugin's root `plugin.json` plus its `skills/` tree from a workspace or
-global plugin location; it does not need a separate Antigravity-specific payload. Place or link
-this repository's `plugin/` directory — unchanged — as derived installation state at one of:
+Antigravity discovers Agent Skills from workspace or global Skill directories. Link each canonical
+Skill directory from this repository into one of:
 
-- **Workspace-scoped:** `.agents/plugins/skill-forger` or `_agents/plugins/skill-forger`
-  (whichever your workspace convention uses), pointed at this clone's `plugin/` directory.
-- **Global:** `~/.gemini/config/plugins/skill-forger`, pointed at this clone's `plugin/`
-  directory.
+- **Workspace-scoped:** `<project-root>/.agents/skills/`
+- **Global:** `~/.gemini/config/skills/`
 
 ```bash
 git clone https://github.com/abhinavjp/skill-forger.git
-ln -s "$(pwd)/skill-forger/plugin" ~/.gemini/config/plugins/skill-forger
+ln -s "$(pwd)/skill-forger/plugin/skills/skill-engineer" ~/.gemini/config/skills/skill-engineer
+ln -s "$(pwd)/skill-forger/plugin/skills/merge-sentinel" ~/.gemini/config/skills/merge-sentinel
+ln -s "$(pwd)/skill-forger/plugin/skills/skill-prospector" ~/.gemini/config/skills/skill-prospector
 ```
 
-Use a workspace-scoped link instead of the global one if you only want the plugin available in
-one project. Either way, the link points at the same `plugin/` tree Claude Code, Codex, and
-Cursor use — there is no separate Antigravity payload to build or maintain.
+Use workspace-scoped links instead if you only want the Skills available in one project. These
+links expose the same canonical Skill directories packaged for Claude Code, Codex, and Cursor;
+there is no separately authored Antigravity payload. See Google's
+[Antigravity Skills codelab](https://codelabs.developers.google.com/getting-started-with-antigravity-skills)
+for the current discovery locations.
 
 ## Verify
 
@@ -25,23 +26,24 @@ through [verify-installation.md](verify-installation.md).
 
 ## Update
 
-`git pull` inside the clone. Because the plugin location is a link to the clone, Antigravity
-picks up the new commit immediately; no reinstall step is required.
+Run `git pull` inside the clone. Because each installed Skill is a link to the clone, Antigravity
+picks up the new content without copying or reinstalling it. Restart or reload the host if its
+current session has already indexed the previous Skill metadata.
 
 ## Uninstall
 
-Delete the link under `.agents/plugins/`, `_agents/plugins/`, or `~/.gemini/config/plugins/`.
-This removes only Antigravity's installation state and never touches the clone.
+Delete the three links under `.agents/skills/` or `~/.gemini/config/skills/`. This removes only
+Antigravity's installation state and never touches the clone.
 
 ## Do not also install a standalone copy
 
-Do not link the plugin at both a workspace-scoped and the global location for the same project,
-and do not additionally copy the Skills into another Antigravity-scanned directory. Duplicate
-installation sources produce duplicate, conflicting Skill entries.
+Do not link the Skills at both workspace and global scope for the same project, and do not also
+copy them into another Antigravity-scanned directory. Duplicate installation sources produce
+duplicate, conflicting Skill entries.
 
 ## Status
 
-This route was documented from the frozen planning-phase decision and was not exercised against
+The discovery locations are documented by Google, but this repository was not exercised against
 a live Antigravity build in this implementation session: `UNTESTED: host verification skipped in
 this session`. Re-run [verify-installation.md](verify-installation.md) against your Antigravity
 build before relying on it.

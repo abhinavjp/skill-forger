@@ -372,6 +372,13 @@ def check_manifests(agent_manifest: dict | None) -> None:
     else:
         ok("marketplace has one correctly sourced entry for the existing plugin identity")
 
+    if market.get("version") != version or (
+        len(entries) == 1 and entries[0].get("version") != version
+    ):
+        fail("marketplace and plugin entry versions must match the plugin manifests")
+    else:
+        ok(f"marketplace and plugin entry versions match release {version}")
+
     repositories = {
         agent_manifest.get("repository"),
         claude.get("repository"),

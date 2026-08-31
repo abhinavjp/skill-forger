@@ -4,7 +4,8 @@ Claude Code consumes the `skill-forger` marketplace directly from GitHub. It rea
 `.claude-plugin/marketplace.json` at the repository root and `plugin/.claude-plugin/plugin.json`
 inside the plugin, then loads all three Skills straight from `plugin/skills/`. There is no build step
 and no separate authored copy — the plugin payload is the same `plugin/skills/` tree used by
-every other host in this repository.
+every other host in this repository. The marketplace entry and both plugin manifests carry the
+same release version so Claude Code can distinguish an update from its installed version.
 
 ## Add the marketplace and install the plugin
 

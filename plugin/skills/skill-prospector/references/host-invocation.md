@@ -11,7 +11,7 @@ an inference, not proof of the installed host.
 | `.claude/`, `CLAUDE.md` or `.claude-plugin/` | Claude Code may be in use | UNVERIFIED repository signal; verify with the host |
 | `.cursor/rules/`, `.cursorrules` or `.cursor/skills/` | Cursor may be in use | UNVERIFIED repository signal; verify with the host |
 | `AGENTS.md` alone | Codex-compatible guidance may be present | UNVERIFIED host proof; other hosts read it too |
-| `.gemini/`, `.agents/plugins/` or `_agents/` | Antigravity/Gemini route may be present | UNVERIFIED repository signal; verify with the host |
+| `.gemini/`, `.agents/skills/` or `GEMINI.md` | Antigravity/Gemini route may be present | UNVERIFIED repository signal; verify with the host |
 | Several signal groups | Multi-host target | UNVERIFIED composite signal; keep the plan portable-first |
 | No signal group | Unknown host | UNVERIFIED absence signal; portable core only |
 

@@ -49,6 +49,25 @@ def frontmatter_name(skill_md: Path) -> str | None:
 
 
 class CanonicalPluginLayoutTests(unittest.TestCase):
+    def test_marketplace_versions_match_plugin_manifests(self) -> None:
+        """Keeps Claude marketplace refreshes tied to the released plugin version."""
+        agent = json.loads((REPO_ROOT / "plugin" / "plugin.json").read_text(encoding="utf-8"))
+        claude = json.loads(
+            (REPO_ROOT / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        marketplace = json.loads(
+            (REPO_ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+        )
+        entries = [
+            entry for entry in marketplace["plugins"]
+            if entry.get("name") == agent["name"]
+        ]
+
+        self.assertEqual(agent["version"], claude["version"])
+        self.assertEqual(agent["version"], marketplace["version"])
+        self.assertEqual(1, len(entries))
+        self.assertEqual(agent["version"], entries[0]["version"])
+
     def test_plugin_skills_are_the_complete_canonical_payload(self) -> None:
         """Catches a missing, extra, or incompletely packaged canonical skill."""
         discovered = {

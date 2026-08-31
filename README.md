@@ -47,9 +47,9 @@ duplicate, conflicting Skill entries. Each guide states its route's own uninstal
 python packaging/validate_plugin.py
 ```
 
-This validates both manifests, the exact three-Skill layout, unique frontmatter
-names, reference resolution and path containment, portable-core checks, and
-the absence of tracked host mirrors.
+This validates both plugin manifests and the Claude marketplace version, the
+exact three-Skill layout, unique frontmatter names, reference resolution and
+path containment, portable-core checks, and the absence of tracked host mirrors.
 
 The Skill engineering static corpus remains available at:
 

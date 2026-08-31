@@ -1,10 +1,10 @@
 # Install in Cursor
 
-Use Cursor's Agent Plugins-compatible import/plugin route against this repository's root
+Use Cursor's Agent Plugins-compatible marketplace route against this repository's root
 `plugin.json` (Agent Plugins v1.0.0) and the same `plugin/skills/` payload used by every other
-host here. Point Cursor's plugin import at `abhinavjp/skill-forger` with plugin root `plugin/`,
-using whatever import command or UI flow your Cursor build documents for a GitHub-sourced
-plugin.
+host here. For repeatable GitHub updates, import the repository as a team marketplace, add the
+plugin with root `plugin/`, and enable Auto Refresh or use the marketplace's manual Refresh action.
+Cursor documents this flow in [Plugins](https://cursor.com/docs/plugins).
 
 Do not create `.cursor/skills/` or `.agents/skills/` inside this repository as a substitute
 payload. If your local Cursor build cannot import the repository plugin directly, treat that
@@ -18,8 +18,10 @@ names, with no second authored copy anywhere, then run through
 
 ## Update
 
-Re-run Cursor's plugin update/re-import flow after pulling new commits from
-`abhinavjp/skill-forger`.
+Use the team marketplace's manual Refresh action, or enable Auto Refresh with the Cursor GitHub
+App installed for this repository. Cursor re-indexes the tracked branch and clients receive the
+updated plugin on restart or focus. A direct one-off GitHub import can remain pinned to its
+original commit, so do not use that route as the release update mechanism.
 
 ## Uninstall
 
@@ -33,7 +35,7 @@ copy, produces duplicate, conflicting Skill entries. Use the plugin import route
 
 ## Status
 
-This route was documented from the frozen planning-phase decision and was not exercised against
-a live Cursor build in this implementation session: `UNTESTED: host verification skipped in this
-session`. Re-run [verify-installation.md](verify-installation.md) against your Cursor build
-before relying on it.
+The team-marketplace refresh behavior is documented by Cursor, but this repository was not
+exercised against a live Cursor build in this implementation session: `UNTESTED: host verification
+skipped in this session`. Re-run [verify-installation.md](verify-installation.md) against your
+Cursor build before relying on it.
