@@ -116,6 +116,22 @@ class PlanArtifactShapeTests(unittest.TestCase):
         content = self.fixture[:start] + self.fixture[end:]
         self.assertEqual((True, []), self.validate(content))
 
+    def test_malformed_candidate_heading_is_rejected(self):
+        content = self.fixture.replace(
+            "### Candidate: example-workflow",
+            "### Candidate : example-workflow",
+            1,
+        )
+        self.assert_invalid(content, "malformed candidate heading")
+
+    def test_orphan_candidate_fields_are_rejected(self):
+        content = self.fixture.replace(
+            "### Candidate: example-workflow\n", "", 1
+        )
+        self.assert_invalid(
+            content, "candidate fields outside a recognized candidate block"
+        )
+
     def test_authority_moved_to_follow_up_is_rejected(self):
         content = self.fixture.replace("authority: explicit\n", "", 1).replace(
             "Run host validation before release.",

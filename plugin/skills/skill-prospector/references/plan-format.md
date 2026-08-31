@@ -30,6 +30,10 @@ incomplete when any required heading is absent.
 Under `## Candidates`, give each accepted candidate a `### Candidate: <id>`
 block containing these fields, in this order:
 
+Every level-three heading in this section must match `### Candidate:\s*(.*?)\s*`.
+Candidate field labels before a recognized candidate block are invalid; prose
+such as `none` remains valid when the plan has no candidates.
+
 ```text
 id:
 name:

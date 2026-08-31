@@ -312,13 +312,22 @@ def plan_artifact_shape(check):
     candidates_span = _section_span(lines, headings, "Candidates")
     if candidates_span is not None:
         candidate_start, candidate_end = candidates_span
-        candidate_headers = [
-            index for index in range(candidate_start + 1, candidate_end)
-            if lines[index].startswith("### Candidate:")
-        ]
+        candidate_headers = []
+        candidate_heading_re = re.compile(r"### Candidate:\s*(.*?)\s*")
+        for index in range(candidate_start + 1, candidate_end):
+            if not lines[index].startswith("### "):
+                continue
+            header_match = re.fullmatch(candidate_heading_re, lines[index])
+            if header_match is None:
+                reasons.append(f"malformed candidate heading at line {index + 1}")
+            else:
+                candidate_headers.append(index)
+        first_header = candidate_headers[0] if candidate_headers else candidate_end
+        if _label_matches(lines[candidate_start + 1:first_header], PLAN_CANDIDATE_FIELDS):
+            reasons.append("candidate fields outside a recognized candidate block")
         for position, start in enumerate(candidate_headers):
             end = candidate_headers[position + 1] if position + 1 < len(candidate_headers) else candidate_end
-            header_match = re.fullmatch(r"### Candidate:\s*(.+?)\s*", lines[start])
+            header_match = re.fullmatch(candidate_heading_re, lines[start])
             candidate_id = header_match.group(1).strip() if header_match else ""
             if not candidate_id:
                 reasons.append(f"candidate block at line {start + 1} has an empty header id")
