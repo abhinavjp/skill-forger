@@ -29,10 +29,11 @@ and emits a creation plan; it does not author candidate Skills.
    command or CI declaration). Every semantic mechanism or candidate decision
    needs bounded content evidence; never infer it from a filename alone.
 4. **Resolve ambiguity once.** Run `scripts/scan_guidance.py slice <root>
-   <relative-path> --section <heading>` once per unresolved heading, or use
-   `--document` once for a headingless file. Pass the inventory `scan_id` when
-   available. Cache `(path, selector)`; a changed hash invalidates prior
-   evidence. Never follow cross-references or fetch a selector twice.
+   <relative-path> --scan-id <token> --section <heading>` once per unresolved
+   heading, or use `--document` once for a headingless file. Use the exact
+   `scan_id` from the preceding inventory; a changed hash invalidates prior
+   evidence. Cache `(path, selector)`; never follow cross-references or fetch
+   a selector twice.
 5. **Select candidates.** Load `references/candidate-selection.md`; cluster,
    merge and reject before deriving requirements. Record every rejected or
    deferred unit and its routed mechanism. Accept at most seven ranked

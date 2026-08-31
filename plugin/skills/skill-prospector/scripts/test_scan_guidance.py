@@ -25,6 +25,11 @@ class ScanGuidanceTests(unittest.TestCase):
         return code, json.loads(rendered) if rendered else {}, errors.getvalue()
 
     def run_slice(self, root: Path, relative: str, *extra: str):
+        if "--scan-id" not in extra:
+            scan_code, result, scan_errors = self.run_scan(root)
+            if scan_code != 0:
+                return scan_code, "", scan_errors
+            extra = (*extra, "--scan-id", result["scan_id"])
         output = io.StringIO()
         errors = io.StringIO()
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
@@ -113,136 +118,126 @@ class ScanGuidanceTests(unittest.TestCase):
 
     def test_slice_exact_case_insensitive_ambiguous_and_missing(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "guide.md"
+            root = Path(directory)
+            path = root / "SKILL.md"
             path.write_text(
                 "# Intro\nintro body\n## Rollback\nrollback body\n## Deploy\ndeploy body\n",
                 encoding="utf-8",
             )
-            out, err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main([
-                    "slice", str(path.parent), "guide.md", "--section", "Rollback"
-                ])
+            code, output, errors = self.run_slice(
+                root, "SKILL.md", "--section", "Rollback"
+            )
             self.assertEqual(0, code)
-            self.assertIn("rollback body", out.getvalue())
-            self.assertIn(":3-4", out.getvalue())
+            self.assertIn("rollback body", output)
+            self.assertIn(":3-4", output)
 
-            out, err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main([
-                    "slice", str(path.parent), "guide.md", "--section", "deploy"
-                ])
-            self.assertEqual(0, code)
-            self.assertIn("deploy body", out.getvalue())
+            code, output, errors = self.run_slice(
+                root, "SKILL.md", "--section", "deploy"
+            )
+            self.assertEqual(0, code, errors)
+            self.assertIn("deploy body", output)
 
             path.write_text("# Repeat\none\n# repeat\ntwo\n", encoding="utf-8")
-            out, err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main([
-                    "slice", str(path.parent), "guide.md", "--section", "REPEAT"
-                ])
+            code, output, errors = self.run_slice(
+                root, "SKILL.md", "--section", "REPEAT"
+            )
             self.assertEqual(3, code)
-            self.assertIn("ambiguous", err.getvalue())
+            self.assertIn("ambiguous", errors)
 
-            out, err = io.StringIO(), io.StringIO()
-            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                code = scan_guidance.main([
-                    "slice", str(path.parent), "guide.md", "--section", "Missing"
-                ])
+            code, output, errors = self.run_slice(
+                root, "SKILL.md", "--section", "Missing"
+            )
             self.assertEqual(4, code)
-            self.assertIn("not found", err.getvalue())
+            self.assertIn("not found", errors)
 
     def test_slice_respects_byte_bound_and_marker(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "guide.md"
+            root = Path(directory)
+            path = root / "SKILL.md"
             path.write_text("# Intro\n" + ("long line\n" * 20), encoding="utf-8")
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                code = scan_guidance.main([
-                    "slice", str(path.parent), "guide.md", "--section", "Intro",
-                    "--max-bytes", "64"
-                ])
-            rendered = out.getvalue()
-            self.assertEqual(0, code)
+            code, rendered, errors = self.run_slice(
+                root, "SKILL.md", "--section", "Intro", "--max-bytes", "64"
+            )
+            self.assertEqual(0, code, errors)
             self.assertLessEqual(len(rendered.encode("utf-8")), 64)
             self.assertIn("[truncated]", rendered)
 
     def test_truncated_slice_preserves_multibyte_complete_lines_and_span(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "guide.md").write_text("αβγδε\nsecond line\n", encoding="utf-8")
+            (root / "SKILL.md").write_text("αβγδε\nsecond line\n", encoding="utf-8")
 
             code, output, errors = self.run_slice(
-                root, "guide.md", "--document", "--max-bytes", "35"
+                root, "SKILL.md", "--document", "--max-bytes", "35"
             )
 
             self.assertEqual(0, code, errors)
             self.assertEqual(
-                "guide.md:1-1\nαβγδε\n[truncated]", output
+                "SKILL.md:1-1\nαβγδε\n[truncated]", output
             )
             self.assertEqual(35, len(output.encode("utf-8")))
 
     def test_first_line_larger_than_budget_emits_truthful_empty_span(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "guide.md").write_text("🙂" * 20 + "\nsmall\n", encoding="utf-8")
+            (root / "SKILL.md").write_text("🙂" * 20 + "\nsmall\n", encoding="utf-8")
 
             code, output, errors = self.run_slice(
-                root, "guide.md", "--document", "--max-bytes", "24"
+                root, "SKILL.md", "--document", "--max-bytes", "24"
             )
 
             self.assertEqual(0, code, errors)
-            self.assertEqual("guide.md:1-0\n[truncated]", output)
+            self.assertEqual("SKILL.md:1-0\n[truncated]", output)
             self.assertEqual(24, len(output.encode("utf-8")))
 
     def test_truncation_recomputes_end_line_digit_width(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "guide.md").write_text("line\n" * 12, encoding="utf-8")
+            (root / "SKILL.md").write_text("line\n" * 12, encoding="utf-8")
 
             code, output, errors = self.run_slice(
-                root, "guide.md", "--document", "--max-bytes", "69"
+                root, "SKILL.md", "--document", "--max-bytes", "69"
             )
 
             self.assertEqual(0, code, errors)
-            self.assertTrue(output.startswith("guide.md:1-9\n"))
-            self.assertEqual("line\n" * 9, output[len("guide.md:1-9\n"):-len("[truncated]")])
+            self.assertTrue(output.startswith("SKILL.md:1-9\n"))
+            self.assertEqual("line\n" * 9, output[len("SKILL.md:1-9\n"):-len("[truncated]")])
             self.assertTrue(output.endswith("[truncated]"))
             self.assertLessEqual(len(output.encode("utf-8")), 69)
 
     def test_exact_byte_boundary_keeps_full_span_without_marker(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "guide.md").write_text("hello\n", encoding="utf-8")
+            (root / "SKILL.md").write_text("hello\n", encoding="utf-8")
 
             code, output, errors = self.run_slice(
-                root, "guide.md", "--document", "--max-bytes", "19"
+                root, "SKILL.md", "--document", "--max-bytes", "19"
             )
 
             self.assertEqual(0, code, errors)
-            self.assertEqual("guide.md:1-1\nhello\n", output)
+            self.assertEqual("SKILL.md:1-1\nhello\n", output)
             self.assertNotIn("[truncated]", output)
 
     def test_empty_document_keeps_empty_full_span(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "empty.md").write_text("", encoding="utf-8")
+            (root / "SKILL.md").write_text("", encoding="utf-8")
 
             code, output, errors = self.run_slice(
-                root, "empty.md", "--document", "--max-bytes", "14"
+                root, "SKILL.md", "--document", "--max-bytes", "14"
             )
 
             self.assertEqual(0, code, errors)
-            self.assertEqual("empty.md:1-0\n", output)
+            self.assertEqual("SKILL.md:1-0\n", output)
             self.assertNotIn("[truncated]", output)
 
     def test_tiny_limit_fails_closed_without_provenance_loss(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "guide.md").write_text("line\n" * 3, encoding="utf-8")
+            (root / "SKILL.md").write_text("line\n" * 3, encoding="utf-8")
 
             code, output, errors = self.run_slice(
-                root, "guide.md", "--document", "--max-bytes", "23"
+                root, "SKILL.md", "--document", "--max-bytes", "23"
             )
 
             self.assertEqual(2, code)
@@ -255,16 +250,16 @@ class ScanGuidanceTests(unittest.TestCase):
     def test_truncated_provenance_does_not_claim_one_thousand_lines(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "guide.md").write_text("line\n" * 1000, encoding="utf-8")
+            (root / "SKILL.md").write_text("line\n" * 1000, encoding="utf-8")
 
             code, output, errors = self.run_slice(
-                root, "guide.md", "--document", "--max-bytes", "64"
+                root, "SKILL.md", "--document", "--max-bytes", "64"
             )
 
             self.assertEqual(0, code, errors)
-            self.assertTrue(output.startswith("guide.md:1-8\n"))
-            self.assertNotIn("guide.md:1-1000", output)
-            self.assertEqual("line\n" * 8, output[len("guide.md:1-8\n"):-len("[truncated]")])
+            self.assertTrue(output.startswith("SKILL.md:1-8\n"))
+            self.assertNotIn("SKILL.md:1-1000", output)
+            self.assertEqual("line\n" * 8, output[len("SKILL.md:1-8\n"):-len("[truncated]")])
 
     def test_json_schema_and_read_only_scan(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -366,25 +361,59 @@ class ScanGuidanceTests(unittest.TestCase):
     def test_document_slice_handles_empty_file(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "empty.md").write_text("", encoding="utf-8")
+            (root / "SKILL.md").write_text("", encoding="utf-8")
 
-            code, output, errors = self.run_slice(root, "empty.md", "--document")
+            code, output, errors = self.run_slice(root, "SKILL.md", "--document")
 
             self.assertEqual(0, code, errors)
-            self.assertEqual("empty.md:1-0\n", output)
+            self.assertEqual("SKILL.md:1-0\n", output)
 
     def test_document_and_section_selectors_are_mutually_exclusive(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "guide.md").write_text("# Intro\nbody\n", encoding="utf-8")
+            (root / "AGENTS.md").write_text("# Intro\nbody\n", encoding="utf-8")
             output, errors = io.StringIO(), io.StringIO()
             with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
                 with self.assertRaises(SystemExit) as raised:
                     scan_guidance.main([
-                        "slice", str(root), "guide.md", "--document",
+                        "slice", str(root), "AGENTS.md", "--document",
                         "--section", "Intro",
                     ])
             self.assertEqual(2, raised.exception.code)
+
+    def test_slice_requires_scan_id_before_reading_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "secret.json").write_text('{"secret": true}\n', encoding="utf-8")
+            output, errors = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
+                with self.assertRaises(SystemExit) as raised:
+                    scan_guidance.main([
+                        "slice", str(root), "secret.json", "--document"
+                    ])
+
+            self.assertEqual(2, raised.exception.code)
+            self.assertEqual("", output.getvalue())
+            self.assertIn("the following arguments are required: --scan-id", errors.getvalue())
+            self.assertNotIn("secret", errors.getvalue())
+
+    def test_gitignore_read_errors_emit_json_exit_two(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "AGENTS.md").write_text("Read this.\n", encoding="utf-8")
+            with mock.patch.object(
+                scan_guidance, "_read_gitignore", side_effect=OSError("D:/private/.gitignore")
+            ):
+                code, result, errors = self.run_scan(root)
+
+            self.assertEqual(2, code)
+            self.assertEqual("", errors)
+            self.assertEqual([], result["matched_units"])
+            self.assertEqual(
+                [{"path": ".gitignore", "error": "gitignore read failed"}],
+                result["errors"],
+            )
+            self.assertNotIn("D:/private", json.dumps(result))
 
     def test_scan_id_rejects_changed_file_before_document_slice(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -665,10 +694,12 @@ class ScanGuidanceTests(unittest.TestCase):
             root = Path(directory)
             external = Path(outside) / "secret.md"
             external.write_text("# Intro\nOUTSIDE SECRET\n", encoding="utf-8")
+            code, result, errors = self.run_scan(root)
+            self.assertEqual(0, code, errors)
             self.make_file_symlink(root / "link.md", external)
 
             code, output, errors = self.run_slice(
-                root, "link.md", "--section", "Intro"
+                root, "link.md", "--section", "Intro", "--scan-id", result["scan_id"]
             )
 
             self.assertEqual(2, code)

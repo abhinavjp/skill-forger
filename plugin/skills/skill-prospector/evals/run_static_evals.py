@@ -399,11 +399,15 @@ def plan_sections_present(check):
 
 def headingless_document_evidence(_check):
     target = ROOT / "evals" / "fixtures" / "target-unheaded-guidance"
+    inventory, inventory_reasons = _run_scan_path(target)
+    if inventory_reasons:
+        return False, inventory_reasons
     out = io.StringIO()
     err = io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         code = scan_guidance.main([
-            "slice", str(target), "AGENTS.md", "--document", "--max-bytes", "96"
+            "slice", str(target), "AGENTS.md", "--document", "--max-bytes", "96",
+            "--scan-id", inventory["scan_id"],
         ])
     rendered = out.getvalue()
     reasons = []
@@ -489,11 +493,16 @@ def root_containment(_check):
             secret = outside / "secret.md"
             secret.write_text("OUTSIDE SECRET\n", encoding="utf-8")
             reasons = []
+            inventory, inventory_reasons = _run_scan_path(root)
+            reasons.extend(inventory_reasons)
+            if reasons:
+                return False, reasons
+            scan_id = inventory["scan_id"]
 
             for relative in ("../secret.md", str(secret)):
                 code, output, _ = _capture(
                     scan_guidance.main,
-                    ["slice", str(root), relative, "--document"],
+                    ["slice", str(root), relative, "--document", "--scan-id", scan_id],
                 )
                 if code != 2 or "OUTSIDE SECRET" in output:
                     reasons.append(f"escape was not rejected: {relative}")
@@ -523,12 +532,16 @@ def idempotent_scan(_check):
 
 def slice_bounds(_check):
     target = ROOT / "evals" / "fixtures" / "target-claude-code-rich" / "docs" / "runbooks" / "deploy.md"
+    root = target.parent.parent.parent
+    inventory, inventory_reasons = _run_scan_path(root)
+    if inventory_reasons:
+        return False, inventory_reasons
     out = io.StringIO()
     err = io.StringIO()
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
         code = scan_guidance.main([
-            "slice", str(target.parent.parent.parent),
-            "docs/runbooks/deploy.md", "--section", "Deploy", "--max-bytes", "64"
+            "slice", str(root), "docs/runbooks/deploy.md", "--section", "Deploy",
+            "--max-bytes", "64", "--scan-id", inventory["scan_id"],
         ])
     rendered = out.getvalue()
     reasons = []
@@ -694,6 +707,28 @@ def scan_error_exit_two(_check):
             return False, reasons + [f"walk-error scan emitted invalid JSON: {exc}"]
         if walk_result.get("errors") != [{"path": "blocked", "error": "walk failed"}]:
             reasons.append(f"walk-error scan errors were unstable: {walk_result.get('errors')}")
+
+        with mock.patch.object(
+            scan_guidance, "_read_gitignore", side_effect=OSError("D:/private/.gitignore")
+        ):
+            gitignore_code, gitignore_stdout, gitignore_stderr = _capture(
+                scan_guidance.main, ["scan", str(root), "--json"]
+            )
+        if gitignore_code != 2:
+            reasons.append(f"gitignore-error scan exited {gitignore_code}, expected 2")
+        if gitignore_stderr:
+            reasons.append("gitignore-error scan wrote stderr before JSON")
+        try:
+            gitignore_result = json.loads(gitignore_stdout)
+        except json.JSONDecodeError as exc:
+            return False, reasons + [f"gitignore-error scan emitted invalid JSON: {exc}"]
+        if gitignore_result.get("errors") != [
+            {"path": ".gitignore", "error": "gitignore read failed"}
+        ]:
+            reasons.append(
+                "gitignore-error scan errors were unstable: "
+                f"{gitignore_result.get('errors')}"
+            )
         return not reasons, reasons
 
 

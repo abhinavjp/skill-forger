@@ -35,7 +35,7 @@ Claude's own results cannot answer that question.
   `evals/validation-plan.md` — confirmed via `git diff b1744f3..2f70719 --stat`:
   17 files changed, all under `evals/results/phase1/` or
   `evals/validation-plan.md`, 0 changes to `SKILL.md`, `references/`,
-  `scripts/`, or `evals/*.yaml`. The Skill under test is unchanged.
+  `scripts/`, or `evals/*.json`. The Skill under test is unchanged.
 - Deterministic gate already re-verified in this preparation pass (local, 0
   model calls): the file inventory matches `SKILL_ENGINEERING_SPEC.md` and
   `evals/validation-plan.md`'s Stage A description; no `rules.md` references

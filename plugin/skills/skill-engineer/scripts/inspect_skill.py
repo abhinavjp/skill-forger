@@ -76,7 +76,7 @@ EXCLUDED_SCAN_PREFIXES = ("evals/fixtures/", "evals/results/")
 
 # Narrative documents living directly in evals/ (validation plans, cross-host
 # handoffs, run notes) describe the validation *process* around the canonical
-# case corpus (evals/*.yaml) and its fixtures/results; they are not part of
+# case corpus (evals/*.json) and its fixtures/results; they are not part of
 # the inspected product surface either. Matching only direct children of
 # evals/ keeps genuine product documentation under references/ (or nested
 # inside a fixture's own root) unaffected.

@@ -17,7 +17,7 @@ the plan itself for evidence trails.
   Antigravity before trusting any Stage 1 result**, do not assume the old
   Stage 0 failure carries forward.
 - Target: `skill-engineer/` at repo root (this repo).
-- Do not modify `SKILL.md`, `references/`, `scripts/`, or `evals/*.yaml`
+- Do not modify `SKILL.md`, `references/`, `scripts/`, or `evals/*.json`
   before or during this phase.
 
 ## What to run, in order
@@ -30,8 +30,8 @@ python skill-engineer/evals/run_static_evals.py
 python skill-engineer/scripts/inspect_skill.py skill-engineer
 ```
 
-If either fails or errors, STOP — fix the environment (Python 3.8+, PyYAML
-for YAML eval files) before spending any model call. This is not new
+If either fails or errors, STOP — fix the environment (Python 3.8+ and readable
+canonical JSON eval files) before spending any model call. This is not new
 evidence about the Skill; it is a sanity gate (plan §0/§9.1).
 
 **Stage 1 — 5 initial model calls, one trial each, serial, no retries:**
@@ -97,8 +97,8 @@ inspector_invoked (y/n + target), transcript_path, failure_classification.
    Cursor, Antigravity) — if this host is none of those, note its actual
    hook/permission/CI primitive before grading CH-2, don't invent one during
    grading.
-5. Python 3.8+ available? PyYAML available (only needed for YAML eval files;
-   JSON fixtures work without it)?
+5. Python 3.8+ available? Canonical JSON eval files readable without optional
+   dependencies?
 
 ## Where the fixtures and prompts live
 

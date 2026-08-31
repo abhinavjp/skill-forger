@@ -261,25 +261,29 @@ class SafeRootTests(unittest.TestCase):
             (external / "guide.md").write_text("OUTSIDE SECRET\n", encoding="utf-8")
             original_open = safe_fs._WindowsSafeRoot._open
             attempted = {"done": False}
+            swapped = {"done": False}
 
             def swap_before_leaf(path, access, creation, flags):
-                if Path(path) == target and not attempted["done"]:
+                if Path(path) == docs and not attempted["done"]:
                     attempted["done"] = True
-                    with contextlib.suppress(OSError):
-                        os.rmdir(docs)
-                        self.make_dir_link(docs, external)
+                    target.unlink()
+                    docs.rmdir()
+                    self.make_dir_link(docs, external)
+                    swapped["done"] = True
                 return original_open(path, access, creation, flags)
 
-            with mock.patch.object(safe_fs._WindowsSafeRoot, "_open", side_effect=swap_before_leaf):
-                try:
+            try:
+                with mock.patch.object(safe_fs._WindowsSafeRoot, "_open", side_effect=swap_before_leaf):
                     raw, _ = SafeRoot(root_path).read_bytes_with_stat("docs/guide.md")
-                except SafePathError:
-                    pass
-                else:
-                    self.assertNotIn(b"OUTSIDE SECRET", raw)
-            if docs.exists():
-                with contextlib.suppress(OSError):
+            except SafePathError:
+                pass
+            else:
+                self.assertNotIn(b"OUTSIDE SECRET", raw)
+            finally:
+                if docs.exists() or docs.is_symlink():
                     self.remove_dir_link(docs)
+            self.assertTrue(attempted["done"])
+            self.assertTrue(swapped["done"])
 
     def test_write_rejects_external_link_without_overwriting_sentinel(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:

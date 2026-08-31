@@ -3,7 +3,8 @@
 
 Usage:
     scan_guidance.py scan <root> [--json] [--out PATH] [--max-bytes N]
-    scan_guidance.py slice <path> --section <heading> [--max-bytes N]
+    scan_guidance.py slice <root> <relative-path> --scan-id TOKEN \
+        (--section <heading> | --document) [--max-bytes N]
 
 The scanner reads target files and writes only the explicitly requested JSON
 inventory. It never executes target content. ``slice`` is a deliberately
@@ -98,9 +99,11 @@ def _glob_match(path: str, pattern: str) -> bool:
 
 def _read_gitignore(safe_root: SafeRoot):
     try:
+        if not os.path.lexists(os.fspath(safe_root._path / ".gitignore")):
+            return []
         lines = safe_root.read_text(".gitignore").splitlines()
-    except (SafePathError, OSError):
-        return []
+    except (SafePathError, OSError) as exc:
+        raise SafePathError("gitignore cannot be read") from exc
     rules = []
     for raw in lines:
         line = raw.strip()
@@ -286,7 +289,6 @@ def _build_inventory(root: Path, max_bytes: int | None):
         max_bytes = heuristic["max_bytes"]
     marker_regexes = _directive_regexes(heuristic["directive_markers"])
     safe_root = SafeRoot(root)
-    gitignore = _read_gitignore(safe_root)
     matched_units = []
     skipped = []
     errors = []
@@ -294,13 +296,20 @@ def _build_inventory(root: Path, max_bytes: int | None):
     truncated = False
     ignored_guidance_count = 0
 
+    try:
+        gitignore = _read_gitignore(safe_root)
+    except (SafePathError, OSError, UnicodeError):
+        gitignore = []
+        errors.append({"path": ".gitignore", "error": "gitignore read failed"})
+
     def onerror(error):
         errors.append({
             "path": _relative_error_path(root, getattr(error, "filename", "")),
             "error": "walk failed",
         })
 
-    for base, dirs, names in os.walk(str(root), topdown=True, onerror=onerror):
+    walk = os.walk(str(root), topdown=True, onerror=onerror) if not errors else ()
+    for base, dirs, names in walk:
         base_path = Path(base)
         kept_dirs = []
         for dirname in sorted(dirs):
@@ -487,28 +496,29 @@ def _slice(args):
     except (SafePathError, _ContainmentError):
         print("error: slice path must stay inside target root", file=sys.stderr)
         return 2
-    matched_digest = None
-    if args.scan_id:
-        try:
-            inventory_max_bytes, _ = _parse_scan_id(args.scan_id)
-        except _ContainmentError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 2
-        try:
-            result, matched_pairs = _build_inventory(root, inventory_max_bytes)
-        except (SafePathError, OSError, ValueError, json.JSONDecodeError):
-            print("error: scan membership cannot be verified", file=sys.stderr)
-            return 2
-        if result["errors"]:
-            print("error: scan membership cannot be verified", file=sys.stderr)
-            return 2
-        if result["scan_id"] != args.scan_id:
-            print("error: scan id does not match current inventory", file=sys.stderr)
-            return 2
-        matched_digest = matched_pairs.get(relative_path)
-        if matched_digest is None:
-            print("error: slice path is absent from scan inventory", file=sys.stderr)
-            return 2
+    if not args.scan_id:
+        print("error: scan id is required for slice", file=sys.stderr)
+        return 2
+    try:
+        inventory_max_bytes, _ = _parse_scan_id(args.scan_id)
+    except _ContainmentError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    try:
+        result, matched_pairs = _build_inventory(root, inventory_max_bytes)
+    except (SafePathError, OSError, ValueError, json.JSONDecodeError):
+        print("error: scan membership cannot be verified", file=sys.stderr)
+        return 2
+    if result["errors"]:
+        print("error: scan membership cannot be verified", file=sys.stderr)
+        return 2
+    if result["scan_id"] != args.scan_id:
+        print("error: scan id does not match current inventory", file=sys.stderr)
+        return 2
+    matched_digest = matched_pairs.get(relative_path)
+    if matched_digest is None:
+        print("error: slice path is absent from scan inventory", file=sys.stderr)
+        return 2
     try:
         raw, _ = safe_root.read_bytes_with_stat(relative_path)
     except (SafePathError, OSError):
@@ -580,7 +590,7 @@ def _parser():
     selector.add_argument("--section")
     selector.add_argument("--document", action="store_true")
     slice_parser.add_argument("--max-bytes", type=_positive_int, default=8192)
-    slice_parser.add_argument("--scan-id")
+    slice_parser.add_argument("--scan-id", required=True)
     return parser
 
 
