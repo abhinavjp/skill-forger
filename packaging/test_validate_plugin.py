@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,12 +19,10 @@ from unittest import mock
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
 EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"}
-MERGE_SENTINEL_CANONICAL_FILES = {
-    "cases.json": None,
-    "quality-cases.json": "cases",
-    "quality-contracts.json": "cases",
-    "quality-inputs.json": "cases",
-    "trigger_queries.json": None,
+CANONICAL_EVAL_VALIDATORS = {
+    "merge-sentinel": PLUGIN_SKILLS / "merge-sentinel" / "evals" / "validate_corpus.py",
+    "skill-engineer": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
+    "skill-prospector": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
 }
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
@@ -78,60 +77,23 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             [], validator.tracked_generated_results(proc.stdout.splitlines())
         )
 
-    def merge_sentinel_corpus_report(self, evals: Path):
-        """Validate Merge Sentinel's established, non-portable eval contract."""
-        errors = []
-        files = []
-        case_count = 0
-        for name, collection_key in MERGE_SENTINEL_CANONICAL_FILES.items():
-            path = evals / name
-            files.append(str(path))
-            if not path.is_file():
-                errors.append(f"missing canonical corpus file: {name}")
-                continue
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError) as exc:
-                errors.append(f"unreadable {name}: {exc}")
-                continue
-            records = data.get(collection_key) if collection_key else data
-            if not isinstance(records, list) or not records:
-                errors.append(f"{name}: cases must be a non-empty list")
-                continue
-            case_count += len(records)
-            ids = [record.get("id") for record in records if isinstance(record, dict)]
-            if len(ids) != len(records) or any(not case_id for case_id in ids):
-                errors.append(f"{name}: every case needs an id")
-            if len(ids) != len(set(ids)):
-                errors.append(f"{name}: case ids must be unique")
-        return {"files": files, "case_count": case_count, "errors": errors}
-
-    def canonical_eval_command(self, skill_id: str, evals: Path, eval_validator: Path):
+    def canonical_eval_command(self, skill_id: str, evals: Path):
         """Return the trusted bundled-Python validator for one Skill corpus."""
-        if skill_id == "merge-sentinel":
-            return [
-                sys.executable,
-                "-m",
-                "unittest",
-                "discover",
-                "-s",
-                str(evals),
-                "-p",
-                "test_*.py",
-            ]
-        return [sys.executable, str(eval_validator), str(evals), "--json"]
+        return [
+            sys.executable,
+            str(CANONICAL_EVAL_VALIDATORS[skill_id]),
+            str(evals),
+            "--json",
+        ]
 
     def validate_canonical_eval_corpora(self, runner=None):
         """Return per-Skill failures without short-circuiting the corpus loop."""
         runner = runner or subprocess.run
-        eval_validator = (
-            PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
-        )
         failures = []
         for skill_id in sorted(EXPECTED_SKILL_IDS):
             evals = PLUGIN_SKILLS / skill_id / "evals"
             proc = runner(
-                self.canonical_eval_command(skill_id, evals, eval_validator),
+                self.canonical_eval_command(skill_id, evals),
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
@@ -142,13 +104,16 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             try:
                 report = json.loads(proc.stdout)
             except json.JSONDecodeError as exc:
-                if skill_id != "merge-sentinel":
-                    failures.append(f"{skill_id}: invalid validator JSON: {exc}")
-                    continue
-                report = self.merge_sentinel_corpus_report(evals)
-            if report.get("case_count", 0) <= 0:
+                failures.append(f"{skill_id}: invalid validator JSON: {exc}")
+                continue
+            if not isinstance(report, dict):
+                failures.append(f"{skill_id}: validator output is not a JSON object")
+                continue
+            case_count = report.get("case_count")
+            if isinstance(case_count, bool) or not isinstance(case_count, int) or case_count <= 0:
                 failures.append(f"{skill_id}: canonical corpus has no cases")
-            if report.get("errors") != []:
+            errors = report.get("errors")
+            if not isinstance(errors, list) or errors:
                 failures.append(f"{skill_id}: canonical corpus errors: {report.get('errors')}")
         return failures
 
@@ -190,11 +155,53 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                     f"{failing_skill}/{mutation}: {failures}",
                 )
 
+    def test_merge_sentinel_validator_rejects_canonical_mutations(self) -> None:
+        source = PLUGIN_SKILLS / "merge-sentinel" / "evals"
+
+        def missing_record_field(root: Path) -> None:
+            path = root / "cases.json"
+            cases = json.loads(path.read_text(encoding="utf-8"))
+            del cases[0]["split"]
+            path.write_text(json.dumps(cases, indent=2) + "\n", encoding="utf-8")
+
+        def broken_fixture_reference(root: Path) -> None:
+            path = root / "cases.json"
+            cases = json.loads(path.read_text(encoding="utf-8"))
+            cases[0]["input"] = "fixtures/clean-mr/missing.json"
+            path.write_text(json.dumps(cases, indent=2) + "\n", encoding="utf-8")
+
+        def quality_contract_divergence(root: Path) -> None:
+            path = root / "quality-contracts.json"
+            contracts = json.loads(path.read_text(encoding="utf-8"))
+            contracts["cases"][0]["expected_findings"] = ["drifted"]
+            path.write_text(json.dumps(contracts, indent=2) + "\n", encoding="utf-8")
+
+        mutations = (
+            ("missing record field", missing_record_field, "cases.json[clean-mr]"),
+            ("broken fixture reference", broken_fixture_reference, "cases.json[clean-mr].input"),
+            ("quality contract divergence", quality_contract_divergence, "quality-cases.json[clean-preserved-contract]"),
+        )
+        for name, mutate, expected in mutations:
+            with self.subTest(mutation=name):
+                with tempfile.TemporaryDirectory(prefix="merge-sentinel-corpus-") as directory:
+                    root = Path(directory) / "evals"
+                    shutil.copytree(source, root)
+                    mutate(root)
+                    proc = subprocess.run(
+                        self.canonical_eval_command("merge-sentinel", root),
+                        cwd=REPO_ROOT,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertNotEqual(0, proc.returncode, proc.stdout)
+                    report = json.loads(proc.stdout)
+                    self.assertTrue(
+                        any(expected in error.get("case", "") for error in report["errors"]),
+                        report["errors"],
+                    )
+
     def test_canonical_eval_roots_are_json_and_fixture_json_is_excluded(self) -> None:
         """Canonical roots use JSON while fixture inputs remain outside validator traversal."""
-        eval_validator = (
-            PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
-        )
         for skill_id in sorted(EXPECTED_SKILL_IDS):
             evals = PLUGIN_SKILLS / skill_id / "evals"
             root_files = [path for path in evals.iterdir() if path.is_file()]
@@ -210,17 +217,8 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             fixture_files = list((evals / "fixtures").rglob("*.json"))
             if not fixture_files:
                 continue
-            if skill_id == "merge-sentinel":
-                report = self.merge_sentinel_corpus_report(evals)
-                self.assertEqual([], report["errors"], skill_id)
-                reported = {Path(path).resolve() for path in report["files"]}
-                self.assertTrue(
-                    reported.isdisjoint(path.resolve() for path in fixture_files),
-                    skill_id,
-                )
-                continue
             proc = subprocess.run(
-                [sys.executable, str(eval_validator), str(evals), "--json"],
+                self.canonical_eval_command(skill_id, evals),
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
