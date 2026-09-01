@@ -189,15 +189,34 @@ class WorkflowStateTests(unittest.TestCase):
                 self.assertEqual(decision["code"], "GATE_REQUIRED")
 
     def test_full_workflow_intent_is_not_artifact_approval(self):
+        cases = (
+            ("full_workflow", False),
+            ("full-workflow", False),
+            ("run_workflow", False),
+            ("implement_all", False),
+            (123, False),
+        )
+        for target, artifact in (("planning", "specification"), ("implementation", "plan")):
+            for intent, allowed in cases:
+                with self.subTest(target=target, intent=intent):
+                    state = self.valid_state()
+                    state["artifacts"][artifact]["approval"]["intent"] = intent
+
+                    decision = workflow_state.can_enter_stage(state, target)
+
+                    self.assertEqual(decision["allowed"], allowed)
+                    if not allowed:
+                        self.assertEqual(decision["code"], "GATE_REQUIRED")
+
+    def test_approval_without_intent_still_opens_gate(self):
         for target, artifact in (("planning", "specification"), ("implementation", "plan")):
             with self.subTest(target=target):
                 state = self.valid_state()
-                state["artifacts"][artifact]["approval"]["intent"] = "full_workflow"
+                state["artifacts"][artifact]["approval"].pop("intent")
 
                 decision = workflow_state.can_enter_stage(state, target)
 
-                self.assertFalse(decision["allowed"])
-                self.assertEqual(decision["code"], "GATE_REQUIRED")
+                self.assertTrue(decision["allowed"])
 
     def test_stale_unauthorized_and_self_approvals_keep_gate_closed(self):
         cases = (

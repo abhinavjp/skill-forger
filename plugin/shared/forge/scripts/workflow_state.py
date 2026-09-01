@@ -8,6 +8,7 @@ from collections import deque
 _CHECK_STATUSES = {"PASS", "FAIL", "UNMEASURED"}
 _FENCE_MARKERS = ("`", "~")
 KNOWN_MUTATION_STAGES = {"discovery", "clarification", "specification", "planning", "implementation"}
+ARTIFACT_APPROVAL_INTENTS = {"artifact"}
 
 
 def normalize_markdown(text):
@@ -220,7 +221,8 @@ def _valid_approval(state, artifact, policy_stage, approval_policy):
     if not isinstance(approval, dict):
         return False
 
-    if approval.get("intent") in {"full_workflow", "implement"}:
+    intent = approval.get("intent")
+    if intent is not None and (not isinstance(intent, str) or intent not in ARTIFACT_APPROVAL_INTENTS):
         return False
     if approval.get("artifact_hash", approval.get("hash")) != artifact.get("hash"):
         return False
