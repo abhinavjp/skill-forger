@@ -267,7 +267,7 @@ class StaticEvalRunnerTests(unittest.TestCase):
         self.assertEqual(1, report["summary"]["passed"])
 
     def test_cli_runs_from_an_installed_plugin_layout(self):
-        plugin_root = Path(run_static_evals.__file__).resolve().parents[2]
+        plugin_root = Path(run_static_evals.__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as installed, tempfile.TemporaryDirectory() as outside:
             installed_root = Path(installed)
             shutil.copytree(plugin_root, installed_root, dirs_exist_ok=True)
