@@ -11,6 +11,14 @@ git clone https://github.com/abhinavjp/skill-forger.git
 ln -s "$(pwd)/skill-forger/plugin/skills/skill-engineer" ~/.gemini/config/skills/skill-engineer
 ln -s "$(pwd)/skill-forger/plugin/skills/merge-sentinel" ~/.gemini/config/skills/merge-sentinel
 ln -s "$(pwd)/skill-forger/plugin/skills/skill-prospector" ~/.gemini/config/skills/skill-prospector
+ln -s "$(pwd)/skill-forger/plugin/skills/forge-clarify" ~/.gemini/config/skills/forge-clarify
+ln -s "$(pwd)/skill-forger/plugin/skills/forge-discover" ~/.gemini/config/skills/forge-discover
+ln -s "$(pwd)/skill-forger/plugin/skills/forge-spec" ~/.gemini/config/skills/forge-spec
+ln -s "$(pwd)/skill-forger/plugin/skills/forge-plan" ~/.gemini/config/skills/forge-plan
+ln -s "$(pwd)/skill-forger/plugin/skills/forge-implement" ~/.gemini/config/skills/forge-implement
+
+# Required by the five forge-* Skills: the portable shared core they reference.
+ln -s "$(pwd)/skill-forger/plugin/shared" ~/.gemini/config/shared
 ```
 
 Use workspace-scoped links instead if you only want the Skills available in one project. These
@@ -19,10 +27,27 @@ there is no separately authored Antigravity payload. See Google's
 [Antigravity Skills codelab](https://codelabs.developers.google.com/getting-started-with-antigravity-skills)
 for the current discovery locations.
 
+### The forge-* Skills need the shared core alongside them
+
+The five `forge-*` Skills reference `../../shared/forge/` for their workflow
+contract, which owns every gate, approval, and mutation-safety rule. Under the
+plugin route that tree ships inside the plugin and resolves automatically. Under
+this per-Skill link route it does not, so the `shared` link above must sit one
+level *above* the Skills directory — pair `<skills-dir>/forge-spec` with
+`<skills-dir>/../shared`. Link the whole set or none of it: linking a `forge-*`
+Skill without the shared core leaves its safety contract unreachable.
+
+If your host resolves `..` through the link target rather than lexically, the
+shared link is redundant but harmless. Which behaviour your build has is
+`UNMEASURED` until you check it during
+[verify-installation.md](verify-installation.md) step 9.
+
 ## Verify
 
-Confirm `skill-engineer`, `merge-sentinel`, and `skill-prospector` appear from the installed plugin, then run
-through [verify-installation.md](verify-installation.md).
+Confirm `skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
+`forge-discover`, `forge-spec`, `forge-plan`, and `forge-implement` appear
+from the installed plugin, then run through
+[verify-installation.md](verify-installation.md).
 
 ## Update
 

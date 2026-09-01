@@ -2,7 +2,7 @@
 
 Claude Code consumes the `skill-forger` marketplace directly from GitHub. It reads
 `.claude-plugin/marketplace.json` at the repository root and `plugin/.claude-plugin/plugin.json`
-inside the plugin, then loads all three Skills straight from `plugin/skills/`. There is no build step
+inside the plugin, then loads all eight Skills straight from `plugin/skills/`. There is no build step
 and no separate authored copy — the plugin payload is the same `plugin/skills/` tree used by
 every other host in this repository. The marketplace entry and both plugin manifests carry the
 same release version so Claude Code can distinguish an update from its installed version.
@@ -15,7 +15,9 @@ claude plugin install skill-engineer@skill-forger
 ```
 
 `skill-engineer` is the plugin identity (see `plugin/plugin.json`); it packages
-`skill-engineer`, `merge-sentinel`, and `skill-prospector` under Claude's plugin namespace.
+`skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
+`forge-discover`, `forge-spec`, `forge-plan`, and `forge-implement` under
+Claude's plugin namespace.
 
 ## Verify
 
@@ -23,7 +25,7 @@ claude plugin install skill-engineer@skill-forger
 claude plugin list
 ```
 
-Confirm `skill-engineer@skill-forger` is installed and all three Skills are discoverable, then run through
+Confirm `skill-engineer@skill-forger` is installed and all eight Skills are discoverable, then run through
 [verify-installation.md](verify-installation.md).
 
 ## Update
