@@ -1,0 +1,70 @@
+[
+  {
+    "version": 1,
+    "id": "FP-T-001",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Use forge-plan to turn the approved BR-21861 specification into an exact technical implementation plan before any code changes.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }],
+    "tags": ["explicit-stage", "planning"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-002",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "The exact spec revision is approved. Research the repository, settle the technical choices, find the files and tests, and write closed dependency-ordered work packets.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }],
+    "tags": ["technical-research", "closed-packets"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-003",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Turn approved Discovery context and decisions into observable requirements and acceptance scenarios before a technical plan exists.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": { "required_candidates": ["forge-plan", "forge-spec"], "expected_policy": "competitor-wins", "unmeasured_if": "catalog-preconditions-absent" },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }, { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }],
+    "tags": ["specification-boundary", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-004",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Implement the current approved BR-21861 plan, edit its source files, and run its narrow tests.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": { "required_candidates": ["forge-plan", "forge-implement"], "expected_policy": "competitor-wins", "unmeasured_if": "catalog-preconditions-absent" },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }, { "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": true } }],
+    "tags": ["implementation-boundary", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-005",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Run the authorized Forge workflow for BR-21861 from its current eligible Planning stage. The exact Specification revision is already approved.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }],
+    "tags": ["full-workflow", "eligible-stage"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-006",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }],
+    "tags": ["generic-question", "negative"]
+  }
+]
