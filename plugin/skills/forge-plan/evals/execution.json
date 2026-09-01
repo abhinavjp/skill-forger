@@ -3,7 +3,7 @@
     "version": 1,
     "id": "FP-E-001",
     "kind": "execution",
-    "category": "small-fixture",
+    "category": "positive",
     "prompt": "Plan approved spec.md revision 12 for BR-21861. REQ-017 says invoice labels must use the customer's locale while the numeric amount format remains unchanged. context.md identifies src/invoices/format_label.ts and its exported formatInvoiceLabel(invoice, locale); src/invoices/format_label.test.ts is the canonical unit test. Repository evidence confirms no callers or config beyond this module. Write the smallest closed Plan.",
     "trials": 3,
     "expected": {
@@ -17,7 +17,7 @@
     "version": 1,
     "id": "FP-E-002",
     "kind": "execution",
-    "category": "multi-system",
+    "category": "large-input",
     "prompt": "Plan approved spec.md revision 12 for BR-21861. Stable requirements: REQ-101 allows a guest checkout token; REQ-102 permits exactly one order per accepted token; INV-009 keeps the cart immutable after acceptance; REQ-103 preserves signed-in checkout; SEC-004 prohibits token values in audit logs. Approved context.md says web/checkout/GuestCheckoutForm.tsx submits CheckoutApi.createGuestOrder, packages/checkout-client/src/api.ts declares createGuestOrder(input): Promise<OrderResult>, services/orders/src/guest_order_service.ts owns createGuestOrder, services/orders/src/token_store.ts provides claimAcceptedToken(token), and services/orders/src/audit.ts records checkout events. The local contract test is services/orders/test/guest_order_contract.test.ts; the browser regression is web/checkout/GuestCheckoutForm.test.tsx; pnpm test --filter checkout is the package check. Repository evidence shows claimAcceptedToken atomically returns claimed or already-claimed, so reuse it rather than adding a table. The selected design is approved and binding only for the form's error states. Write dependency-ordered closed packets and frozen technical decisions.",
     "trials": 3,
     "expected": {
@@ -31,7 +31,7 @@
     "version": 1,
     "id": "FP-E-003",
     "kind": "execution",
-    "category": "decision-thresholds",
+    "category": "boundary",
     "prompt": "Plan an approved Specification for a backend-only export retry change. Repository evidence fully identifies the worker, retry policy, tests, and build. A design.md exists but is an unapproved mockup unrelated to export behaviour. The chosen retry storage affects only one reversible worker module. Separately, a proposal to standardize a cross-product retention protocol would alter three services, remain for years, and require two teams to support it.",
     "trials": 3,
     "expected": {
@@ -45,7 +45,7 @@
     "version": 1,
     "id": "FP-E-004",
     "kind": "execution",
-    "category": "approval-gate",
+    "category": "adversarial",
     "prompt": "A valid-looking spec.md revision 12 has hash spec-12 but is awaiting approval. The requester says, 'Run the full Forge workflow and implement BR-21861.' Later a previously approved spec.md revision 11 is changed materially to revision 12 without a new approval. Planning is asked to start from either revision.",
     "trials": 3,
     "expected": {
@@ -59,7 +59,7 @@
     "version": 1,
     "id": "FP-E-005",
     "kind": "execution",
-    "category": "plan-approval-boundary",
+    "category": "boundary",
     "prompt": "Specification revision 12 is currently approved. Planning has completed plan.md revision 3 and tasks.md revision 3, including closed packets, and presents their exact hashes for technical approval. The request says, 'the plan looks complete, continue the full workflow.' No independent artifact-specific Plan approval exists yet.",
     "trials": 3,
     "expected": {
@@ -73,7 +73,7 @@
     "version": 1,
     "id": "FP-E-006",
     "kind": "execution",
-    "category": "planning-owned-research",
+    "category": "failure-injection",
     "prompt": "Plan approved spec.md revision 8 for an account export endpoint. Discovery establishes observable export requirements but intentionally did not inspect implementation mechanics. Repository evidence is available: api/routes/exports.ts currently calls ExportController.start; api/controllers/export_controller.ts calls ExportService.queue(accountId); workers/export_queue.ts is the canonical queue adapter; api/test/exports.contract.test.ts is the API contract test; workers/test/export_queue.test.ts is the queue failure test; pnpm test --filter exports runs both. A deprecated direct-worker caller also exists at api/routes/internal_exports.ts and must retain its existing synchronous behaviour. The planner finds an unresolved product omission: the Specification never states whether an export may include archived accounts.",
     "trials": 3,
     "expected": {
