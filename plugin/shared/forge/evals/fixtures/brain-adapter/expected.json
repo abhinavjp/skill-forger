@@ -1,0 +1,32 @@
+{
+  "issue_handling": {
+    "reuse_ba_answer": "c-101",
+    "required_confirmation": [
+      {
+        "conflict": ["c-102", "c-103"],
+        "reason": "The historical and current comments materially disagree about whether unapproved reviews may be exported."
+      }
+    ],
+    "no_confirmation_for": ["c-101"]
+  },
+  "knowledge_handling": {
+    "selected_leaf_paths": ["okf/access-governance/review-export.md"],
+    "not_loaded_paths": ["okf/access-governance", "okf/access-governance/retention"],
+    "unavailable_knowledge": [{"path": "okf/access-governance/legacy-policy.md", "status": "UNMEASURED", "reason": "access denied"}]
+  },
+  "adapter_handling": {
+    "preserve_artifact_locations": {
+      "specification": "brain/BR-21861/specification.md",
+      "plan": "brain/BR-21861/plan.md"
+    },
+    "refused_delivery_operation": "publish-release"
+  },
+  "workflow_expectations": [
+    {"when": "Specification approval is pending", "then": ["Specification may be active", "source-code mutation is forbidden"]},
+    {"when": "valid functional-owner Specification approval matches the artifact hash and revision", "then": ["Planning may begin", "Implementation remains blocked"]},
+    {"when": "Plan approval is pending", "then": ["source-code mutation is forbidden"]},
+    {"when": "valid technical-owner Plan approval matches the artifact hash and revision and precedes mutation", "then": ["Implementation may begin"]},
+    {"when": "approval is unauthorized, self-authored, stale, or post-hoc", "then": ["the relevant gate remains blocked"]}
+  ],
+  "pre_existing_change_handling": "The listed pre-existing changes remain isolated and are not claimed, altered, or delivered."
+}
