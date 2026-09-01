@@ -9,18 +9,20 @@ not failed or blocked work.
 
 ## `review-first`
 
-For each eligible packet: finish its narrow and routed quality checks; review
-that packet's scoped diff against its closed packet; resolve or record review
-findings; then create its authorized checkpoint commit. This scoped diff review
-is not the final semantic review and does not add a second final review.
+For each eligible packet: finish its narrow and routed quality checks; then
+perform the mechanical checkpoint checks that its changed paths are within the
+authorized packet scope and its required evidence records are `PASS`; then
+create its authorized checkpoint commit. `review-first` is checkpoint timing,
+not a semantic or code-review mode. Semantic comparison against the approved
+Specification, Plan, and packets occurs only in the one final semantic review
+after integrated deterministic verification.
 
 ## `per-task`
 
 For each eligible packet: finish its checks, then create its authorized
 checkpoint commit immediately. Do not delay it for a later packet and do not
-bundle independent packets merely for convenience. A separate review can occur
-only when the approved packet or local policy requires it; delegation is never
-mandatory.
+bundle independent packets merely for convenience. This mode adds no
+packet-level semantic or code review; delegation is never mandatory.
 
 ## `end-only`
 

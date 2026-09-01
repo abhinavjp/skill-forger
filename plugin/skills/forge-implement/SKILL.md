@@ -90,8 +90,8 @@ After every packet is verified or terminally failed/blocked, run the approved
 integrated deterministic verification over the verified scoped result. Record
 each result exactly; separate pre-existing failures. Then perform exactly one
 final semantic review against the approved Specification, Plan, packets,
-scope, and shared contracts. This is distinct from per-packet narrow checks or
-review-first diff review.
+scope, and shared contracts. This is distinct from per-packet deterministic
+verification and mechanical scope/evidence checking.
 
 If that one review finds defects, create a bounded remediation list containing
 only its findings. Remediate only that list, rerun affected checks and
