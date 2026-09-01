@@ -48,6 +48,11 @@ artifact hash and revision, is not by the current actor or artifact author, and
 precedes every mutation it is claimed to authorize. A full-workflow or
 implementation intent is not artifact approval. Approval after a mutation is
 post-hoc and does not validate that mutation.
+An approval is artifact approval only when it records no intent or the intent
+`artifact`; any other recorded intent is a continuation intent and never opens
+a gate. An approval must strictly precede the mutation it authorizes; an
+approval recorded at the same ordering value as the mutation does not
+authorize it.
 
 When an adapter supplies designated approvers or approval policy, it narrows
 the acceptable actors for its `planning` and `implementation` policy stages; it
@@ -55,6 +60,9 @@ does not override, infer, or weaken Forge gates. A mismatch, self-approval,
 unknown authorization, stale hash/revision, or unproven approval ordering keeps
 the gate closed. Material change to an approved artifact makes its approval
 stale and invalidates dependent downstream gates.
+When an adapter supplies an approval policy, a policy stage with no designated
+approvers is closed, not unrestricted; omitting the policy entirely means no
+narrowing.
 
 `state.mutations`, when present, is a list of objects, each carrying a `stage`
 (one of the recognised stages: `discovery`, `clarification`, `specification`,

@@ -35,8 +35,9 @@ explicit-only controls are host-specific and must not be inferred from another h
    `not-enforceable-portably`. Never promote an unrun trigger or competition
    case to pass.
 9. **Relative references and scripts load from the installed Skill root.** Run
-   one reference load and confirm `references/*.md` and `scripts/*.py` resolve
-   from the installed location without a path error.
+   `shared/forge/evals/run_static_evals.py --json` from the installed Skill
+   root, record its actual result, and confirm `references/*.md` and
+   `scripts/*.py` resolve from the installed location without a path error.
 10. **Updating the source changes the installation.** Pull a new commit, run
     the host update step, and confirm the host reflects that commit.
 11. **Uninstall preserves the clone.** Run the host uninstall step and confirm

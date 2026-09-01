@@ -217,7 +217,7 @@ def _check_artifact_shape(check, root, base):
         if expected_type not in type_map:
             raise CorpusError("artifact-shape has unknown type {!r}".format(expected_type))
         value = data.get(key)
-        if key not in data or isinstance(value, bool) and expected_type == "number" or not isinstance(value, type_map[expected_type]):
+        if key not in data or (isinstance(value, bool) and expected_type == "number") or not isinstance(value, type_map[expected_type]):
             return False, "missing or invalid {}".format(key)
     return True, ""
 

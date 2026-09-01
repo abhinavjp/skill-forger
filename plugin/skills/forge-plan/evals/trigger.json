@@ -66,5 +66,24 @@
     "expected": { "trigger": false },
     "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }],
     "tags": ["generic-question", "negative"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-007",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Define the observable requirements, unchanged behaviour, acceptance scenarios, and traceability for BR-21861 before a technical implementation plan is written.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["forge-plan", "forge-spec"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }
+    ],
+    "tags": ["behavioural-contract", "competing-skill"]
   }
 ]
