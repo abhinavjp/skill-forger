@@ -65,9 +65,18 @@ duplicate, conflicting Skill entries. Each guide states its route's own uninstal
 python packaging/validate_plugin.py
 ```
 
-This validates both plugin manifests and the Claude marketplace version, the
-eight-Skill layout, unique frontmatter names, reference resolution and path
-containment, portable-core checks, and the absence of tracked host mirrors.
+This validates both plugin manifests and the Claude marketplace version; the
+canonical discovered Skill-package layout and required baseline Skills;
+frontmatter names; reference resolution and path containment; portable-core
+checks; and the absence of tracked host mirrors.
+
+For expanded Forge-suite coverage, run the packaging tests and Forge static
+checks:
+
+```bash
+python -m unittest packaging.test_validate_plugin.CanonicalPluginLayoutTests -v
+python plugin/shared/forge/evals/run_static_evals.py --json
+```
 
 The Skill engineering static corpus remains available at:
 
