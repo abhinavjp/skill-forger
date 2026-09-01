@@ -442,21 +442,26 @@ def _claimed_counts(text: str) -> set[int]:
     return counts
 
 
+def count_claim_documents() -> list[Path]:
+    """Every tracked document allowed to state how many Skills ship."""
+    return [REPO_ROOT / "README.md", *sorted((REPO_ROOT / "docs" / "install").glob("*.md"))]
+
+
 def check_skill_count_claims(discovered: int, descriptions: dict[str, str]) -> None:
-    """Reject any manifest or install-doc claim about how many Skills ship.
+    """Reject any manifest, README, or install-doc claim about how many Skills ship.
 
     ``discover_skills`` deliberately allows Skills beyond the required baseline,
     so a hardcoded count is only correct until the next Skill lands.  Derive the
     truth from the discovered packages and fail on every stale claim.
     """
     sources = dict(descriptions)
-    for doc in sorted((REPO_ROOT / "docs" / "install").glob("*.md")):
+    for doc in count_claim_documents():
         try:
             sources[str(doc.relative_to(REPO_ROOT)).replace(os.sep, "/")] = doc.read_text(
                 encoding="utf-8"
             )
         except OSError as exc:
-            fail(f"unreadable install doc {doc.name}: {exc}")
+            fail(f"unreadable documentation file {doc.name}: {exc}")
             return
 
     stale = []

@@ -729,6 +729,17 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertFalse(validator._ok)
         self.assertIn("claims 8", stream.getvalue())
 
+    def test_count_claim_scan_covers_the_readme_and_every_install_doc(self) -> None:
+        """The README is the most likely home for a stale whole-set count."""
+        scanned = {path.relative_to(REPO_ROOT).as_posix() for path in validator.count_claim_documents()}
+        self.assertIn("README.md", scanned)
+        expected_docs = {
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "docs" / "install").glob("*.md")
+        }
+        self.assertTrue(expected_docs)
+        self.assertTrue(expected_docs <= scanned, sorted(expected_docs - scanned))
+
     def test_skill_count_check_ignores_subset_and_version_numbers(self) -> None:
         """Subset phrases and version strings are not whole-set count claims."""
         for text in (
