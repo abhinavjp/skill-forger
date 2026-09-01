@@ -20,7 +20,6 @@ from plugin.shared.forge.evals import run_static_evals
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
-EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"}
 CANONICAL_EVAL_VALIDATORS = {
     "merge-sentinel": PLUGIN_SKILLS / "merge-sentinel" / "evals" / "validate_corpus.py",
     "skill-engineer": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
@@ -33,6 +32,7 @@ FORGE_SKILL_IDS = {
     "forge-plan",
     "forge-implement",
 }
+EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"} | FORGE_SKILL_IDS
 FORGE_EVAL_VALIDATOR = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
@@ -87,6 +87,10 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         }
         self.assertTrue(EXPECTED_SKILL_IDS <= discovered)
 
+    def test_expected_skill_ids_match_the_validator_constant(self) -> None:
+        """Catches the test module's copy of EXPECTED_SKILL_IDS drifting from validate_plugin.py."""
+        self.assertEqual(validator.EXPECTED_SKILL_IDS, EXPECTED_SKILL_IDS)
+
     def test_discovery_rejects_missing_required_baseline_skill(self) -> None:
         """Required baseline Skills remain mandatory in an isolated discovery root."""
         with tempfile.TemporaryDirectory(prefix="missing-baseline-") as directory:
@@ -103,7 +107,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 discovered = validator.discover_skills(skills_dir)
             self.addCleanup(setattr, validator, "_ok", True)
 
-            self.assertEqual({"skill-engineer", "skill-prospector"},
+            self.assertEqual(EXPECTED_SKILL_IDS - {"merge-sentinel"},
                              {path.name for path in discovered})
             self.assertFalse(validator._ok)
 
@@ -186,7 +190,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         """Return per-Skill failures without short-circuiting the corpus loop."""
         runner = runner or subprocess.run
         failures = []
-        for skill_id in sorted(EXPECTED_SKILL_IDS):
+        for skill_id in sorted(CANONICAL_EVAL_VALIDATORS):
             evals = PLUGIN_SKILLS / skill_id / "evals"
             proc = runner(
                 self.canonical_eval_command(skill_id, evals),
@@ -311,7 +315,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
 
     def test_each_canonical_corpus_failure_is_independently_gated(self) -> None:
         """Catches a package gate that stops after the first Skill or ignores empty/error reports."""
-        expected_ids = sorted(EXPECTED_SKILL_IDS)
+        expected_ids = sorted(CANONICAL_EVAL_VALIDATORS)
         valid_report = json.dumps({"case_count": 1, "errors": []})
         for failing_skill in expected_ids:
             for mutation in ("zero-cases", "one-error"):
@@ -321,7 +325,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                     evals_arg = next(
                         arg for arg in argv
                         if Path(arg).name == "evals"
-                        and Path(arg).parent.name in EXPECTED_SKILL_IDS
+                        and Path(arg).parent.name in CANONICAL_EVAL_VALIDATORS
                     )
                     skill_id = Path(evals_arg).parent.name
                     calls.append(skill_id)

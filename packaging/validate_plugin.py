@@ -24,7 +24,16 @@ PLUGIN_DIR = REPO_ROOT / "plugin"
 PLUGIN_SKILLS = PLUGIN_DIR / "skills"
 CLAUDE_PLUGIN_JSON = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
-EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"}
+EXPECTED_SKILL_IDS = {
+    "merge-sentinel",
+    "skill-engineer",
+    "skill-prospector",
+    "forge-clarify",
+    "forge-discover",
+    "forge-spec",
+    "forge-plan",
+    "forge-implement",
+}
 REPOSITORY_URL = "https://github.com/abhinavjp/skill-forger"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
