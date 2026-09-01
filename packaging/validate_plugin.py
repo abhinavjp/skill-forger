@@ -100,25 +100,26 @@ def check_schema(plugin_json: Path) -> dict | None:
     return data
 
 
-def discover_skills() -> list[Path]:
-    if not (PLUGIN_DIR / "plugin.json").is_file():
+def discover_skills(skills_dir: Path = PLUGIN_SKILLS) -> list[Path]:
+    if skills_dir == PLUGIN_SKILLS and not (PLUGIN_DIR / "plugin.json").is_file():
         fail("plugin/plugin.json missing at plugin root")
-    else:
+    elif skills_dir == PLUGIN_SKILLS:
         ok("plugin/plugin.json present at plugin root")
-    if not PLUGIN_SKILLS.is_dir():
+    if not skills_dir.is_dir():
         fail("plugin/skills/ directory missing")
         return []
 
-    children = sorted(path for path in PLUGIN_SKILLS.iterdir() if path.is_dir())
+    children = sorted(path for path in skills_dir.iterdir() if path.is_dir())
     missing_skill_md = [path.name for path in children if not (path / "SKILL.md").is_file()]
     if missing_skill_md:
         fail(f"immediate plugin/skills directories missing SKILL.md: {missing_skill_md}")
     skill_dirs = [path for path in children if (path / "SKILL.md").is_file()]
     found = {path.name for path in skill_dirs}
-    if found != EXPECTED_SKILL_IDS:
-        fail(f"expected Skill IDs {sorted(EXPECTED_SKILL_IDS)}, found {sorted(found)}")
+    if not EXPECTED_SKILL_IDS <= found:
+        missing = sorted(EXPECTED_SKILL_IDS - found)
+        fail(f"required Skill IDs missing: {missing}; found {sorted(found)}")
     else:
-        ok(f"canonical Skill IDs are exactly {sorted(found)}")
+        ok(f"required Skill IDs are present; found {sorted(found)}")
     return skill_dirs
 
 

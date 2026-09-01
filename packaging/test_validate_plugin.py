@@ -68,14 +68,81 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual(1, len(entries))
         self.assertEqual(agent["version"], entries[0]["version"])
 
-    def test_plugin_skills_are_the_complete_canonical_payload(self) -> None:
-        """Catches a missing, extra, or incompletely packaged canonical skill."""
+    def test_plugin_skills_include_the_required_canonical_payload(self) -> None:
+        """Catches removal of a required Skill while allowing additional Skills."""
         discovered = {
             path.name
             for path in PLUGIN_SKILLS.iterdir()
             if path.is_dir() and (path / "SKILL.md").is_file()
         }
-        self.assertEqual(EXPECTED_SKILL_IDS, discovered)
+        self.assertTrue(EXPECTED_SKILL_IDS <= discovered)
+
+    def test_discovery_rejects_missing_required_baseline_skill(self) -> None:
+        """Required baseline Skills remain mandatory in an isolated discovery root."""
+        with tempfile.TemporaryDirectory(prefix="missing-baseline-") as directory:
+            skills_dir = Path(directory)
+            for skill_id in sorted(EXPECTED_SKILL_IDS - {"merge-sentinel"}):
+                skill_dir = skills_dir / skill_id
+                skill_dir.mkdir()
+                (skill_dir / "SKILL.md").write_text(
+                    f"---\nname: {skill_id}\n---\n", encoding="utf-8"
+                )
+
+            validator._ok = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                discovered = validator.discover_skills(skills_dir)
+            self.addCleanup(setattr, validator, "_ok", True)
+
+            self.assertEqual({"skill-engineer", "skill-prospector"},
+                             {path.name for path in discovered})
+            self.assertFalse(validator._ok)
+
+    def test_discovery_finds_an_additional_valid_skill_package(self) -> None:
+        """Additional immediate Skill packages are discoverable beside the baseline."""
+        with tempfile.TemporaryDirectory(prefix="additional-skill-") as directory:
+            skills_dir = Path(directory)
+            for skill_id in sorted(EXPECTED_SKILL_IDS | {"portable-extra"}):
+                skill_dir = skills_dir / skill_id
+                skill_dir.mkdir()
+                (skill_dir / "SKILL.md").write_text(
+                    f"---\nname: {skill_id}\n---\n", encoding="utf-8"
+                )
+
+            validator._ok = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                discovered = validator.discover_skills(skills_dir)
+            self.addCleanup(setattr, validator, "_ok", True)
+
+            self.assertEqual(
+                EXPECTED_SKILL_IDS | {"portable-extra"},
+                {path.name for path in discovered},
+            )
+            self.assertTrue(validator._ok)
+
+    def test_discovery_does_not_include_shared_forge_resources(self) -> None:
+        """Only immediate children under the injected Skills directory are discovered."""
+        with tempfile.TemporaryDirectory(prefix="skills-boundary-") as directory:
+            root = Path(directory)
+            skills_dir = root / "plugin" / "skills"
+            skills_dir.mkdir(parents=True)
+            for skill_id in sorted(EXPECTED_SKILL_IDS):
+                skill_dir = skills_dir / skill_id
+                skill_dir.mkdir()
+                (skill_dir / "SKILL.md").write_text(
+                    f"---\nname: {skill_id}\n---\n", encoding="utf-8"
+                )
+            shared_skill = root / "plugin" / "shared" / "forge"
+            shared_skill.mkdir(parents=True)
+            (shared_skill / "SKILL.md").write_text(
+                "---\nname: shared-forge\n---\n", encoding="utf-8"
+            )
+
+            validator._ok = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                discovered = validator.discover_skills(skills_dir)
+            self.addCleanup(setattr, validator, "_ok", True)
+
+            self.assertNotIn(shared_skill, discovered)
 
     def test_no_repository_skill_mirror_exists(self) -> None:
         """Catches reintroduction of authored host mirrors outside plugin/skills/."""
