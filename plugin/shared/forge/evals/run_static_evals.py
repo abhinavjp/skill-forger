@@ -37,12 +37,12 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 
 HERE = Path(__file__).resolve().parent
 FORGE_ROOT = HERE.parent
-REPO_ROOT = FORGE_ROOT.parents[2]
-VALIDATOR_PATHS = (
-    FORGE_ROOT.parents[1] / "skills" / "skill-engineer" / "scripts" / "validate_evals.py",
-    REPO_ROOT / "plugin" / "skills" / "skill-engineer" / "scripts" / "validate_evals.py",
-)
-VALIDATOR_PATH = VALIDATOR_PATHS[0]
+# The plugin root is FORGE_ROOT.parents[1] in both the repository tree
+# (``<repo>/plugin``) and an installed plugin tree (``<install-root>``), so this
+# single candidate covers both layouts.  ``VALIDATOR_PATHS`` stays a tuple so a
+# future genuinely-distinct candidate can be added without changing callers.
+VALIDATOR_PATH = FORGE_ROOT.parents[1] / "skills" / "skill-engineer" / "scripts" / "validate_evals.py"
+VALIDATOR_PATHS = (VALIDATOR_PATH,)
 WORKFLOW_STATE_PATH = FORGE_ROOT / "scripts" / "workflow_state.py"
 
 VALIDATOR_KINDS = {
@@ -74,7 +74,7 @@ def _load_v1_validator():
     if _V1_VALIDATOR_MODULE is not None:
         return _V1_VALIDATOR_MODULE
     validator_path = next(
-        (path for path in (VALIDATOR_PATH, *VALIDATOR_PATHS[1:]) if path.is_file()),
+        (path for path in dict.fromkeys((VALIDATOR_PATH, *VALIDATOR_PATHS)) if path.is_file()),
         None,
     )
     if validator_path is None:
