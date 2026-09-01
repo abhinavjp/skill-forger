@@ -81,6 +81,17 @@ class WorkflowStateTests(unittest.TestCase):
             workflow_state.content_hash(changed),
         )
 
+    def test_non_closing_fence_prefixed_code_preserves_later_whitespace(self):
+        for code_line in ("```not a closing fence", "~~~not a closing fence"):
+            with self.subTest(code_line=code_line):
+                original = "```python\n{}\nvalue = 1  \n```".format(code_line)
+                changed = "```python\n{}\nvalue = 1\n```".format(code_line)
+
+                self.assertNotEqual(
+                    workflow_state.content_hash(original),
+                    workflow_state.content_hash(changed),
+                )
+
     def test_transient_retry_is_bounded_by_failure_policy(self):
         failure = {"classification": "transient", "max_attempts": 2}
 
@@ -213,6 +224,26 @@ class WorkflowStateTests(unittest.TestCase):
 
         self.assertFalse(decision["allowed"])
         self.assertEqual(decision["code"], "GATE_VIOLATION")
+
+    def test_unproven_approval_ordering_closes_implementation_gate(self):
+        cases = (
+            ("equal timestamps", 20, 20),
+            ("missing approval timestamp", None, 21),
+            ("mixed timestamp types", "20", 21),
+        )
+        for name, approved_at, mutation_at in cases:
+            with self.subTest(name=name):
+                state = self.valid_state()
+                state["mutations"] = [{"stage": "implementation", "at": mutation_at}]
+                if approved_at is None:
+                    state["artifacts"]["plan"]["approval"].pop("approved_at")
+                else:
+                    state["artifacts"]["plan"]["approval"]["approved_at"] = approved_at
+
+                decision = workflow_state.can_enter_stage(state, "implementation")
+
+                self.assertFalse(decision["allowed"])
+                self.assertEqual(decision["code"], "GATE_VIOLATION")
 
     def test_optional_specification_approval_does_not_block_implementation(self):
         state = self.valid_state()

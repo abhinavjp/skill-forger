@@ -6,7 +6,7 @@ from collections import deque
 
 
 _CHECK_STATUSES = {"PASS", "FAIL", "UNMEASURED"}
-_FENCE_PREFIXES = ("```", "~~~")
+_FENCE_MARKERS = ("`", "~")
 
 
 def normalize_markdown(text):
@@ -16,15 +16,14 @@ def normalize_markdown(text):
 
     lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     normalized = []
-    in_fence = False
+    active_fence = None
     previous_blank = False
 
     for line in lines:
-        is_fence = line.lstrip().startswith(_FENCE_PREFIXES)
-        if in_fence:
+        if active_fence is not None:
             normalized.append(line)
-            if is_fence:
-                in_fence = False
+            if _is_closing_fence(line, active_fence):
+                active_fence = None
             continue
 
         clean = line.rstrip(" \t")
@@ -36,8 +35,9 @@ def normalize_markdown(text):
 
         normalized.append(clean)
         previous_blank = False
-        if clean.lstrip().startswith(_FENCE_PREFIXES):
-            in_fence = True
+        opening_fence = _opening_fence(clean)
+        if opening_fence is not None:
+            active_fence = opening_fence
 
     return "\n".join(normalized)
 
@@ -192,6 +192,26 @@ def _canonical_stage(stage):
     return {"plan": "planning", "implement": "implementation"}.get(value, value)
 
 
+def _opening_fence(line):
+    content = line.lstrip(" \t")
+    if not content or content[0] not in _FENCE_MARKERS:
+        return None
+    marker = content[0]
+    length = len(content) - len(content.lstrip(marker))
+    if length < 3:
+        return None
+    return marker, length
+
+
+def _is_closing_fence(line, opening_fence):
+    marker, minimum_length = opening_fence
+    content = line.lstrip(" \t")
+    if not content.startswith(marker):
+        return False
+    length = len(content) - len(content.lstrip(marker))
+    return length >= minimum_length and content[length:].strip(" \t") == ""
+
+
 def _valid_approval(state, artifact, policy_stage, approval_policy):
     if not isinstance(artifact, dict):
         return False
@@ -234,26 +254,27 @@ def _has_post_hoc_mutation(state, target, artifacts):
     mutations = state.get("mutations", [])
     if not isinstance(mutations, list):
         return False
-    approval_times = []
-    for artifact in artifacts:
-        if isinstance(artifact, dict) and isinstance(artifact.get("approval"), dict):
-            approval_times.append(artifact["approval"].get("approved_at"))
-
     for mutation in mutations:
         if not isinstance(mutation, dict) or mutation.get("stage") != target:
             continue
         mutation_time = mutation.get("at")
-        for approval_time in approval_times:
-            if _is_later(approval_time, mutation_time):
+        for artifact in artifacts:
+            approval = artifact.get("approval") if isinstance(artifact, dict) else None
+            approval_time = approval.get("approved_at") if isinstance(approval, dict) else None
+            if not _precedes(approval_time, mutation_time):
                 return True
     return False
 
 
-def _is_later(left, right):
-    if left is None or right is None or type(left) is not type(right):
+def _precedes(approval_time, mutation_time):
+    if (
+        approval_time is None
+        or mutation_time is None
+        or type(approval_time) is not type(mutation_time)
+    ):
         return False
     try:
-        return left > right
+        return approval_time < mutation_time
     except TypeError:
         return False
 
