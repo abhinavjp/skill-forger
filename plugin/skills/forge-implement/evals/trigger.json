@@ -1,0 +1,58 @@
+[
+  {
+    "version": 1,
+    "id": "FI-T-001",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Use forge-implement to execute the current approved BR-21861 tasks packet by packet, preserving the existing working tree and recording verification evidence.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": true } }],
+    "tags": ["explicit-stage", "approved-packets", "implementation"]
+  },
+  {
+    "version": 1,
+    "id": "FI-T-002",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "The exact Specification and technical Plan revisions are approved. Apply only their dependency-ready work packets, run each relevant narrow check, handle Git checkpoints safely, then provide integrated evidence.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": true } }],
+    "tags": ["packet-execution", "verification", "git"]
+  },
+  {
+    "version": 1,
+    "id": "FI-T-003",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "The approved Specification has no technical Plan yet. Inspect repository mechanics, make technical choices, and write dependency-ordered closed work packets.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": { "required_candidates": ["forge-implement", "forge-plan"], "expected_policy": "competitor-wins", "unmeasured_if": "catalog-preconditions-absent" },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": false } }, { "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }],
+    "tags": ["planning-boundary", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "FI-T-004",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Run the full Forge workflow from its eligible Implementation stage. The current Plan approval is missing, so report the gate state without changing source.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": true } }],
+    "tags": ["full-workflow", "closed-gate", "read-only"]
+  },
+  {
+    "version": 1,
+    "id": "FI-T-005",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": false } }],
+    "tags": ["generic-question", "negative"]
+  }
+]
