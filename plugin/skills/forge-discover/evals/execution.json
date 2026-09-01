@@ -94,5 +94,53 @@
       { "type": "llm-judge", "rubric": "Pass only if context.md captures the listed functional impacts, excludes the irrelevant marketing screenshot from selected evidence, and neither asks a stakeholder question nor chooses an architecture." }
     ],
     "tags": ["impact-coverage", "irrelevant-visuals", "regression"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-007",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Discover BR-21861 as a stage-only request. Approved decisions, issue evidence, and repository evidence are sufficient to produce context.md; no authorized full-workflow continuation is present.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["produces the bounded context.md", "stops after reporting the Discovery result", "does not draft a Specification or start Planning or Implementation"] },
+      "process": { "required": ["honours the Discovery stage boundary for a stage-only request"], "forbidden": ["continuing to a later Forge stage without authorized continuation"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response completes the bounded Discovery evidence record and stops at Discovery. It must not create or draft a Specification, Planning artifact, or implementation work from this stage-only request." }
+    ],
+    "tags": ["stage-boundary", "stage-only", "no-continuation"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-008",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Run the authorized Forge full workflow for BR-21861. Discovery is the current eligible stage; after its context is complete, the shared workflow state permits Specification to begin. No Specification approval exists, so Planning and Implementation are not eligible.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["produces the Discovery context", "continues or hands off only to the eligible Specification stage", "does not start Planning or Implementation", "does not infer any artifact approval from the full-workflow request"] },
+      "process": { "required": ["uses the shared workflow eligibility and gate rules for authorized continuation"], "forbidden": ["bypassing a required gate", "treating workflow intent as approval"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response completes Discovery and, because continuation is authorized and Specification is the next eligible stage, proceeds or hands off no further than Specification. It must explicitly leave Planning and Implementation blocked by their missing approvals and must not infer approval from workflow intent." }
+    ],
+    "tags": ["full-workflow", "eligible-continuation", "gate-boundary"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-009",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Discover BR-21861. The knowledge provider selects the leaf reference policy/guest-checkout.md because it defines the requested guest policy; it supplies source locator, content hash 7f3a, and observation time. The provider catalogue policy/ is available but is not selected. A requested leaf compliance/retention.md is unreadable (access denied), with validation_result UNMEASURED.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["records policy/guest-checkout.md as selected knowledge with its reason, provenance, hash, and freshness", "does not treat the policy/ catalogue as selected knowledge", "records compliance/retention.md as unavailable knowledge with access-denied reason and UNMEASURED validation", "does not represent unavailable knowledge as PASS"] },
+      "process": { "required": ["uses only selected leaf knowledge references in context.md"], "forbidden": ["treating a container path as selected knowledge", "treating unavailable knowledge as passing evidence"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if context.md selects and cites the guest-checkout leaf with its stated reason and freshness/provenance, excludes the policy container from selected knowledge, and records the unreadable retention leaf and its UNMEASURED validation as unavailable rather than PASS." }
+    ],
+    "tags": ["knowledge-provider", "selected-leaf", "freshness", "unavailable-knowledge"]
   }
 ]
