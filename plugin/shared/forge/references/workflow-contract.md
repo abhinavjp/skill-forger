@@ -56,6 +56,18 @@ unknown authorization, stale hash/revision, or unproven approval ordering keeps
 the gate closed. Material change to an approved artifact makes its approval
 stale and invalidates dependent downstream gates.
 
+`state.mutations`, when present, is a list of objects, each carrying a `stage`
+(one of the recognised stages: `discovery`, `clarification`, `specification`,
+`planning`, `implementation`) and an `at` ordering value comparable with
+`approval.approved_at`. A mutation is in scope for a gate when its `stage`
+matches the stage being entered, or when its `stage` is absent, unrecognised,
+or otherwise not a member of the recognised set — an unlabelled or malformed
+record is never assumed to be out of scope. A mutation labelled with a
+different recognised stage is out of scope and does not block. A `mutations`
+value that is not a list, or an entry that is not an object, is itself treated
+as an in-scope violation. Adapters that do not track mutations may omit the
+`mutations` key entirely; its absence is not a violation.
+
 Requirement sources and selected knowledge are fresh only when their recorded
 provenance and hashes/freshness observations still match the artifact's
 materially used inputs. A requirement-changing historical contradiction stays

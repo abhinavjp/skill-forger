@@ -7,6 +7,7 @@ from collections import deque
 
 _CHECK_STATUSES = {"PASS", "FAIL", "UNMEASURED"}
 _FENCE_MARKERS = ("`", "~")
+KNOWN_MUTATION_STAGES = {"discovery", "clarification", "specification", "planning", "implementation"}
 
 
 def normalize_markdown(text):
@@ -253,9 +254,13 @@ def _allowed_approvers(approval_policy, stage):
 def _has_post_hoc_mutation(state, target, artifacts):
     mutations = state.get("mutations", [])
     if not isinstance(mutations, list):
-        return False
+        return True
     for mutation in mutations:
-        if not isinstance(mutation, dict) or mutation.get("stage") != target:
+        if not isinstance(mutation, dict):
+            return True
+        mutation_stage = mutation.get("stage")
+        in_scope = mutation_stage == target or mutation_stage not in KNOWN_MUTATION_STAGES
+        if not in_scope:
             continue
         mutation_time = mutation.get("at")
         for artifact in artifacts:

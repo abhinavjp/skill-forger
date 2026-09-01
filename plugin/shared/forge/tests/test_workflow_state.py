@@ -225,6 +225,43 @@ class WorkflowStateTests(unittest.TestCase):
         self.assertFalse(decision["allowed"])
         self.assertEqual(decision["code"], "GATE_VIOLATION")
 
+    def test_unlabelled_unknown_stage_or_malformed_mutations_fail_closed(self):
+        cases = (
+            ("unlabelled", [{"at": 21}]),
+            ("unknown stage", [{"stage": "bogus", "at": 21}]),
+            ("malformed mutations value", "oops"),
+        )
+        for name, mutations in cases:
+            with self.subTest(name=name):
+                state = self.valid_state()
+                state["mutations"] = mutations
+                state["artifacts"]["plan"]["approval"]["approved_at"] = 22
+
+                decision = workflow_state.can_enter_stage(state, "implementation")
+
+                self.assertFalse(decision["allowed"])
+                self.assertEqual(decision["code"], "GATE_VIOLATION")
+                self.assertTrue(decision["read_only"])
+
+    def test_mutation_labelled_with_a_different_recognised_stage_does_not_block(self):
+        state = self.valid_state()
+        state["mutations"] = [{"stage": "specification", "at": 21}]
+        state["artifacts"]["plan"]["approval"]["approved_at"] = 22
+
+        decision = workflow_state.can_enter_stage(state, "implementation")
+
+        self.assertTrue(decision["allowed"])
+
+    def test_non_dict_mutation_entry_fails_closed(self):
+        state = self.valid_state()
+        state["mutations"] = ["oops"]
+        state["artifacts"]["plan"]["approval"]["approved_at"] = 22
+
+        decision = workflow_state.can_enter_stage(state, "implementation")
+
+        self.assertFalse(decision["allowed"])
+        self.assertEqual(decision["code"], "GATE_VIOLATION")
+
     def test_unproven_approval_ordering_closes_implementation_gate(self):
         cases = (
             ("equal timestamps", 20, 20),
