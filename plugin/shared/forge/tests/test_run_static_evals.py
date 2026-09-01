@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import contextlib
 import io
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -265,14 +266,42 @@ class StaticEvalRunnerTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertEqual(1, report["summary"]["passed"])
 
+    def test_cli_runs_from_an_installed_plugin_layout(self):
+        plugin_root = Path(run_static_evals.__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as installed, tempfile.TemporaryDirectory() as outside:
+            installed_root = Path(installed)
+            shutil.copytree(plugin_root, installed_root, dirs_exist_ok=True)
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(installed_root / "shared" / "forge" / "evals" / "run_static_evals.py"),
+                    "--evals",
+                    str(installed_root / "shared" / "forge" / "evals"),
+                    "--json",
+                ],
+                cwd=outside,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual(0, report["summary"]["failed"])
+        self.assertGreater(report["summary"]["passed"], 0)
+
     def test_missing_v1_validator_raises_corpus_error(self):
         original = run_static_evals.VALIDATOR_PATH
+        original_paths = run_static_evals.VALIDATOR_PATHS
+        original_module = run_static_evals._V1_VALIDATOR_MODULE
         run_static_evals.VALIDATOR_PATH = original.parent / "does-not-exist.py"
+        run_static_evals.VALIDATOR_PATHS = (run_static_evals.VALIDATOR_PATH,)
+        run_static_evals._V1_VALIDATOR_MODULE = None
         try:
             with self.assertRaises(run_static_evals.CorpusError):
                 run_static_evals._load_v1_validator()
         finally:
             run_static_evals.VALIDATOR_PATH = original
+            run_static_evals.VALIDATOR_PATHS = original_paths
+            run_static_evals._V1_VALIDATOR_MODULE = original_module
 
     def test_cli_json_is_valid_for_the_current_shared_corpus(self):
         stdout = io.StringIO()

@@ -38,7 +38,11 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 HERE = Path(__file__).resolve().parent
 FORGE_ROOT = HERE.parent
 REPO_ROOT = FORGE_ROOT.parents[2]
-VALIDATOR_PATH = REPO_ROOT / "plugin" / "skills" / "skill-engineer" / "scripts" / "validate_evals.py"
+VALIDATOR_PATHS = (
+    FORGE_ROOT.parents[1] / "skills" / "skill-engineer" / "scripts" / "validate_evals.py",
+    REPO_ROOT / "plugin" / "skills" / "skill-engineer" / "scripts" / "validate_evals.py",
+)
+VALIDATOR_PATH = VALIDATOR_PATHS[0]
 WORKFLOW_STATE_PATH = FORGE_ROOT / "scripts" / "workflow_state.py"
 
 VALIDATOR_KINDS = {
@@ -62,15 +66,26 @@ class CorpusError(ValueError):
     """The selected corpus is malformed or crosses the data trust boundary."""
 
 
+_V1_VALIDATOR_MODULE = None
+
+
 def _load_v1_validator():
-    if not VALIDATOR_PATH.is_file():
+    global _V1_VALIDATOR_MODULE
+    if _V1_VALIDATOR_MODULE is not None:
+        return _V1_VALIDATOR_MODULE
+    validator_path = next(
+        (path for path in (VALIDATOR_PATH, *VALIDATOR_PATHS[1:]) if path.is_file()),
+        None,
+    )
+    if validator_path is None:
         raise CorpusError("existing v1 validator cannot be loaded")
-    spec = importlib.util.spec_from_file_location("forge_v1_validate_evals", VALIDATOR_PATH)
+    spec = importlib.util.spec_from_file_location("forge_v1_validate_evals", validator_path)
     if spec is None or spec.loader is None:
         raise CorpusError("existing v1 validator cannot be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module
+    _V1_VALIDATOR_MODULE = module
+    return _V1_VALIDATOR_MODULE
 
 
 _WORKFLOW_STATE_MODULE = None
