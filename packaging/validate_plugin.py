@@ -359,7 +359,7 @@ def check_install_docs_do_not_instruct_committing_mirrors() -> None:
         ok("install docs never instruct committing a tracked Skill mirror")
 
 
-def check_manifests(agent_manifest: dict | None) -> None:
+def check_manifests(agent_manifest: dict | None, skill_dirs: list[Path]) -> None:
     try:
         claude = read_json(CLAUDE_PLUGIN_JSON)
         market = read_json(MARKETPLACE_JSON)
@@ -399,15 +399,78 @@ def check_manifests(agent_manifest: dict | None) -> None:
     else:
         ok(f"manifest repository URL is {REPOSITORY_URL}")
 
-    descriptions = [
-        agent_manifest.get("description", ""),
-        claude.get("description", ""),
-        entries[0].get("description", "") if len(entries) == 1 else "",
-    ]
-    if any("skill" not in value.lower() or "merge" not in value.lower() for value in descriptions):
-        fail("manifest descriptions must cover Skill engineering and merge-request review")
+    descriptions = {
+        "plugin/plugin.json": agent_manifest.get("description", ""),
+        "plugin/.claude-plugin/plugin.json": claude.get("description", ""),
+        ".claude-plugin/marketplace.json plugin entry": (
+            entries[0].get("description", "") if len(entries) == 1 else ""
+        ),
+    }
+    descriptions[".claude-plugin/marketplace.json"] = market.get("description", "")
+
+    problems = []
+    for where, value in sorted(descriptions.items()):
+        lowered = value.lower()
+        for topic in ("skill", "merge"):
+            if topic not in lowered:
+                problems.append(f"{where}: missing {topic!r}")
+    if problems:
+        fail("manifest descriptions must cover Skill engineering and merge-request review: " + "; ".join(problems))
     else:
-        ok("manifest descriptions cover all included Skills")
+        ok("manifest descriptions cover Skill engineering and merge-request review")
+
+    check_skill_count_claims(len(skill_dirs), descriptions)
+
+
+# Written-out counts a manifest or install doc may use for the shipped Skill set.
+_COUNT_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+}
+# A count only claims the whole shipped set when an all-set qualifier follows it,
+# so "the five forge-* Skills" (a subset) and "v1.0.0" (a version) are not claims.
+_COUNT_CLAIM_RE = re.compile(
+    r"(?i)\b(?:all\s+)?(%s|\d+)\s+(?:(?:portable|canonical|user-facing|shipped|included|agent)\s+){0,2}skills?\b" % "|".join(_COUNT_WORDS)
+)
+
+
+def _claimed_counts(text: str) -> set[int]:
+    counts = set()
+    for match in _COUNT_CLAIM_RE.finditer(text):
+        token = match.group(1).lower()
+        counts.add(_COUNT_WORDS.get(token) or int(token))
+    return counts
+
+
+def check_skill_count_claims(discovered: int, descriptions: dict[str, str]) -> None:
+    """Reject any manifest or install-doc claim about how many Skills ship.
+
+    ``discover_skills`` deliberately allows Skills beyond the required baseline,
+    so a hardcoded count is only correct until the next Skill lands.  Derive the
+    truth from the discovered packages and fail on every stale claim.
+    """
+    sources = dict(descriptions)
+    for doc in sorted((REPO_ROOT / "docs" / "install").glob("*.md")):
+        try:
+            sources[str(doc.relative_to(REPO_ROOT)).replace(os.sep, "/")] = doc.read_text(
+                encoding="utf-8"
+            )
+        except OSError as exc:
+            fail(f"unreadable install doc {doc.name}: {exc}")
+            return
+
+    stale = []
+    for where, text in sorted(sources.items()):
+        for claimed in sorted(_claimed_counts(text)):
+            if claimed != discovered:
+                stale.append(f"{where}: claims {claimed}")
+    if stale:
+        fail(
+            f"Skill-count claims disagree with the {discovered} discovered Skill packages: "
+            + "; ".join(stale)
+        )
+    else:
+        ok(f"every Skill-count claim matches the {discovered} discovered Skill packages")
 
 
 def main() -> int:
@@ -421,7 +484,7 @@ def main() -> int:
     check_inspector(skill_dirs)
     check_sensitive_content(skill_dirs)
     check_no_tracked_mirrors()
-    check_manifests(agent_manifest)
+    check_manifests(agent_manifest, skill_dirs)
     check_install_docs_do_not_instruct_committing_mirrors()
     print()
     print("RESULT:", "PASS" if _ok else "FAIL")

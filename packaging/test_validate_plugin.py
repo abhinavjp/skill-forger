@@ -6,6 +6,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -708,6 +709,65 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             report["metadata"]["errors"],
         )
         self.assertEqual(1, report["metrics"]["metadata_error_count"])
+
+
+    def test_skill_count_claims_are_derived_from_discovery(self) -> None:
+        """A stale whole-set count in any manifest or install doc must fail.
+
+        ``discover_skills`` permits Skills beyond the required baseline, so a
+        hardcoded count is the one claim nothing else can catch.
+        """
+        validator._ok = True
+        self.addCleanup(setattr, validator, "_ok", True)
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.check_skill_count_claims(8, {"manifest": "Eight portable Agent Skills"})
+        self.assertTrue(validator._ok)
+
+        validator._ok = True
+        with contextlib.redirect_stdout(io.StringIO()) as stream:
+            validator.check_skill_count_claims(9, {"manifest": "Eight portable Agent Skills"})
+        self.assertFalse(validator._ok)
+        self.assertIn("claims 8", stream.getvalue())
+
+    def test_skill_count_check_ignores_subset_and_version_numbers(self) -> None:
+        """Subset phrases and version strings are not whole-set count claims."""
+        for text in (
+            "The five `forge-*` Skills reference the shared core.",
+            "Agent Plugins v1.0.0 plus `plugin/skills/`.",
+            "Link each of the 3 forge-* Skills you need.",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(set(), validator._claimed_counts(text))
+
+    def test_forge_shared_references_resolve_lexically_in_a_linked_layout(self) -> None:
+        """Each forge-* Skill keeps its shared-core references reachable when the
+        Skill directories are installed individually beside a sibling ``shared``
+        tree, as the Codex and Antigravity per-Skill routes document.
+
+        The check is lexical (``..`` normalised without following links), which is
+        the resolution mode that can break; a host resolving through the link
+        target is strictly more permissive.
+        """
+        plugin_root = REPO_ROOT / "plugin"
+        with tempfile.TemporaryDirectory(prefix="linked-layout-") as directory:
+            install_root = Path(directory)
+            skills_dir = install_root / "skills"
+            skills_dir.mkdir()
+            shutil.copytree(plugin_root / "shared", install_root / "shared")
+            for skill_id in sorted(FORGE_SKILL_IDS):
+                shutil.copytree(plugin_root / "skills" / skill_id, skills_dir / skill_id)
+
+            unreachable = []
+            for skill_id in sorted(FORGE_SKILL_IDS):
+                skill_dir = skills_dir / skill_id
+                for markdown in sorted(skill_dir.rglob("*.md")):
+                    for target in re.findall(r"\]\(([^)]+)\)", markdown.read_text(encoding="utf-8")):
+                        if not target.startswith("../"):
+                            continue
+                        resolved = Path(os.path.normpath(markdown.parent / target))
+                        if not resolved.exists():
+                            unreachable.append(f"{skill_id}: {markdown.name} -> {target}")
+            self.assertEqual([], unreachable)
 
 
 if __name__ == "__main__":
