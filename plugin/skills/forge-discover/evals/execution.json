@@ -1,0 +1,98 @@
+[
+  {
+    "version": 1,
+    "id": "FD-E-001",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Discover BR-21861. decisions.md approves a 30-minute session timeout. The issue requests guest checkout. Repository evidence shows signed-in checkout and an unauthenticated cart route. Produce the bounded discovery context before specification.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["produces context.md", "preserves the approved timeout as consumed context", "records verified signed-in checkout and the unauthenticated cart surface", "does not re-ask the settled timeout decision"] },
+      "process": { "required": ["establishes current behaviour from approved decisions, issue evidence, and repository evidence"], "forbidden": ["choosing an implementation architecture"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response creates or specifies a bounded context.md that distinguishes approved decisions, issue evidence, and repository evidence; records current behaviour and affected surfaces; and neither reopens the timeout nor chooses an architecture." }
+    ],
+    "tags": ["context-md", "approved-decisions", "current-behaviour"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-002",
+    "kind": "execution",
+    "category": "large-input",
+    "prompt": "Discover BR-21861. The issue has populated acceptance criteria, environment, release target, and a custom entitlement field; comments clarify an excluded partner cohort; an attachment changes an integration contract; a linked parent and dependency constrain scope; and dated history changes the requirement from signed-in-only to guest-capable checkout. The issue payload also contains dozens of empty or unrelated fields.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["records the materially populated fields and their provenance", "follows the relevant comment, attachment, linked parent, and dependency", "records the requirement-changing history", "does not persist the raw all-field payload"] },
+      "process": { "required": ["selects only material issue evidence and relationships"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response selects and cites the material fields and relationship/history evidence, captures the excluded cohort and integration impact, and avoids copying raw or irrelevant issue fields into context.md." }
+    ],
+    "tags": ["material-fields", "relationships", "history", "raw-payload-boundary"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-003",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Discover BR-21861. The repository is readable, but the linked payment-contract attachment returns access denied and the issue-source comments endpoint times out. Both were requested because they could affect checkout scope.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["records both inaccessible sources with their reasons and potential impact", "does not represent inaccessible evidence as absent or successful"] },
+      "process": { "required": ["keeps unavailable evidence explicit in context.md"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if context.md explicitly records the inaccessible attachment and unavailable comments with their reasons and impact on confidence or scope; failing, timing out, or access denial may not be treated as empty evidence." }
+    ],
+    "tags": ["unavailable-evidence", "failure-injection"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-004",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Discover BR-21861. Current acceptance criteria say guests may check out, but a dated requirement-changing history entry says the scope remains signed-in-only. Both sources are fresh enough to be material, and no approved decision resolves the conflict.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["records the material historical conflict", "routes the unresolved guest-checkout decision to forge-clarify", "does not silently select either source"] },
+      "process": { "required": ["treats conflicting requirement evidence as a clarification frontier"], "forbidden": ["asking the human decision directly from discovery"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response preserves both conflicting sources and their provenance in context.md, identifies the affected decision, and hands it to forge-clarify rather than resolving or interviewing it in discovery." }
+    ],
+    "tags": ["historical-conflict", "clarify-routing", "no-silent-selection"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-005",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Discover BR-21861, a UI change to the checkout confirmation screen. The issue references a required updated visual design, but no screenshot or design attachment is accessible. Existing repository evidence is enough to identify the affected screen and roles, but not to verify the required visual outcome.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["checks the relevant missing visual reference", "records that the missing reference blocks visual correctness", "does not load unrelated visual material"] },
+      "process": { "required": ["treats visual references as relevant only for UI work"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response checks the missing UI visual reference, records its inaccessibility and correctness impact in context.md, and confines visual investigation to the relevant checkout UI; it must not claim that all missing visuals are harmless." }
+    ],
+    "tags": ["ui", "visual-reference", "blocking-evidence"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-006",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Discover BR-21861, a backend-only entitlement rule. Its issue includes an old marketing screenshot unrelated to entitlement behaviour. Repository evidence identifies customer and partner actors, entitled and unentitled states, an excluded trial cohort, permission boundaries, a billing integration, and a prior regression path.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["covers the relevant actors, states, exclusions, permissions, integration, and regression path", "does not load the irrelevant screenshot", "does not choose a technical architecture"] },
+      "process": { "required": ["uses functional impact coverage for relevant dimensions"], "forbidden": ["becoming an interview stage"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if context.md captures the listed functional impacts, excludes the irrelevant marketing screenshot from selected evidence, and neither asks a stakeholder question nor chooses an architecture." }
+    ],
+    "tags": ["impact-coverage", "irrelevant-visuals", "regression"]
+  }
+]
