@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import contextlib
 import io
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -247,6 +249,30 @@ class StaticEvalRunnerTests(unittest.TestCase):
         )
         report = run_static_evals.evaluate_cases([case], root)
         self.assertEqual(1, report["summary"]["passed"])
+
+    def test_cli_runs_by_path_from_outside_the_repository(self):
+        script = Path(run_static_evals.__file__).resolve()
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            self.write_json(root, "execution.json", [self.static_corpus_case("01-normalization", "normalization", source="a", normalized="a")])
+            completed = subprocess.run(
+                [sys.executable, str(script), "--evals", str(root), "--json"],
+                cwd=outside,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual(1, report["summary"]["passed"])
+
+    def test_missing_v1_validator_raises_corpus_error(self):
+        original = run_static_evals.VALIDATOR_PATH
+        run_static_evals.VALIDATOR_PATH = original.parent / "does-not-exist.py"
+        try:
+            with self.assertRaises(run_static_evals.CorpusError):
+                run_static_evals._load_v1_validator()
+        finally:
+            run_static_evals.VALIDATOR_PATH = original
 
     def test_cli_json_is_valid_for_the_current_shared_corpus(self):
         stdout = io.StringIO()

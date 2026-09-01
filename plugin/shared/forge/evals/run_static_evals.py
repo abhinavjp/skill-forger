@@ -39,6 +39,7 @@ HERE = Path(__file__).resolve().parent
 FORGE_ROOT = HERE.parent
 REPO_ROOT = FORGE_ROOT.parents[2]
 VALIDATOR_PATH = REPO_ROOT / "plugin" / "skills" / "skill-engineer" / "scripts" / "validate_evals.py"
+WORKFLOW_STATE_PATH = FORGE_ROOT / "scripts" / "workflow_state.py"
 
 VALIDATOR_KINDS = {
     "file-exists",
@@ -62,6 +63,8 @@ class CorpusError(ValueError):
 
 
 def _load_v1_validator():
+    if not VALIDATOR_PATH.is_file():
+        raise CorpusError("existing v1 validator cannot be loaded")
     spec = importlib.util.spec_from_file_location("forge_v1_validate_evals", VALIDATOR_PATH)
     if spec is None or spec.loader is None:
         raise CorpusError("existing v1 validator cannot be loaded")
@@ -70,10 +73,22 @@ def _load_v1_validator():
     return module
 
 
-def _load_workflow_state():
-    from plugin.shared.forge.scripts import workflow_state
+_WORKFLOW_STATE_MODULE = None
 
-    return workflow_state
+
+def _load_workflow_state():
+    global _WORKFLOW_STATE_MODULE
+    if _WORKFLOW_STATE_MODULE is not None:
+        return _WORKFLOW_STATE_MODULE
+    if not WORKFLOW_STATE_PATH.is_file():
+        raise CorpusError("shared workflow state module cannot be loaded")
+    spec = importlib.util.spec_from_file_location("forge_workflow_state", WORKFLOW_STATE_PATH)
+    if spec is None or spec.loader is None:
+        raise CorpusError("shared workflow state module cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _WORKFLOW_STATE_MODULE = module
+    return module
 
 
 def _contains_command(value):
