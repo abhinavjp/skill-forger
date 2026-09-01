@@ -34,6 +34,9 @@ EXPECTED_SKILL_IDS = {
     "forge-plan",
     "forge-implement",
 }
+# Competitors a trigger corpus may name that this plugin does not ship: they are
+# provided by the host, so they cannot be validated against the packaged set.
+EXTERNAL_COMPETITORS = {"skill-creator"}
 REPOSITORY_URL = "https://github.com/abhinavjp/skill-forger"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
@@ -359,6 +362,92 @@ def check_install_docs_do_not_instruct_committing_mirrors() -> None:
         ok("install docs never instruct committing a tracked Skill mirror")
 
 
+def check_install_docs_name_every_skill(skill_dirs: list[Path]) -> None:
+    """Every install guide must name every discovered Skill.
+
+    The guides list Skill names by hand, so a newly added Skill silently leaves
+    each route's Verify step unable to detect its own absence.
+    """
+    names = sorted(path.name for path in skill_dirs)
+    docs = sorted((REPO_ROOT / "docs" / "install").glob("*.md"))
+    if not docs:
+        fail("no install guides found under docs/install/")
+        return
+
+    problems = []
+    for doc in docs:
+        try:
+            text = doc.read_text(encoding="utf-8")
+        except OSError as exc:
+            fail(f"unreadable install guide {doc.name}: {exc}")
+            return
+        missing = [name for name in names if name not in text]
+        if missing:
+            problems.append(f"{doc.relative_to(REPO_ROOT).as_posix()}: {missing}")
+    if problems:
+        fail("install guides do not name every discovered Skill: " + "; ".join(problems))
+    else:
+        ok(f"every install guide names all {len(names)} discovered Skills")
+
+
+def check_competition_candidates(skill_dirs: list[Path]) -> None:
+    """Validate trigger-corpus candidates and case-id stability.
+
+    A competition candidate naming a Skill that does not exist can never be
+    satisfied, so the case records `unmeasured` forever instead of competing.
+    A reused case id silently retargets a recorded result at different content.
+    """
+    shipped = {path.name for path in skill_dirs}
+    unknown: list[str] = []
+    duplicate_ids: list[str] = []
+    corpora = sorted(PLUGIN_SKILLS.glob("*/evals/trigger.json"))
+    if not corpora:
+        fail("no trigger corpora found under plugin/skills/*/evals/")
+        return
+
+    for corpus in corpora:
+        try:
+            cases = read_json(corpus)
+        except (OSError, json.JSONDecodeError) as exc:
+            fail(f"unreadable trigger corpus {corpus.name}: {exc}")
+            return
+        if not isinstance(cases, list):
+            cases = [cases]
+        for case in cases:
+            if not isinstance(case, dict):
+                continue
+            competition = case.get("competition")
+            if not isinstance(competition, dict):
+                continue
+            for candidate in competition.get("required_candidates", []) or []:
+                if candidate not in shipped and candidate not in EXTERNAL_COMPETITORS:
+                    where = corpus.relative_to(REPO_ROOT).as_posix()
+                    unknown.append(f"{where}:{case.get('id')} -> {candidate!r}")
+
+        seen: dict[str, int] = {}
+        for case in cases:
+            if isinstance(case, dict) and isinstance(case.get("id"), str):
+                seen[case["id"]] = seen.get(case["id"], 0) + 1
+        repeated = sorted(case_id for case_id, count in seen.items() if count > 1)
+        if repeated:
+            duplicate_ids.append(f"{corpus.relative_to(REPO_ROOT).as_posix()}: {repeated}")
+    if unknown:
+        fail(
+            "competing-skill candidates name Skills that are neither shipped nor "
+            f"declared host Skills {sorted(EXTERNAL_COMPETITORS)}: " + "; ".join(sorted(unknown))
+        )
+    else:
+        ok("every competing-skill candidate is a shipped or declared host Skill")
+
+    if duplicate_ids:
+        fail(
+            "trigger corpora reuse a case id, so a result cannot be traced to one case: "
+            + "; ".join(duplicate_ids)
+        )
+    else:
+        ok("every trigger case id is unique within its corpus")
+
+
 def check_manifests(agent_manifest: dict | None, skill_dirs: list[Path]) -> None:
     try:
         claude = read_json(CLAUDE_PLUGIN_JSON)
@@ -491,6 +580,8 @@ def main() -> int:
     check_no_tracked_mirrors()
     check_manifests(agent_manifest, skill_dirs)
     check_install_docs_do_not_instruct_committing_mirrors()
+    check_install_docs_name_every_skill(skill_dirs)
+    check_competition_candidates(skill_dirs)
     print()
     print("RESULT:", "PASS" if _ok else "FAIL")
     return 0 if _ok else 1

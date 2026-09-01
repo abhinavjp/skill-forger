@@ -74,6 +74,19 @@
     "version": 1,
     "id": "FS-T-006",
     "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": false } }
+    ],
+    "tags": ["generic-question", "negative"]
+  },
+  {
+    "version": 1,
+    "id": "FS-T-007",
+    "kind": "trigger",
     "category": "competing-skill",
     "prompt": "Write the name, description, and trigger boundary for a new SKILL.md, and design its trigger evals.",
     "trials": 3,
@@ -91,7 +104,7 @@
   },
   {
     "version": 1,
-    "id": "FS-T-007",
+    "id": "FS-T-008",
     "kind": "trigger",
     "category": "negative",
     "prompt": "Rename the `total_count` variable to `item_count` across this module.",

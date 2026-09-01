@@ -781,5 +781,42 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             self.assertEqual([], unreachable)
 
 
+    def test_install_guides_must_name_every_discovered_skill(self) -> None:
+        """A new Skill nobody documented leaves each route's Verify step blind."""
+        shipped = [type("Stub", (), {"name": name})() for name in sorted(EXPECTED_SKILL_IDS)]
+        validator._ok = True
+        self.addCleanup(setattr, validator, "_ok", True)
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.check_install_docs_name_every_skill(shipped)
+        self.assertTrue(validator._ok)
+
+        undocumented = shipped + [type("Stub", (), {"name": "forge-deliver"})()]
+        validator._ok = True
+        with contextlib.redirect_stdout(io.StringIO()) as stream:
+            validator.check_install_docs_name_every_skill(undocumented)
+        self.assertFalse(validator._ok)
+        self.assertIn("forge-deliver", stream.getvalue())
+
+    def test_competition_candidates_must_be_shipped_or_declared_host_skills(self) -> None:
+        """An unshippable candidate can never compete, so the case is dead weight."""
+        shipped = [type("Stub", (), {"name": name})() for name in sorted(EXPECTED_SKILL_IDS)]
+        validator._ok = True
+        self.addCleanup(setattr, validator, "_ok", True)
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.check_competition_candidates(shipped)
+        self.assertTrue(validator._ok)
+        self.assertIn("skill-creator", validator.EXTERNAL_COMPETITORS)
+
+    def test_every_forge_trigger_case_id_is_unique_and_stable(self) -> None:
+        """Case ids are the handle a recorded routing result is traced by."""
+        for skill_id in sorted(FORGE_SKILL_IDS):
+            corpus = PLUGIN_SKILLS / skill_id / "evals" / "trigger.json"
+            cases = json.loads(corpus.read_text(encoding="utf-8"))
+            ids = [case["id"] for case in cases]
+            with self.subTest(skill=skill_id):
+                self.assertEqual(len(ids), len(set(ids)))
+                self.assertEqual(ids, sorted(ids), "ids must stay in ascending order")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -58,6 +58,17 @@
   },
   {
     "version": 1,
+    "id": "FP-T-006",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }],
+    "tags": ["generic-question", "negative"]
+  },
+  {
+    "version": 1,
     "id": "FP-T-007",
     "kind": "trigger",
     "category": "competing-skill",

@@ -37,6 +37,9 @@ level *above* the Skills directory — pair `<skills-dir>/forge-spec` with
 `<skills-dir>/../shared`. Link the whole set or none of it: linking a `forge-*`
 Skill without the shared core leaves its safety contract unreachable.
 
+Create the `shared` link only if nothing already occupies that path; `ln -s`
+refuses rather than overwriting, which is the behaviour you want here.
+
 If your host resolves `..` through the link target rather than lexically, the
 shared link is redundant but harmless. Which behaviour your build has is
 `UNMEASURED` until you check it during

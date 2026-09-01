@@ -46,6 +46,19 @@
   },
   {
     "version": 1,
+    "id": "FD-T-004",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-discover", "selected": false } }
+    ],
+    "tags": ["generic-question", "negative"]
+  },
+  {
+    "version": 1,
     "id": "FD-T-005",
     "kind": "trigger",
     "category": "competing-skill",
