@@ -15,6 +15,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from plugin.shared.forge.evals import run_static_evals
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
@@ -24,6 +26,14 @@ CANONICAL_EVAL_VALIDATORS = {
     "skill-engineer": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
     "skill-prospector": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
 }
+FORGE_SKILL_IDS = {
+    "forge-clarify",
+    "forge-discover",
+    "forge-spec",
+    "forge-plan",
+    "forge-implement",
+}
+FORGE_EVAL_VALIDATOR = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
 )
@@ -206,6 +216,95 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_every_packaged_skill_canonical_evals_validate_without_optional_dependencies(self) -> None:
         """Keeps every packaged canonical eval corpus readable by bundled Python."""
         self.assertEqual([], self.validate_canonical_eval_corpora())
+
+    def test_every_forge_eval_directory_passes_the_existing_v1_validator(self) -> None:
+        """Forge keeps using the existing v1 schema validator, not a replacement."""
+        failures = []
+        for skill_id in sorted(FORGE_SKILL_IDS):
+            evals = PLUGIN_SKILLS / skill_id / "evals"
+            proc = subprocess.run(
+                [sys.executable, str(FORGE_EVAL_VALIDATOR), str(evals), "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode:
+                failures.append(f"{skill_id}: {proc.stderr}")
+                continue
+            report = json.loads(proc.stdout)
+            if report.get("errors") or report.get("case_count", 0) <= 0:
+                failures.append(f"{skill_id}: {report}")
+        self.assertEqual([], failures)
+
+    def test_forge_trigger_corpora_cover_required_categories(self) -> None:
+        """Every Forge stage guards positive, negative, and boundary routing."""
+        required_categories = {"positive", "negative", "boundary"}
+        for skill_id in sorted(FORGE_SKILL_IDS):
+            trigger_path = PLUGIN_SKILLS / skill_id / "evals" / "trigger.json"
+            cases = json.loads(trigger_path.read_text(encoding="utf-8"))
+            categories = {case.get("category") for case in cases if isinstance(case, dict)}
+            self.assertTrue(
+                required_categories <= categories,
+                f"{skill_id} lacks {sorted(required_categories - categories)}",
+            )
+
+    def test_shared_static_runner_classifies_current_v1_corpus_without_false_passes(self) -> None:
+        """Model/host evals remain non-passing when no such capability is declared."""
+        report = run_static_evals.run_eval_roots(
+            [PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"], capabilities=set()
+        )
+        self.assertEqual(0, report["summary"]["passed"])
+        self.assertEqual(0, report["summary"]["failed"])
+        self.assertGreater(report["summary"]["skipped"], 0)
+        self.assertEqual([], report["results"]["unmeasured"])
+
+    def test_cross_stage_gates_keep_implementation_read_only_until_both_approvals(self) -> None:
+        """A shared static transition check proves both prospective approval gates."""
+        def state(spec_approval, plan_approval):
+            return {
+                "artifacts": {
+                    "specification": {"hash": "spec", "revision": "1", **({"approval": spec_approval} if spec_approval else {})},
+                    "plan": {"hash": "plan", "revision": "1", **({"approval": plan_approval} if plan_approval else {})},
+                }
+            }
+
+        spec = {"artifact_hash": "spec", "revision": "1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}
+        plan = {"artifact_hash": "plan", "revision": "1", "actor": "technical-owner", "intent": "artifact", "approved_at": 2}
+        cases = [
+            {"id": "spec-pending", "static": {"kind": "workflow-transition", "state": state(None, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
+            {"id": "plan-pending", "static": {"kind": "workflow-transition", "state": state(spec, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
+            {"id": "both-approved", "static": {"kind": "workflow-transition", "state": state(spec, plan), "target": "implementation", "expected_allowed": True, "result": {"status": "passed"}}},
+        ]
+        report = run_static_evals.evaluate_cases(
+            cases, PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
+        )
+        self.assertEqual(3, report["summary"]["passed"])
+
+    def test_brain_adapter_fixture_enforces_designated_approver_policy(self) -> None:
+        """Brain supplies approvers; Forge still owns the resulting gate decision."""
+        state = {
+            "current_actor": "forge-agent",
+            "requires_spec_approval": True,
+            "artifacts": {
+                "specification": {"hash": "spec-r1", "revision": "spec-r1", "approval": {"artifact_hash": "spec-r1", "revision": "spec-r1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}},
+                "plan": {"hash": "plan-r1", "revision": "plan-r1", "approval": {"artifact_hash": "plan-r1", "revision": "plan-r1", "actor": "unapproved-actor", "intent": "artifact", "approved_at": 2}},
+            },
+        }
+        case = {
+            "id": "brain-policy",
+            "static": {
+                "kind": "adapter-parity",
+                "fixture": "fixtures/brain-adapter",
+                "approval_state": state,
+                "target": "implementation",
+                "expected_allowed": False,
+                "result": {"status": "passed"},
+            },
+        }
+        report = run_static_evals.evaluate_cases(
+            [case], PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
+        )
+        self.assertEqual(1, report["summary"]["passed"])
 
     def test_each_canonical_corpus_failure_is_independently_gated(self) -> None:
         """Catches a package gate that stops after the first Skill or ignores empty/error reports."""
