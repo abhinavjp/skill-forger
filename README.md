@@ -78,6 +78,19 @@ python -m unittest packaging.test_validate_plugin.CanonicalPluginLayoutTests -v
 python plugin/shared/forge/evals/run_static_evals.py --json
 ```
 
+When adding or rewording a Skill, review how much its routing metadata overlaps
+the rest of the catalog:
+
+```bash
+python packaging/measure_catalog_overlap.py
+```
+
+This is a lexical proxy for catalog competition, not a routing measurement, and
+deliberately has no pass/fail threshold: adjacent workflow stages legitimately
+share domain nouns, and optimising the score rewards dropping canonical
+vocabulary. Read the ranking, then judge. Routing itself is measured only by a
+host-routing trial against a recorded catalog snapshot.
+
 The Skill engineering static corpus remains available at:
 
 ```bash

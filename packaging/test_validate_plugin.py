@@ -818,5 +818,36 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 self.assertEqual(ids, sorted(ids), "ids must stay in ascending order")
 
 
+    def test_catalog_overlap_report_is_well_formed_and_deterministic(self) -> None:
+        """The overlap report is triage input, so it must be stable and complete."""
+        spec = importlib.util.spec_from_file_location(
+            "measure_catalog_overlap", REPO_ROOT / "packaging" / "measure_catalog_overlap.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        first = module.measure()
+        self.assertEqual(sorted(EXPECTED_SKILL_IDS), first["skills"])
+        expected_pairs = len(EXPECTED_SKILL_IDS) * (len(EXPECTED_SKILL_IDS) - 1) // 2
+        self.assertEqual(expected_pairs, first["pair_count"])
+        self.assertEqual(expected_pairs, len(first["pairs"]))
+
+        scores = [pair["jaccard"] for pair in first["pairs"]]
+        self.assertEqual(scores, sorted(scores, reverse=True), "pairs must rank worst-first")
+        self.assertTrue(all(0.0 <= score <= 1.0 for score in scores))
+        self.assertEqual(first, module.measure(), "report must be deterministic")
+
+    def test_catalog_overlap_ignores_function_words(self) -> None:
+        """Function words appear in every description and would flatten the ranking."""
+        spec = importlib.util.spec_from_file_location(
+            "measure_catalog_overlap", REPO_ROOT / "packaging" / "measure_catalog_overlap.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        self.assertEqual(set(), module.content_words("Use when the a to and of for it is"))
+        self.assertEqual({"specification", "packets"}, module.content_words("the Specification and PACKETS"))
+
+
 if __name__ == "__main__":
     unittest.main()

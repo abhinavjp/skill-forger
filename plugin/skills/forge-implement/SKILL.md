@@ -1,6 +1,6 @@
 ---
 name: forge-implement
-description: Use when Forge has current approved Specification and Plan artifacts with closed execution packets that must be implemented safely.
+description: Use when Forge already has approved Specification and Plan artifacts whose execution packets are closed, and those packets must now be executed against source code.
 ---
 
 # Forge Implement

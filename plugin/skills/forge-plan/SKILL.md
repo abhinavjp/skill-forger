@@ -1,6 +1,6 @@
 ---
 name: forge-plan
-description: Use when Forge has a current approved Specification and needs an implementation-ready technical Plan before any source-code implementation begins.
+description: Use when Forge has an approved Specification but no Plan yet, and the technical Plan and its execution packets still have to be written.
 ---
 
 # Forge Plan
