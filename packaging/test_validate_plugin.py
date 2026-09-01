@@ -253,10 +253,13 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         report = run_static_evals.run_eval_roots(
             [PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"], capabilities=set()
         )
-        self.assertEqual(0, report["summary"]["passed"])
+        self.assertGreaterEqual(report["summary"]["passed"], 5)
         self.assertEqual(0, report["summary"]["failed"])
         self.assertGreater(report["summary"]["skipped"], 0)
         self.assertEqual([], report["results"]["unmeasured"])
+        skipped_ids = {result["id"] for result in report["results"]["skipped"]}
+        forge_ex_ids = {"FORGE-EX-{:03d}".format(n) for n in range(1, 14)}
+        self.assertTrue(forge_ex_ids <= skipped_ids)
 
     def test_cross_stage_gates_keep_implementation_read_only_until_both_approvals(self) -> None:
         """A shared static transition check proves both prospective approval gates."""

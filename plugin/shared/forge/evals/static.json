@@ -1,0 +1,206 @@
+[
+  {
+    "version": 1,
+    "id": "FORGE-ST-001",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Verify the brain-adapter fixture preserves artifact locations, refuses the unauthorized delivery operation, and reports unavailable knowledge as UNMEASURED.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "artifact location conventions are preserved",
+          "the unauthorized delivery operation is refused",
+          "unavailable knowledge is reported as UNMEASURED"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "adapter-parity"
+        }
+      }
+    ],
+    "static": {
+      "kind": "adapter-parity",
+      "fixture": "fixtures/brain-adapter",
+      "result": {"status": "passed"}
+    }
+  },
+  {
+    "version": 1,
+    "id": "FORGE-ST-002",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Verify implementation entry is blocked when no approvals are recorded.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the implementation gate requires the missing approvals",
+          "the blocked decision is read-only"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "workflow-transition"
+        }
+      }
+    ],
+    "static": {
+      "kind": "workflow-transition",
+      "state": {
+        "current_actor": "forge-agent",
+        "requires_spec_approval": true,
+        "artifacts": {}
+      },
+      "target": "implementation",
+      "expected_allowed": false,
+      "expected_code": "GATE_REQUIRED",
+      "require_read_only": true,
+      "result": {"status": "passed"}
+    }
+  },
+  {
+    "version": 1,
+    "id": "FORGE-ST-003",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Verify implementation entry is allowed when valid Specification and Plan approvals are recorded.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the implementation gate is open"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "workflow-transition"
+        }
+      }
+    ],
+    "static": {
+      "kind": "workflow-transition",
+      "state": {
+        "current_actor": "forge-agent",
+        "requires_spec_approval": true,
+        "artifacts": {
+          "specification": {
+            "hash": "spec-r1",
+            "revision": "spec-r1",
+            "approval": {
+              "artifact_hash": "spec-r1",
+              "revision": "spec-r1",
+              "actor": "functional-owner",
+              "intent": "artifact",
+              "approved_at": 1
+            }
+          },
+          "plan": {
+            "hash": "plan-r1",
+            "revision": "plan-r1",
+            "approval": {
+              "artifact_hash": "plan-r1",
+              "revision": "plan-r1",
+              "actor": "technical-owner",
+              "intent": "artifact",
+              "approved_at": 2
+            }
+          }
+        }
+      },
+      "target": "implementation",
+      "expected_allowed": true,
+      "result": {"status": "passed"}
+    }
+  },
+  {
+    "version": 1,
+    "id": "FORGE-ST-004",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Verify an unlabelled mutation preceding a valid Plan approval still blocks implementation entry (R3 regression guard).",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the unlabelled mutation blocks the implementation gate",
+          "the blocked decision is read-only"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "workflow-transition"
+        }
+      }
+    ],
+    "static": {
+      "kind": "workflow-transition",
+      "state": {
+        "current_actor": "forge-agent",
+        "requires_spec_approval": false,
+        "mutations": [{"at": 1}],
+        "artifacts": {
+          "plan": {
+            "hash": "plan-r1",
+            "revision": "plan-r1",
+            "approval": {
+              "artifact_hash": "plan-r1",
+              "revision": "plan-r1",
+              "actor": "technical-owner",
+              "intent": "artifact",
+              "approved_at": 2
+            }
+          }
+        }
+      },
+      "target": "implementation",
+      "expected_allowed": false,
+      "expected_code": "GATE_VIOLATION",
+      "require_read_only": true,
+      "result": {"status": "passed"}
+    }
+  },
+  {
+    "version": 1,
+    "id": "FORGE-ST-005",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Verify Markdown normalization distinguishes formatting noise from semantic whitespace.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "trailing whitespace and repeated blank lines are collapsed",
+          "fenced code block whitespace remains significant"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "normalization"
+        }
+      }
+    ],
+    "static": {
+      "kind": "normalization",
+      "source": "Heading   \n\n\n\nParagraph text.\n\n```\ncode  \n  line\n```\n",
+      "normalized": "Heading\n\nParagraph text.\n\n```\ncode  \n  line\n```\n",
+      "result": {"status": "passed"}
+    }
+  }
+]

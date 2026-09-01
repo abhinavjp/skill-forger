@@ -280,7 +280,12 @@ class StaticEvalRunnerTests(unittest.TestCase):
             exit_code = run_static_evals.main(["--json"])
         report = json.loads(stdout.getvalue())
         self.assertEqual(0, exit_code)
-        self.assertEqual(report["summary"]["total"], report["summary"]["skipped"])
+        self.assertEqual(0, report["summary"]["failed"])
+        self.assertEqual(0, report["summary"]["unmeasured"])
+        self.assertEqual(
+            report["summary"]["total"],
+            report["summary"]["passed"] + report["summary"]["skipped"],
+        )
 
 
 if __name__ == "__main__":
