@@ -235,12 +235,12 @@ def _valid_approval(state, artifact, policy_stage, approval_policy):
         return False
 
     allowed_approvers = _allowed_approvers(approval_policy, policy_stage)
-    return not allowed_approvers or actor in allowed_approvers
+    return allowed_approvers is None or (bool(allowed_approvers) and actor in allowed_approvers)
 
 
 def _allowed_approvers(approval_policy, stage):
     if not isinstance(approval_policy, dict):
-        return set()
+        return None
     configured = approval_policy.get(stage)
     if configured is None:
         approvers = approval_policy.get("approvers", {})

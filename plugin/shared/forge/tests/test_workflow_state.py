@@ -234,6 +234,29 @@ class WorkflowStateTests(unittest.TestCase):
                 self.assertFalse(decision["allowed"])
                 self.assertEqual(decision["code"], "GATE_REQUIRED")
 
+    def test_supplied_policy_without_the_checked_stage_closes_the_gate(self):
+        state = self.valid_state()
+
+        decision = workflow_state.can_enter_stage(
+            state,
+            "implementation",
+            {"implementation": {"approvers": ["technical-owner"]}},
+        )
+
+        self.assertEqual(decision["code"], "GATE_REQUIRED")
+
+        decision = workflow_state.can_enter_stage(
+            state,
+            "implementation",
+            {"planning": [], "implementation": ["technical-owner"]},
+        )
+
+        self.assertEqual(decision["code"], "GATE_REQUIRED")
+
+        decision = workflow_state.can_enter_stage(state, "implementation", None)
+
+        self.assertEqual(decision["code"], "ALLOWED")
+
     def test_post_hoc_approval_does_not_authorize_prior_mutation(self):
         state = self.valid_state()
         state["mutations"] = [{"stage": "implementation", "at": 21}]
