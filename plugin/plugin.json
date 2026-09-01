@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "skill-engineer",
-  "version": "2.1.0",
-  "description": "Engineer and review Agent Skills, audit project guidance to plan new Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness.",
+  "version": "2.2.0",
+  "description": "Eight portable Agent Skills for engineering and reviewing Skills, auditing project guidance, reviewing merge requests, and running Forge's five-stage SDLC workflow.",
   "author": {
     "name": "Abhinav Pisharody",
     "email": "ai.abhinavjp@gmail.com"
@@ -17,6 +17,8 @@
     "merge-request-review",
     "code-review",
     "guidance-audit",
-    "skill-planning"
+    "skill-planning",
+    "forge",
+    "sdlc"
   ]
 }

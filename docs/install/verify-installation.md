@@ -7,11 +7,14 @@ explicit-only controls are host-specific and must not be inferred from another h
 
 1. **Record the trial snapshot.** Write down host and version, model, delivery
    route, visible Skill catalog, and the date. Mark unavailable catalog or native
-   runners `UNTESTED`.
+   runners `UNMEASURED`.
 2. **Only one installation source is enabled.** Use exactly one route for this
    host, not the plugin route and a standalone copy together.
-3. **The three canonical Skills are discoverable.** Confirm the host lists or
-   can invoke `skill-engineer`, `merge-sentinel`, and `skill-prospector`.
+3. **All eight user-facing Skills are discoverable.** Confirm the host lists
+   or can invoke `skill-engineer`, `merge-sentinel`, `skill-prospector`,
+   `forge-clarify`, `forge-discover`, `forge-spec`, `forge-plan`, and
+   `forge-implement`. `plugin/shared/forge/` is portable shared core material,
+   not a user-facing Skill.
 4. **Positive project-audit trigger.** Ask: "audit our conventions and tell me
    what should be a Skill". Confirm `skill-prospector` activates and records a
    plan, without authoring a candidate Skill.
@@ -28,7 +31,7 @@ explicit-only controls are host-specific and must not be inferred from another h
    path/line evidence or the exact failure.
 8. **Invocation and delivery status.** Record each candidate policy as
    `automatic`, `both`, or `explicit-only-required`. Test the host's native
-   explicit route where available; otherwise record `UNTESTED` or
+   explicit route where available; otherwise record `UNMEASURED` or
    `not-enforceable-portably`. Never promote an unrun trigger or competition
    case to pass.
 9. **Relative references and scripts load from the installed Skill root.** Run
@@ -39,7 +42,18 @@ explicit-only controls are host-specific and must not be inferred from another h
 11. **Uninstall preserves the clone.** Run the host uninstall step and confirm
     the Skills are no longer discoverable while the source clone is untouched.
 
-Record every result per host. A missing host executable, isolated test surface,
-catalog precondition, or native trigger runner is `UNTESTED: <reason>`, never a
-pass. Keep standards compatibility, tested behavior, untested behavior, and
-known deviations as separate entries.
+Record every result per host and model. A missing host executable, isolated test
+surface, catalog precondition, or native trigger runner is `UNMEASURED: <reason>`,
+never a pass. Keep standards compatibility, tested behavior, unmeasured
+behavior, and known deviations as separate entries.
+
+## Coverage boundaries
+
+Portable deterministic and static coverage belongs to this repository; run its
+available validation commands and record their actual results here. That
+coverage does not establish runtime parity for an external Brain adapter.
+
+External Brain runtime parity is `UNMEASURED` until it is run in the owning
+Brain repository. Host/model trials are separate from portable coverage and
+remain `UNMEASURED` for each host and model combination until that trial is
+executed.
