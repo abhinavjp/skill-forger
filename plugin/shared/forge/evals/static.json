@@ -202,5 +202,117 @@
       "normalized": "Heading\n\nParagraph text.\n\n```\ncode  \n  line\n```\n",
       "result": {"status": "passed"}
     }
+  },
+  {
+    "version": 1,
+    "id": "FORGE-ST-006",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Verify a full-workflow intent on Specification approval does not authorize planning entry.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the planning gate rejects full-workflow intent as artifact approval",
+          "the blocked decision is read-only"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "workflow-transition"
+        }
+      }
+    ],
+    "static": {
+      "kind": "workflow-transition",
+      "state": {
+        "current_actor": "forge-agent",
+        "requires_spec_approval": true,
+        "artifacts": {
+          "specification": {
+            "hash": "spec-current",
+            "revision": "spec-r1",
+            "approval": {
+              "artifact_hash": "spec-current",
+              "revision": "spec-r1",
+              "actor": "product-owner",
+              "intent": "full-workflow",
+              "approved_at": 10
+            }
+          }
+        }
+      },
+      "target": "planning",
+      "expected_allowed": false,
+      "expected_code": "GATE_REQUIRED",
+      "require_read_only": true,
+      "result": {"status": "passed"}
+    }
+  },
+  {
+    "version": 1,
+    "id": "FORGE-ST-007",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Verify an approval policy naming only implementation does not authorize implementation entry without the planning policy.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the implementation gate requires the missing planning approver policy",
+          "the blocked decision is read-only"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "workflow-transition"
+        }
+      }
+    ],
+    "static": {
+      "kind": "workflow-transition",
+      "state": {
+        "current_actor": "forge-agent",
+        "requires_spec_approval": true,
+        "artifacts": {
+          "specification": {
+            "hash": "spec-current",
+            "revision": "spec-r1",
+            "approval": {
+              "artifact_hash": "spec-current",
+              "revision": "spec-r1",
+              "actor": "product-owner",
+              "intent": "artifact",
+              "approved_at": 10
+            }
+          },
+          "plan": {
+            "hash": "plan-current",
+            "revision": "plan-r1",
+            "approval": {
+              "artifact_hash": "plan-current",
+              "revision": "plan-r1",
+              "actor": "technical-owner",
+              "intent": "artifact",
+              "approved_at": 20
+            }
+          }
+        }
+      },
+      "target": "implementation",
+      "approval_policy": {
+        "implementation": {"approvers": ["technical-owner"]}
+      },
+      "expected_allowed": false,
+      "expected_code": "GATE_REQUIRED",
+      "require_read_only": true,
+      "result": {"status": "passed"}
+    }
   }
 ]
