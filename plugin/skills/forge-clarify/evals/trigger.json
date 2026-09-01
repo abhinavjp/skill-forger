@@ -1,0 +1,105 @@
+[
+  {
+    "version": 1,
+    "id": "FC-T-001",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Use forge-clarify to resolve only the genuine unanswered product decisions for BR-21861 before we write its specification.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-clarify", "selected": true } }
+    ],
+    "tags": ["explicit-stage", "clarification"]
+  },
+  {
+    "version": 1,
+    "id": "FC-T-002",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "Before drafting the spec, reconcile the evidence we already have and ask stakeholders just for the remaining decisions they must make.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-clarify", "selected": true } }
+    ],
+    "tags": ["decision-frontier", "paraphrase"]
+  },
+  {
+    "version": 1,
+    "id": "FC-T-003",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Investigate the incident logs and repository history to determine why the checkout request failed. Do not ask any stakeholder questions yet.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-clarify", "selected": false } }
+    ],
+    "tags": ["research-only", "boundary"]
+  },
+  {
+    "version": 1,
+    "id": "FC-T-004",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-clarify", "selected": false } }
+    ],
+    "tags": ["generic-question", "negative"]
+  },
+  {
+    "version": 1,
+    "id": "FC-T-005",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Design the technical architecture and implementation plan for BR-21861; do not seek product clarification.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["forge-clarify", "forge-plan"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-clarify", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }
+    ],
+    "tags": ["architecture", "competition"]
+  },
+  {
+    "version": 1,
+    "id": "FC-T-006",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Implement the approved BR-21861 plan and run the tests. Its product decisions are already settled.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["forge-clarify", "forge-implement"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-clarify", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": true } }
+    ],
+    "tags": ["implementation", "boundary"]
+  },
+  {
+    "version": 1,
+    "id": "FC-T-007",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Run the authorized Forge workflow for BR-21861 from the evidence we have, including clarification where it is the current eligible stage.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-clarify", "selected": true } }
+    ],
+    "tags": ["full-workflow", "authorized-continuation"]
+  }
+]
