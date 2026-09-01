@@ -48,11 +48,32 @@
     "version": 1,
     "id": "FI-T-005",
     "kind": "trigger",
-    "category": "negative",
-    "prompt": "What time is the product review meeting?",
+    "category": "competing-skill",
+    "prompt": "Read the diff on this branch and report code defects, security risks, and unsafe scope. Do not change any files.",
     "trials": 3,
     "expected": { "trigger": false },
-    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": false } }],
-    "tags": ["generic-question", "negative"]
+    "competition": {
+      "required_candidates": ["forge-implement", "merge-sentinel"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "merge-sentinel", "selected": true } }
+    ],
+    "tags": ["read-only-review", "incumbent-catalog"]
+  },
+  {
+    "version": 1,
+    "id": "FI-T-006",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "Explain what this regular expression matches.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": false } }
+    ],
+    "tags": ["ordinary-dev-request", "negative"]
   }
 ]

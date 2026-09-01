@@ -46,19 +46,6 @@
   },
   {
     "version": 1,
-    "id": "FD-T-004",
-    "kind": "trigger",
-    "category": "negative",
-    "prompt": "What time is the product review meeting?",
-    "trials": 3,
-    "expected": { "trigger": false },
-    "graders": [
-      { "type": "host-routing", "check": { "selected_skill": "forge-discover", "selected": false } }
-    ],
-    "tags": ["generic-question", "negative"]
-  },
-  {
-    "version": 1,
     "id": "FD-T-005",
     "kind": "trigger",
     "category": "competing-skill",
@@ -101,5 +88,37 @@
       { "type": "host-routing", "check": { "selected_skill": "forge-discover", "selected": true } }
     ],
     "tags": ["full-workflow", "authorized-continuation"]
+  },
+  {
+    "version": 1,
+    "id": "FD-T-008",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Review the merge request on this branch and tell me what changed, what regressed, and whether it is safe to merge.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["forge-discover", "merge-sentinel"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-discover", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "merge-sentinel", "selected": true } }
+    ],
+    "tags": ["merge-request-review", "incumbent-catalog"]
+  },
+  {
+    "version": 1,
+    "id": "FD-T-009",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "Rebase this branch onto main and resolve the conflicts.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-discover", "selected": false } }
+    ],
+    "tags": ["ordinary-dev-request", "negative"]
   }
 ]

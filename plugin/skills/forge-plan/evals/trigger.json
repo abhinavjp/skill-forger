@@ -58,17 +58,6 @@
   },
   {
     "version": 1,
-    "id": "FP-T-006",
-    "kind": "trigger",
-    "category": "negative",
-    "prompt": "What time is the product review meeting?",
-    "trials": 3,
-    "expected": { "trigger": false },
-    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }],
-    "tags": ["generic-question", "negative"]
-  },
-  {
-    "version": 1,
     "id": "FP-T-007",
     "kind": "trigger",
     "category": "competing-skill",
@@ -85,5 +74,37 @@
       { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }
     ],
     "tags": ["behavioural-contract", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-008",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Audit this Skill for trigger reliability and context cost, then plan the eval cases it is missing.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["forge-plan", "skill-engineer"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "skill-engineer", "selected": true } }
+    ],
+    "tags": ["skill-audit", "incumbent-catalog"]
+  },
+  {
+    "version": 1,
+    "id": "FP-T-009",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What is the difference between a git rebase and a git merge?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }
+    ],
+    "tags": ["ordinary-dev-request", "negative"]
   }
 ]
