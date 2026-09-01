@@ -1,0 +1,86 @@
+[
+  {
+    "version": 1,
+    "id": "FS-T-001",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Use forge-spec to turn the approved discovery context and decisions for BR-21861 into its behavioural specification.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }
+    ],
+    "tags": ["explicit-stage", "specification"]
+  },
+  {
+    "version": 1,
+    "id": "FS-T-002",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "The discovery record is approved and decisions are settled. Define the observable requirements, unchanged behaviour, acceptance scenarios, and traceability before any plan is written.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }
+    ],
+    "tags": ["behavioural-contract", "paraphrase"]
+  },
+  {
+    "version": 1,
+    "id": "FS-T-003",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Inspect the issue, current repository behaviour, and selected knowledge to establish a bounded evidence record before specification.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["forge-spec", "forge-discover"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "forge-discover", "selected": true } }
+    ],
+    "tags": ["discovery-boundary", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "FS-T-004",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Choose the service architecture, files, classes, and functions for BR-21861, then write its implementation plan.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": false } }
+    ],
+    "tags": ["technical-design", "planning-boundary"]
+  },
+  {
+    "version": 1,
+    "id": "FS-T-005",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Run the authorized Forge workflow for BR-21861 from the current eligible Specification stage using approved Discovery artifacts. No Specification approval exists yet.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }
+    ],
+    "tags": ["full-workflow", "approval-gate"]
+  },
+  {
+    "version": 1,
+    "id": "FS-T-006",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": false } }
+    ],
+    "tags": ["generic-question", "negative"]
+  }
+]

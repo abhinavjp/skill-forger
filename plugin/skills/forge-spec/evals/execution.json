@@ -1,0 +1,98 @@
+[
+  {
+    "version": 1,
+    "id": "FS-E-001",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Specify BR-21861. Approved context.md records current signed-in checkout, an unauthenticated cart route, and a payment integration. Approved decisions.md permits guest checkout and fixes session timeout at 30 minutes. Produce the plan-ready behavioural contract.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["produces spec.md with stable requirement identities", "defines guest checkout as changed behaviour and signed-in checkout as preserved behaviour", "preserves the approved 30-minute session timeout", "covers actors, state/data semantics, payment-contract behaviour, acceptance scenarios, success criteria, and traceability", "sets the created revision to awaiting-approval"] },
+      "process": { "required": ["uses approved context.md and decisions.md as inputs", "stops at the artifact-specific Specification approval gate"], "forbidden": ["reopening the settled timeout decision", "choosing an architecture, file path, class, or function"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response produces or precisely specifies an implementation-independent spec.md with stable requirement IDs, changed and unchanged checkout behaviour, the approved timeout, material actors/state/integration behaviour, testable acceptance scenarios and success criteria, and traceability to Discovery evidence and decisions. The new revision must be awaiting approval; it may not treat its creation or a workflow request as approval." }
+    ],
+    "tags": ["behavioural-completeness", "stable-ids", "approval-gate"]
+  },
+  {
+    "version": 1,
+    "id": "FS-E-002",
+    "kind": "execution",
+    "category": "large-input",
+    "prompt": "Specify BR-21861 from approved Discovery inputs. Guests may submit checkout; signed-in users retain their current checkout and order-history behaviour; a cart becomes immutable after accepted submission; duplicate submission must not create a second order; invalid payment input is rejected without an order; payment-provider timeout has a defined customer-visible retry outcome; partner cohort remains excluded; checkout must meet the selected retention policy, role boundary, latency target, audit requirement, and payment-provider request/response contract.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["defines changed and unchanged behaviour", "states immutable-cart and no-duplicate-order invariants", "defines invalid-input and provider-timeout edge/failure semantics", "covers the excluded cohort, NFR, security/safety, audit, retention, and external contract constraints", "makes each meaningful requirement testable and traceable"] },
+      "process": { "required": ["expresses observable behaviour and binding constraints without selecting technical mechanisms"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the behavioural contract distinguishes guest changes from preserved signed-in behaviour; gives testable invariant and failure semantics; retains the excluded cohort; covers the stated NFR, security/safety, retention/audit, and payment-provider contract constraints; and assigns stable IDs and traceability. It must not choose a queue, database, endpoint, service, class, or other non-binding technical mechanism." }
+    ],
+    "tags": ["changed-unchanged", "invariants", "edge-cases", "constraints", "traceability"]
+  },
+  {
+    "version": 1,
+    "id": "FS-E-003",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Specify BR-21861. The approved context says current checkout is signed-in-only, but its decision frontier records an unresolved material choice: guest checkout may be allowed or excluded. A manager asks to write the spec now and decide whichever option seems safest.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["reports the Specification as not ready", "routes the unresolved guest-checkout decision to Discovery or forge-clarify", "does not create an approval-ready behavioural contract"] },
+      "process": { "required": ["rejects unresolved material behavioural decisions"], "forbidden": ["choosing guest policy", "interviewing the user directly from Specification"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response refuses to mark the Specification ready because guest eligibility is a material unresolved decision, routes the frontier back to Discovery or forge-clarify, and does not decide the policy or ask the user the question itself." }
+    ],
+    "tags": ["unresolved-decision", "not-ready", "clarify-routing"]
+  },
+  {
+    "version": 1,
+    "id": "FS-E-004",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Specify BR-21861. The request says guests must receive an order confirmation after successful checkout. The draft says: add POST /guest-checkout, implement GuestCheckoutController, write to PostgreSQL through OrderRepository, and enqueue confirmation with RabbitMQ.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["rejects or removes the non-binding technical design leakage", "retains an observable confirmation requirement and any binding external constraints", "reports the draft as not ready until leakage is removed"] },
+      "process": { "required": ["separates required behaviour from implementation choices"], "forbidden": ["selecting the listed endpoint, class, database, repository, or queue"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response identifies the endpoint, controller, database, repository, and queue as non-binding technical design leakage, replaces them with testable observable behaviour where possible, preserves only truly binding external constraints, and refuses readiness until the contract is implementation-independent." }
+    ],
+    "tags": ["technical-design-leakage", "implementation-independent", "not-ready"]
+  },
+  {
+    "version": 1,
+    "id": "FS-E-005",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "A presented spec.md revision 4 has hash abc123 and is awaiting approval. The requester says, 'Run the full Forge workflow and implement it.' No artifact-specific approval exists. Later an authorized independent approver says, 'Approve spec.md revision 4, hash abc123.'",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["keeps the gate closed after the full-workflow instruction", "accepts only the valid artifact-specific approval for revision 4 hash abc123", "allows the Specification state to become approved only after that approval"] },
+      "process": { "required": ["uses the shared workflow approval and freshness semantics"], "forbidden": ["treating workflow intent as approval", "approving a different or stale revision"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response leaves Planning and Implementation blocked after the full-workflow request, then recognizes the later approval only because it is artifact-specific, for the exact current hash and revision, and from an authorized independent approver. It must use the shared contract rather than inventing approval, hash, retry, resume, freshness, or check rules." }
+    ],
+    "tags": ["exact-revision", "full-workflow-not-approval", "shared-contract"]
+  },
+  {
+    "version": 1,
+    "id": "FS-E-006",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "A clearly presented pending spec.md revision 4 contains normal prose and a fenced example whose indentation changes its meaning. An authorized independent approver replies, 'Proceed.' A later copy differs only in line endings, trailing whitespace, and repeated blank lines; another changes the indentation inside the fenced example.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["can recognize the unambiguous approval only through shared artifact binding", "keeps approval valid across non-semantic formatting-only differences", "treats the meaningful fenced-code indentation change as a materially different revision requiring approval"] },
+      "process": { "required": ["delegates approval comparison semantics to the shared workflow contract"], "forbidden": ["inventing a Specification-specific hash or formatting rule"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response recognizes 'Proceed' as potentially valid only for the clearly presented pending artifact through the shared approval contract, preserves approval across line-ending, trailing-whitespace, and repeated-blank-line noise, and treats meaningful indentation inside the fenced example as approval-significant. The skill may not define a parallel approval or hash algorithm." }
+    ],
+    "tags": ["natural-language-approval", "formatting-noise", "semantic-whitespace", "shared-contract"]
+  }
+]
