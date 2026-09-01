@@ -28,6 +28,32 @@ class StaticEvalRunnerTests(unittest.TestCase):
             },
         }
 
+    def static_corpus_case(self, case_id: str, kind: str, **check):
+        """Create a v1-compatible case for exercising the CLI trust boundary."""
+        return {
+            "version": 1,
+            "id": case_id,
+            "kind": "execution",
+            "category": "positive",
+            "prompt": "Run the deterministic fixture check.",
+            "expected": {"outcome": {"assertions": ["fixture is safe"]}},
+            "graders": [{"type": "llm-judge", "rubric": "Static fixture coverage."}],
+            "static": {
+                "kind": kind,
+                "result": {"status": "passed"},
+                **check,
+            },
+        }
+
+    def assert_invalid_corpus(self, root: Path, case, error_fragment: str) -> None:
+        self.write_json(root, "execution.json", [case])
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exit_code = run_static_evals.main(["--evals", str(root), "--json"])
+        self.assertEqual(2, exit_code)
+        report = json.loads(stdout.getvalue())
+        self.assertIn(error_fragment, report["error"])
+
     def test_each_trusted_validator_kind_passes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -100,6 +126,61 @@ class StaticEvalRunnerTests(unittest.TestCase):
                 with self.subTest(case=case["id"]):
                     with self.assertRaises(run_static_evals.CorpusError):
                         run_static_evals.evaluate_cases([case], root)
+
+    def test_rejects_adapter_child_symlink_outside_the_eval_root(self):
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            root = Path(directory)
+            adapter = root / "fixtures" / "adapter"
+            adapter.mkdir(parents=True)
+            external_input = Path(outside) / "input.json"
+            external_input.write_text('{"outside": true}', encoding="utf-8")
+            try:
+                (adapter / "input.json").symlink_to(external_input)
+            except (NotImplementedError, OSError) as exc:
+                self.skipTest("symlinks unavailable: {}".format(exc))
+            self.write_json(root, "fixtures/adapter/expected.json", {})
+            self.assert_invalid_corpus(
+                root,
+                self.static_corpus_case("adapter-symlink", "adapter-parity", fixture="fixtures/adapter"),
+                "fixture path escapes the eval root",
+            )
+
+    def test_rejects_nested_commands_in_parsed_json_fixtures(self):
+        cases = (
+            ("adapter-input", "adapter-parity", "fixtures/adapter/input.json", {"nested": {"command": "owned"}}),
+            ("adapter-expected", "adapter-parity", "fixtures/adapter/expected.json", {"nested": {"command": "owned"}}),
+            ("artifact", "artifact-shape", "fixtures/artifact.json", {"nested": {"command": "owned"}}),
+        )
+        for case_id, kind, fixture_path, malicious_data in cases:
+            with self.subTest(case=case_id), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                if kind == "adapter-parity":
+                    self.write_json(root, "fixtures/adapter/input.json", {})
+                    self.write_json(root, "fixtures/adapter/expected.json", {})
+                    fixture = "fixtures/adapter"
+                    check = {"fixture": fixture}
+                else:
+                    fixture = fixture_path
+                    check = {"fixture": fixture, "required": {"name": "string"}}
+                self.write_json(root, fixture_path, malicious_data)
+                self.assert_invalid_corpus(
+                    root,
+                    self.static_corpus_case(case_id, kind, **check),
+                    "command fields are forbidden in fixture JSON",
+                )
+
+    def test_rejects_commands_in_declared_fixture_directories(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.write_json(root, "fixtures/declared/input.json", {"nested": {"command": "owned"}})
+            case = self.static_corpus_case("declared-command", "normalization", source="a", normalized="a")
+            del case["static"]
+            case["fixtures"] = ["fixtures/declared"]
+            self.assert_invalid_corpus(
+                root,
+                case,
+                "command fields are forbidden in fixture JSON",
+            )
 
     def test_unavailable_capabilities_are_never_passed(self):
         case = {

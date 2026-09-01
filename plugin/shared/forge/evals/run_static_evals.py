@@ -106,6 +106,48 @@ def _read_json(path):
     return value
 
 
+def _load_fixture_json(root, fixture_directory, filename):
+    """Load one contained, regular JSON fixture child with no command data."""
+    path = _safe_path(root, fixture_directory, filename)
+    raw_path = fixture_directory / filename
+    if raw_path.is_symlink() or not path.is_file():
+        raise CorpusError("fixture JSON child must be a regular file: {}".format(filename))
+    data = _read_json(path)
+    if _contains_command(data):
+        raise CorpusError("command fields are forbidden in fixture JSON: {}".format(filename))
+    return data
+
+
+def _validate_fixture_directory(root, directory):
+    """Reject unsafe children and command-bearing JSON in a fixture directory."""
+    for raw_child in sorted(directory.iterdir(), key=lambda entry: entry.name):
+        child = _safe_path(root, directory, raw_child.name)
+        if raw_child.is_symlink():
+            raise CorpusError("fixture child must not be a symlink: {}".format(raw_child.name))
+        if child.is_dir():
+            _validate_fixture_directory(root, child)
+        elif child.is_file():
+            if child.suffix.lower() == ".json":
+                _load_fixture_json(root, child.parent, child.name)
+        else:
+            raise CorpusError("fixture child is not a regular file or directory: {}".format(child.name))
+
+
+def _validate_declared_fixture(root, base, fixture):
+    path = _safe_path(root, base, fixture)
+    raw_path = base / fixture
+    if raw_path.is_symlink():
+        raise CorpusError("fixture reference must not be a symlink: {}".format(fixture))
+    if path.is_dir():
+        _validate_fixture_directory(root, path)
+    elif path.is_file():
+        if path.suffix.lower() == ".json":
+            _load_fixture_json(root, base, fixture)
+    else:
+        raise CorpusError("missing fixture: {}".format(fixture))
+    return path
+
+
 def _validate_expected_result(result):
     if not isinstance(result, dict) or set(result) - {"status", "classification"}:
         raise CorpusError("static result must contain only status and classification")
@@ -127,13 +169,10 @@ def _check_file_exists(check, _root, base):
 
 
 def _check_artifact_shape(check, root, base):
-    path = _safe_path(root, base, check.get("fixture"))
-    if not path.is_file():
-        raise CorpusError("missing fixture file: {}".format(check["fixture"]))
     required = check.get("required")
     if not isinstance(required, dict) or not required:
         raise CorpusError("artifact-shape requires a non-empty required mapping")
-    data = _read_json(path)
+    data = _load_fixture_json(root, base, check.get("fixture"))
     if not isinstance(data, dict):
         return False, "fixture root is not an object"
     type_map = {
@@ -203,8 +242,9 @@ def _check_adapter_parity(check, root, base):
     fixture = _safe_path(root, base, check.get("fixture"))
     if not fixture.is_dir():
         raise CorpusError("adapter-parity fixture must be a directory")
-    input_data = _read_json(fixture / "input.json")
-    expected = _read_json(fixture / "expected.json")
+    _validate_fixture_directory(root, fixture)
+    input_data = _load_fixture_json(root, fixture, "input.json")
+    expected = _load_fixture_json(root, fixture, "expected.json")
     if not isinstance(input_data, dict) or not isinstance(expected, dict):
         raise CorpusError("adapter-parity fixture files must be JSON objects")
     locations = input_data.get("artifact_location_conventions")
@@ -263,9 +303,7 @@ def _verify_fixture_references(case, root, base):
     if not isinstance(fixtures, list):
         raise CorpusError("fixtures must be a list")
     for fixture in fixtures:
-        path = _safe_path(root, base, fixture)
-        if not path.exists():
-            raise CorpusError("missing fixture: {}".format(fixture))
+        _validate_declared_fixture(root, base, fixture)
 
 
 def _bucketed(results):
