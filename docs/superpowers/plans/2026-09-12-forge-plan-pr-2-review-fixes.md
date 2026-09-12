@@ -202,3 +202,22 @@ python plugin/skills/forge-plan/evals/run_behavioral_evals.py --json
 python plugin/skills/forge-plan/evals/run_behavioral_evals.py --strict --json
 git diff --check 2fcb82ce50332de2ce5ff97d15d652098d7a3655...HEAD
 ```
+
+### Re-review addendum: trusted graders and differential semantics
+
+The re-review at head `b572dc6` found that the behavioral runner could
+self-attest `passed` assertions and that any incorrect baseline or no-Skill
+result incorrectly failed the whole comparison. The runner now emits only
+normalized execution evidence. Correctness is derived centrally from the
+case-declared grader: deterministic validators run in-process, while
+`llm-judge` requires an explicit maintainer-supplied judge command and a
+strict assertion-result schema. Unsupported or unavailable graders remain
+`UNMEASURED`; a runner that parrots expected assertions cannot pass.
+
+Comparisons are per assertion and report both `candidate_vs_baseline` and
+`candidate_vs_no_skill`, including correctness and material-omission deltas.
+Baseline/no-Skill incorrectness is comparison evidence; execution fails only
+for runner/grader errors, incomplete required roles, candidate incorrectness,
+or candidate regressions. Regression coverage includes candidate improvement
+over both comparators, no-Skill regression detection, malformed judge output,
+and self-attesting runner rejection.

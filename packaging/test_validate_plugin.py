@@ -110,15 +110,15 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual("UNMEASURED", report["status"])
         self.assertNotEqual("passed", report["status"].lower())
 
-    def run_behavioral_harness(self, temporary: Path, mode: str, *, strict: bool = False):
-        """Run one real harness case against a temporary trusted runner."""
+    def run_behavioral_harness(self, temporary: Path, mode: str, *, strict: bool = False, with_judge: bool = True, case_id: str = "FP-EX-001"):
+        """Run one real harness case against temporary runner and judge commands."""
         runner = temporary / "runner.py"
+        judge = temporary / "judge.py"
         mode_literal = repr(mode)
         runner.write_text(
             "import json, sys\n"
             f"mode = {mode_literal}\n"
-            "request = json.load(sys.stdin)\n"
-            "assertions = request['case']['expected']['outcome']['assertions']\n"
+            "json.load(sys.stdin)\n"
             "if mode == 'empty':\n"
             "    print('{}')\n"
             "elif mode == 'malformed':\n"
@@ -126,23 +126,39 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             "elif mode == 'nonzero':\n"
             "    print(json.dumps({}))\n"
             "    sys.exit(7)\n"
+            "elif mode == 'parrot':\n"
+            "    print(json.dumps({'assertions': [{'text': 'copied', 'passed': True, 'evidence': 'self-attested'}]}))\n"
             "else:\n"
-            "    if mode == 'partial':\n"
-            "        assertions = assertions[:1]\n"
-            "    output = {'assertions': [\n"
-            "        {'text': text, 'passed': not (mode == 'candidate-regression' and request['role'] == 'candidate' and index == 0), 'evidence': 'fixture'}\n"
-            "        for index, text in enumerate(assertions)\n"
-            "    ], 'metrics': {'input_tokens': 10, 'output_tokens': 20}}\n"
-            "    print(json.dumps(output))\n",
+            "    print(json.dumps({'response': 'observed execution', 'trace': [{'event': 'response'}], 'metrics': {'input_tokens': 10, 'output_tokens': 20}}))\n",
+            encoding="utf-8",
+        )
+        judge.write_text(
+            "import json, sys\n"
+            f"mode = {mode_literal}\n"
+            "request = json.load(sys.stdin)\n"
+            "if mode == 'judge-malformed':\n"
+            "    print('not json')\n"
+            "    raise SystemExit\n"
+            "assertions = request['case']['expected']['outcome']['assertions']\n"
+            "if mode == 'partial':\n"
+            "    assertions = assertions[:1]\n"
+            "role = request['role']\n"
+            "def passed():\n"
+            "    if mode == 'candidate-regression': return role != 'candidate'\n"
+            "    if mode == 'candidate-improves': return role == 'candidate'\n"
+            "    if mode == 'candidate-no-skill-regression': return role == 'no-skill'\n"
+            "    return True\n"
+            "print(json.dumps({'assertions': [{'text': text, 'passed': passed(), 'evidence': 'trusted judge'} for text in assertions]}))\n",
             encoding="utf-8",
         )
         command = f'"{sys.executable}" "{runner}"'
+        judge_command = f'"{sys.executable}" "{judge}"'
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
         args = [
             sys.executable,
             str(harness),
             "--case-id",
-            "FP-EX-001",
+            case_id,
             "--candidate-command",
             command,
             "--baseline-command",
@@ -151,6 +167,8 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             command,
             "--json",
         ]
+        if with_judge:
+            args.extend(["--judge-command", judge_command])
         if strict:
             args.append("--strict")
         return subprocess.run(args, cwd=REPO_ROOT, capture_output=True, text=True)
@@ -197,6 +215,55 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         report = json.loads(proc.stdout)
         comparison = report["comparisons"][0]
         self.assertTrue(comparison["candidate_vs_baseline"]["regression"])
+        self.assertTrue(comparison["candidate_vs_no_skill"]["regression"])
+
+    def test_behavioral_harness_reports_candidate_improvement_over_bad_comparators(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "candidate-improves")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        comparison = report["comparisons"][0]
+        self.assertEqual("EXECUTED", report["status"])
+        self.assertTrue(comparison["candidate_vs_baseline"]["improvement"])
+        self.assertTrue(comparison["candidate_vs_no_skill"]["improvement"])
+
+    def test_behavioral_harness_fails_candidate_regression_against_no_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "candidate-no-skill-regression")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        comparison = report["comparisons"][0]
+        self.assertTrue(comparison["candidate_vs_no_skill"]["regression"])
+
+    def test_behavioral_harness_rejects_self_attesting_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "parrot")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertTrue(any("unknown runner output fields" in error for result in report["results"] for error in result.get("errors", [])))
+
+    def test_behavioral_harness_requires_a_trusted_judge(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "complete", with_judge=False)
+        self.assertEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertEqual("UNMEASURED", report["status"])
+        self.assertTrue(all(result["status"] == "UNMEASURED" for result in report["results"]))
+
+    def test_behavioral_harness_dispatches_deterministic_graders_trusted_in_process(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "complete", with_judge=False, case_id="FP-EX-019")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual("EXECUTED", report["status"])
+        self.assertTrue(all(result["status"] == "GRADED" for result in report["results"]))
+
+    def test_behavioral_harness_rejects_malformed_judge_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "judge-malformed")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertEqual("FAILED", report["status"])
 
     def test_behavioral_harness_strict_mode_fails_without_all_roles(self) -> None:
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
