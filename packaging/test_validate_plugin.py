@@ -6,6 +6,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -14,6 +15,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from plugin.shared.forge.evals import run_static_evals
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -29,10 +33,25 @@ assert VALIDATOR_SPEC is not None and VALIDATOR_SPEC.loader is not None
 validator = importlib.util.module_from_spec(VALIDATOR_SPEC)
 VALIDATOR_SPEC.loader.exec_module(validator)
 EXPECTED_SKILL_IDS = validator.EXPECTED_SKILL_IDS
+FORGE_SKILL_IDS = {
+    "forge-clarify",
+    "forge-discover",
+    "forge-spec",
+    "forge-plan",
+    "forge-implement",
+}
+FORGE_EVAL_VALIDATOR = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
 CANONICAL_EVAL_VALIDATORS = {
     skill_id: REPO_ROOT / relative_path
     for skill_id, relative_path in validator.CANONICAL_EVAL_VALIDATORS.items()
 }
+
+BEHAVIORAL_SPEC = importlib.util.spec_from_file_location(
+    "forge_plan_behavioral_evals", PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+)
+assert BEHAVIORAL_SPEC is not None and BEHAVIORAL_SPEC.loader is not None
+behavioral_evals = importlib.util.module_from_spec(BEHAVIORAL_SPEC)
+BEHAVIORAL_SPEC.loader.exec_module(behavioral_evals)
 
 
 def frontmatter_name(skill_md: Path) -> str | None:
@@ -111,14 +130,18 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertNotEqual("passed", report["status"].lower())
 
     def run_behavioral_harness(self, temporary: Path, mode: str, *, strict: bool = False, with_judge: bool = True, case_id: str = "FP-EX-001"):
-        """Run one real harness case against temporary runner and judge commands."""
+        """Run one real harness case against temporary runner and judge argv files."""
         runner = temporary / "runner.py"
         judge = temporary / "judge.py"
+        runner_argv = temporary / "runner-argv.json"
+        judge_argv = temporary / "judge-argv.json"
         mode_literal = repr(mode)
         runner.write_text(
             "import json, sys\n"
             f"mode = {mode_literal}\n"
-            "json.load(sys.stdin)\n"
+            "request = json.load(sys.stdin)\n"
+            "if mode == 'capture':\n"
+            "    open(sys.argv[1], 'w', encoding='utf-8').write(json.dumps(request))\n"
             "if mode == 'empty':\n"
             "    print('{}')\n"
             "elif mode == 'malformed':\n"
@@ -129,7 +152,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             "elif mode == 'parrot':\n"
             "    print(json.dumps({'assertions': [{'text': 'copied', 'passed': True, 'evidence': 'self-attested'}]}))\n"
             "else:\n"
-            "    print(json.dumps({'response': 'observed execution', 'trace': [{'event': 'response'}], 'metrics': {'input_tokens': 10, 'output_tokens': 20}}))\n",
+            "    print(json.dumps({'response': 'observed execution', 'trace': [{'event': 'response'}], 'metrics': {'version': 1, 'input_tokens': 10, 'output_tokens': 20}}))\n",
             encoding="utf-8",
         )
         judge.write_text(
@@ -139,36 +162,42 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             "if mode == 'judge-malformed':\n"
             "    print('not json')\n"
             "    raise SystemExit\n"
-            "assertions = request['case']['expected']['outcome']['assertions']\n"
+            "assertions = request['expected']['outcome']['assertions']\n"
             "if mode == 'partial':\n"
             "    assertions = assertions[:1]\n"
             "role = request['role']\n"
-            "def passed():\n"
+            "def passed(index):\n"
             "    if mode == 'candidate-regression': return role != 'candidate'\n"
             "    if mode == 'candidate-improves': return role == 'candidate'\n"
             "    if mode == 'candidate-no-skill-regression': return role == 'no-skill'\n"
+            "    if mode == 'mixed': return not ((role == 'candidate' and index == 0) or (role == 'baseline' and index == 1))\n"
+            "    if mode == 'single-fail': return not (role == 'candidate' and index == 0)\n"
             "    return True\n"
-            "print(json.dumps({'assertions': [{'text': text, 'passed': passed(), 'evidence': 'trusted judge'} for text in assertions]}))\n",
+            "print(json.dumps({'assertions': [{'text': text, 'passed': passed(index), 'evidence': 'trusted judge'} for index, text in enumerate(assertions)]}))\n",
             encoding="utf-8",
         )
-        command = f'"{sys.executable}" "{runner}"'
-        judge_command = f'"{sys.executable}" "{judge}"'
+        capture = temporary / "runner-input.json"
+        runner_args = [sys.executable, str(runner)]
+        if mode == "capture":
+            runner_args.append(str(capture))
+        runner_argv.write_text(json.dumps(runner_args), encoding="utf-8")
+        judge_argv.write_text(json.dumps([sys.executable, str(judge)]), encoding="utf-8")
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
         args = [
             sys.executable,
             str(harness),
             "--case-id",
             case_id,
-            "--candidate-command",
-            command,
-            "--baseline-command",
-            command,
-            "--no-skill-command",
-            command,
+            "--candidate-argv-file",
+            str(runner_argv),
+            "--baseline-argv-file",
+            str(runner_argv),
+            "--no-skill-argv-file",
+            str(runner_argv),
             "--json",
         ]
         if with_judge:
-            args.extend(["--judge-command", judge_command])
+            args.extend(["--judge-argv-file", str(judge_argv)])
         if strict:
             args.append("--strict")
         return subprocess.run(args, cwd=REPO_ROOT, capture_output=True, text=True)
@@ -194,7 +223,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             proc = self.run_behavioral_harness(Path(directory), "partial")
         self.assertNotEqual(0, proc.returncode)
         report = json.loads(proc.stdout)
-        self.assertTrue(any(result["missing_assertions"] for result in report["results"]))
+        self.assertTrue(any(result["missing_grader_assertions"] for result in report["results"]))
 
     def test_behavioral_harness_compares_complete_role_results(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -207,6 +236,8 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             {"candidate": True, "baseline": True, "no-skill": True},
             report["comparisons"][0]["correctness"],
         )
+        candidate = next(result for result in report["results"] if result["role"] == "candidate")
+        self.assertEqual("UNMEASURED", candidate["metrics"]["duration_ms"])
 
     def test_behavioral_harness_surfaces_candidate_regression(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -250,13 +281,57 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual("UNMEASURED", report["status"])
         self.assertTrue(all(result["status"] == "UNMEASURED" for result in report["results"]))
 
-    def test_behavioral_harness_dispatches_deterministic_graders_trusted_in_process(self) -> None:
+    def test_behavioral_harness_excludes_repository_static_cases(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             proc = self.run_behavioral_harness(Path(directory), "complete", with_judge=False, case_id="FP-EX-019")
         self.assertEqual(0, proc.returncode, proc.stderr)
         report = json.loads(proc.stdout)
-        self.assertEqual("EXECUTED", report["status"])
-        self.assertTrue(all(result["status"] == "GRADED" for result in report["results"]))
+        self.assertEqual("UNMEASURED", report["status"])
+        self.assertEqual(["FP-EX-019"], report["static_only_cases"])
+        self.assertEqual([], report["results"])
+
+    def test_behavioral_harness_does_not_expose_answer_key_to_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "capture")
+            captured = json.loads((Path(directory) / "runner-input.json").read_text(encoding="utf-8"))
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertNotIn("expected", captured)
+        self.assertNotIn("grader", captured)
+        self.assertNotIn("rubric", captured)
+        self.assertEqual({"case_id", "prompt", "tags", "role", "fixture"}, set(captured))
+
+    def test_behavioral_harness_reports_mixed_assertion_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "mixed")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        comparison = report["comparisons"][0]
+        self.assertTrue(comparison["candidate_vs_baseline"]["lost_assertions"])
+        self.assertTrue(comparison["candidate_vs_baseline"]["gained_assertions"])
+        self.assertTrue(comparison["candidate_vs_baseline"]["regression"])
+
+    def test_behavioral_harness_counts_failed_assertions_as_material_omissions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "single-fail")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        candidate = next(result for result in report["results"] if result["role"] == "candidate")
+        self.assertEqual(1, candidate["material_omissions"])
+        self.assertEqual(1, len(candidate["failed_assertions"]))
+
+    def test_behavioral_harness_rejects_malformed_argv_file(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        with tempfile.TemporaryDirectory() as directory:
+            argv_file = Path(directory) / "argv.json"
+            argv_file.write_text(json.dumps([sys.executable, ""]), encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, str(harness), "--candidate-argv-file", str(argv_file), "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertNotEqual(0, proc.returncode)
+        self.assertIn("argv file", proc.stderr)
 
     def test_behavioral_harness_rejects_malformed_judge_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -264,6 +339,55 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertNotEqual(0, proc.returncode)
         report = json.loads(proc.stdout)
         self.assertEqual("FAILED", report["status"])
+
+    def test_behavioral_harness_finalizer_accepts_identical_graders_and_rejects_conflicts(self) -> None:
+        expected = ["A"]
+        identical = behavioral_evals._finalize_assertions(
+            expected,
+            [
+                {"assertions": [{"text": "A", "passed": True, "evidence": "one"}]},
+                {"assertions": [{"text": "A", "passed": True, "evidence": "two"}]},
+            ],
+        )
+        conflict = behavioral_evals._finalize_assertions(
+            expected,
+            [
+                {"assertions": [{"text": "A", "passed": True, "evidence": "one"}]},
+                {"assertions": [{"text": "A", "passed": False, "evidence": "two"}]},
+            ],
+        )
+        self.assertEqual("GRADED", identical["status"])
+        self.assertEqual("one | two", identical["assertions"][0]["evidence"])
+        self.assertEqual("INCOMPLETE", conflict["status"])
+        self.assertTrue(any("conflicting" in error for error in conflict["errors"]))
+
+    def test_behavioral_harness_rejects_invalid_corpus_before_spawning(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        with tempfile.TemporaryDirectory() as directory:
+            evals = Path(directory)
+            case = {
+                "version": 1,
+                "id": "DUPLICATE",
+                "kind": "execution",
+                "category": "positive",
+                "prompt": "probe",
+                "expected": {"outcome": {"assertions": ["A"]}},
+                "graders": [{"type": "llm-judge", "rubric": "probe"}],
+            }
+            (evals / "execution.json").write_text(json.dumps([case, case]), encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, str(harness), "--evals", str(evals), "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertNotEqual(0, proc.returncode)
+        self.assertIn("duplicate case id", proc.stderr)
+
+    def test_behavioral_harness_preserves_argv_paths_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="argv path ") as directory:
+            proc = self.run_behavioral_harness(Path(directory), "capture")
+        self.assertEqual(0, proc.returncode, proc.stderr)
 
     def test_behavioral_harness_strict_mode_fails_without_all_roles(self) -> None:
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
@@ -276,14 +400,85 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertNotEqual(0, proc.returncode)
         self.assertEqual("UNMEASURED", json.loads(proc.stdout)["status"])
 
-    def test_plugin_skills_are_the_complete_canonical_payload(self) -> None:
-        """Catches a missing, extra, or incompletely packaged canonical skill."""
+    def test_plugin_skills_include_the_required_canonical_payload(self) -> None:
+        """Catches removal of a required Skill while allowing additional Skills."""
         discovered = {
             path.name
             for path in PLUGIN_SKILLS.iterdir()
             if path.is_dir() and (path / "SKILL.md").is_file()
         }
-        self.assertEqual(EXPECTED_SKILL_IDS, discovered)
+        self.assertTrue(EXPECTED_SKILL_IDS <= discovered)
+
+    def test_expected_skill_ids_match_the_validator_constant(self) -> None:
+        """Catches the test module's copy of EXPECTED_SKILL_IDS drifting from validate_plugin.py."""
+        self.assertEqual(validator.EXPECTED_SKILL_IDS, EXPECTED_SKILL_IDS)
+
+    def test_discovery_rejects_missing_required_baseline_skill(self) -> None:
+        """Required baseline Skills remain mandatory in an isolated discovery root."""
+        with tempfile.TemporaryDirectory(prefix="missing-baseline-") as directory:
+            skills_dir = Path(directory)
+            for skill_id in sorted(EXPECTED_SKILL_IDS - {"merge-sentinel"}):
+                skill_dir = skills_dir / skill_id
+                skill_dir.mkdir()
+                (skill_dir / "SKILL.md").write_text(
+                    f"---\nname: {skill_id}\n---\n", encoding="utf-8"
+                )
+
+            validator._ok = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                discovered = validator.discover_skills(skills_dir)
+            self.addCleanup(setattr, validator, "_ok", True)
+
+            self.assertEqual(EXPECTED_SKILL_IDS - {"merge-sentinel"},
+                             {path.name for path in discovered})
+            self.assertFalse(validator._ok)
+
+    def test_discovery_finds_an_additional_valid_skill_package(self) -> None:
+        """Additional immediate Skill packages are discoverable beside the baseline."""
+        with tempfile.TemporaryDirectory(prefix="additional-skill-") as directory:
+            skills_dir = Path(directory)
+            for skill_id in sorted(EXPECTED_SKILL_IDS | {"portable-extra"}):
+                skill_dir = skills_dir / skill_id
+                skill_dir.mkdir()
+                (skill_dir / "SKILL.md").write_text(
+                    f"---\nname: {skill_id}\n---\n", encoding="utf-8"
+                )
+
+            validator._ok = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                discovered = validator.discover_skills(skills_dir)
+            self.addCleanup(setattr, validator, "_ok", True)
+
+            self.assertEqual(
+                EXPECTED_SKILL_IDS | {"portable-extra"},
+                {path.name for path in discovered},
+            )
+            self.assertTrue(validator._ok)
+
+    def test_discovery_does_not_include_shared_forge_resources(self) -> None:
+        """Only immediate children under the injected Skills directory are discovered."""
+        with tempfile.TemporaryDirectory(prefix="skills-boundary-") as directory:
+            root = Path(directory)
+            skills_dir = root / "plugin" / "skills"
+            skills_dir.mkdir(parents=True)
+            for skill_id in sorted(EXPECTED_SKILL_IDS):
+                skill_dir = skills_dir / skill_id
+                skill_dir.mkdir()
+                (skill_dir / "SKILL.md").write_text(
+                    f"---\nname: {skill_id}\n---\n", encoding="utf-8"
+                )
+            shared_skill = root / "plugin" / "shared" / "forge"
+            shared_skill.mkdir(parents=True)
+            (shared_skill / "SKILL.md").write_text(
+                "---\nname: shared-forge\n---\n", encoding="utf-8"
+            )
+
+            validator._ok = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                discovered = validator.discover_skills(skills_dir)
+            self.addCleanup(setattr, validator, "_ok", True)
+
+            self.assertNotIn(shared_skill, discovered)
 
     def test_no_repository_skill_mirror_exists(self) -> None:
         """Catches reintroduction of authored host mirrors outside plugin/skills/."""
@@ -317,7 +512,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         """Return per-Skill failures without short-circuiting the corpus loop."""
         runner = runner or subprocess.run
         failures = []
-        for skill_id in sorted(EXPECTED_SKILL_IDS):
+        for skill_id in sorted(CANONICAL_EVAL_VALIDATORS):
             evals = PLUGIN_SKILLS / skill_id / "evals"
             proc = runner(
                 self.canonical_eval_command(skill_id, evals),
@@ -348,9 +543,101 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         """Keeps every packaged canonical eval corpus readable by bundled Python."""
         self.assertEqual([], self.validate_canonical_eval_corpora())
 
+    def test_every_forge_eval_directory_passes_the_existing_v1_validator(self) -> None:
+        """Forge keeps using the existing v1 schema validator, not a replacement."""
+        failures = []
+        for skill_id in sorted(FORGE_SKILL_IDS):
+            evals = PLUGIN_SKILLS / skill_id / "evals"
+            proc = subprocess.run(
+                [sys.executable, str(FORGE_EVAL_VALIDATOR), str(evals), "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode:
+                failures.append(f"{skill_id}: {proc.stderr}")
+                continue
+            report = json.loads(proc.stdout)
+            if report.get("errors") or report.get("case_count", 0) <= 0:
+                failures.append(f"{skill_id}: {report}")
+        self.assertEqual([], failures)
+
+    def test_forge_trigger_corpora_cover_required_categories(self) -> None:
+        """Every Forge stage guards positive, negative, and boundary routing."""
+        required_categories = {"positive", "negative", "boundary"}
+        for skill_id in sorted(FORGE_SKILL_IDS):
+            trigger_path = PLUGIN_SKILLS / skill_id / "evals" / "trigger.json"
+            cases = json.loads(trigger_path.read_text(encoding="utf-8"))
+            categories = {case.get("category") for case in cases if isinstance(case, dict)}
+            self.assertTrue(
+                required_categories <= categories,
+                f"{skill_id} lacks {sorted(required_categories - categories)}",
+            )
+
+    def test_shared_static_runner_classifies_current_v1_corpus_without_false_passes(self) -> None:
+        """Model/host evals remain non-passing when no such capability is declared."""
+        report = run_static_evals.run_eval_roots(
+            [PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"], capabilities=set()
+        )
+        self.assertGreaterEqual(report["summary"]["passed"], 5)
+        self.assertEqual(0, report["summary"]["failed"])
+        self.assertGreater(report["summary"]["skipped"], 0)
+        self.assertEqual([], report["results"]["unmeasured"])
+        skipped_ids = {result["id"] for result in report["results"]["skipped"]}
+        forge_ex_ids = {"FORGE-EX-{:03d}".format(n) for n in range(1, 14)}
+        self.assertTrue(forge_ex_ids <= skipped_ids)
+
+    def test_cross_stage_gates_keep_implementation_read_only_until_both_approvals(self) -> None:
+        """A shared static transition check proves both prospective approval gates."""
+        def state(spec_approval, plan_approval):
+            return {
+                "artifacts": {
+                    "specification": {"hash": "spec", "revision": "1", **({"approval": spec_approval} if spec_approval else {})},
+                    "plan": {"hash": "plan", "revision": "1", **({"approval": plan_approval} if plan_approval else {})},
+                }
+            }
+
+        spec = {"artifact_hash": "spec", "revision": "1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}
+        plan = {"artifact_hash": "plan", "revision": "1", "actor": "technical-owner", "intent": "artifact", "approved_at": 2}
+        cases = [
+            {"id": "spec-pending", "static": {"kind": "workflow-transition", "state": state(None, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
+            {"id": "plan-pending", "static": {"kind": "workflow-transition", "state": state(spec, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
+            {"id": "both-approved", "static": {"kind": "workflow-transition", "state": state(spec, plan), "target": "implementation", "expected_allowed": True, "result": {"status": "passed"}}},
+        ]
+        report = run_static_evals.evaluate_cases(
+            cases, PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
+        )
+        self.assertEqual(3, report["summary"]["passed"])
+
+    def test_brain_adapter_fixture_enforces_designated_approver_policy(self) -> None:
+        """Brain supplies approvers; Forge still owns the resulting gate decision."""
+        state = {
+            "current_actor": "forge-agent",
+            "requires_spec_approval": True,
+            "artifacts": {
+                "specification": {"hash": "spec-r1", "revision": "spec-r1", "approval": {"artifact_hash": "spec-r1", "revision": "spec-r1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}},
+                "plan": {"hash": "plan-r1", "revision": "plan-r1", "approval": {"artifact_hash": "plan-r1", "revision": "plan-r1", "actor": "unapproved-actor", "intent": "artifact", "approved_at": 2}},
+            },
+        }
+        case = {
+            "id": "brain-policy",
+            "static": {
+                "kind": "adapter-parity",
+                "fixture": "fixtures/brain-adapter",
+                "approval_state": state,
+                "target": "implementation",
+                "expected_allowed": False,
+                "result": {"status": "passed"},
+            },
+        }
+        report = run_static_evals.evaluate_cases(
+            [case], PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
+        )
+        self.assertEqual(1, report["summary"]["passed"])
+
     def test_each_canonical_corpus_failure_is_independently_gated(self) -> None:
         """Catches a package gate that stops after the first Skill or ignores empty/error reports."""
-        expected_ids = sorted(EXPECTED_SKILL_IDS)
+        expected_ids = sorted(CANONICAL_EVAL_VALIDATORS)
         valid_report = json.dumps({"case_count": 1, "errors": []})
         for failing_skill in expected_ids:
             for mutation in ("zero-cases", "one-error"):
@@ -360,7 +647,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                     evals_arg = next(
                         arg for arg in argv
                         if Path(arg).name == "evals"
-                        and Path(arg).parent.name in EXPECTED_SKILL_IDS
+                        and Path(arg).parent.name in CANONICAL_EVAL_VALIDATORS
                     )
                     skill_id = Path(evals_arg).parent.name
                     calls.append(skill_id)
@@ -743,6 +1030,144 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             report["metadata"]["errors"],
         )
         self.assertEqual(1, report["metrics"]["metadata_error_count"])
+
+
+    def test_skill_count_claims_are_derived_from_discovery(self) -> None:
+        """A stale whole-set count in any manifest or install doc must fail.
+
+        ``discover_skills`` permits Skills beyond the required baseline, so a
+        hardcoded count is the one claim nothing else can catch.
+        """
+        validator._ok = True
+        self.addCleanup(setattr, validator, "_ok", True)
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.check_skill_count_claims(8, {"manifest": "Eight portable Agent Skills"})
+        self.assertTrue(validator._ok)
+
+        validator._ok = True
+        with contextlib.redirect_stdout(io.StringIO()) as stream:
+            validator.check_skill_count_claims(9, {"manifest": "Eight portable Agent Skills"})
+        self.assertFalse(validator._ok)
+        self.assertIn("claims 8", stream.getvalue())
+
+    def test_count_claim_scan_covers_the_readme_and_every_install_doc(self) -> None:
+        """The README is the most likely home for a stale whole-set count."""
+        scanned = {path.relative_to(REPO_ROOT).as_posix() for path in validator.count_claim_documents()}
+        self.assertIn("README.md", scanned)
+        expected_docs = {
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "docs" / "install").glob("*.md")
+        }
+        self.assertTrue(expected_docs)
+        self.assertTrue(expected_docs <= scanned, sorted(expected_docs - scanned))
+
+    def test_skill_count_check_ignores_subset_and_version_numbers(self) -> None:
+        """Subset phrases and version strings are not whole-set count claims."""
+        for text in (
+            "The five `forge-*` Skills reference the shared core.",
+            "Agent Plugins v1.0.0 plus `plugin/skills/`.",
+            "Link each of the 3 forge-* Skills you need.",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(set(), validator._claimed_counts(text))
+
+    def test_forge_shared_references_resolve_lexically_in_a_linked_layout(self) -> None:
+        """Each forge-* Skill keeps its shared-core references reachable when the
+        Skill directories are installed individually beside a sibling ``shared``
+        tree, as the Codex and Antigravity per-Skill routes document.
+
+        The check is lexical (``..`` normalised without following links), which is
+        the resolution mode that can break; a host resolving through the link
+        target is strictly more permissive.
+        """
+        plugin_root = REPO_ROOT / "plugin"
+        with tempfile.TemporaryDirectory(prefix="linked-layout-") as directory:
+            install_root = Path(directory)
+            skills_dir = install_root / "skills"
+            skills_dir.mkdir()
+            shutil.copytree(plugin_root / "shared", install_root / "shared")
+            for skill_id in sorted(FORGE_SKILL_IDS):
+                shutil.copytree(plugin_root / "skills" / skill_id, skills_dir / skill_id)
+
+            unreachable = []
+            for skill_id in sorted(FORGE_SKILL_IDS):
+                skill_dir = skills_dir / skill_id
+                for markdown in sorted(skill_dir.rglob("*.md")):
+                    for target in re.findall(r"\]\(([^)]+)\)", markdown.read_text(encoding="utf-8")):
+                        if not target.startswith("../"):
+                            continue
+                        resolved = Path(os.path.normpath(markdown.parent / target))
+                        if not resolved.exists():
+                            unreachable.append(f"{skill_id}: {markdown.name} -> {target}")
+            self.assertEqual([], unreachable)
+
+
+    def test_install_guides_must_name_every_discovered_skill(self) -> None:
+        """A new Skill nobody documented leaves each route's Verify step blind."""
+        shipped = [type("Stub", (), {"name": name})() for name in sorted(EXPECTED_SKILL_IDS)]
+        validator._ok = True
+        self.addCleanup(setattr, validator, "_ok", True)
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.check_install_docs_name_every_skill(shipped)
+        self.assertTrue(validator._ok)
+
+        undocumented = shipped + [type("Stub", (), {"name": "forge-deliver"})()]
+        validator._ok = True
+        with contextlib.redirect_stdout(io.StringIO()) as stream:
+            validator.check_install_docs_name_every_skill(undocumented)
+        self.assertFalse(validator._ok)
+        self.assertIn("forge-deliver", stream.getvalue())
+
+    def test_competition_candidates_must_be_shipped_or_declared_host_skills(self) -> None:
+        """An unshippable candidate can never compete, so the case is dead weight."""
+        shipped = [type("Stub", (), {"name": name})() for name in sorted(EXPECTED_SKILL_IDS)]
+        validator._ok = True
+        self.addCleanup(setattr, validator, "_ok", True)
+        with contextlib.redirect_stdout(io.StringIO()):
+            validator.check_competition_candidates(shipped)
+        self.assertTrue(validator._ok)
+        self.assertIn("skill-creator", validator.EXTERNAL_COMPETITORS)
+
+    def test_every_forge_trigger_case_id_is_unique_and_stable(self) -> None:
+        """Case ids are the handle a recorded routing result is traced by."""
+        for skill_id in sorted(FORGE_SKILL_IDS):
+            corpus = PLUGIN_SKILLS / skill_id / "evals" / "trigger.json"
+            cases = json.loads(corpus.read_text(encoding="utf-8"))
+            ids = [case["id"] for case in cases]
+            with self.subTest(skill=skill_id):
+                self.assertEqual(len(ids), len(set(ids)))
+                self.assertEqual(ids, list(dict.fromkeys(ids)), "ids must remain in stable corpus order")
+
+
+    def test_catalog_overlap_report_is_well_formed_and_deterministic(self) -> None:
+        """The overlap report is triage input, so it must be stable and complete."""
+        spec = importlib.util.spec_from_file_location(
+            "measure_catalog_overlap", REPO_ROOT / "packaging" / "measure_catalog_overlap.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        first = module.measure()
+        self.assertEqual(sorted(EXPECTED_SKILL_IDS), first["skills"])
+        expected_pairs = len(EXPECTED_SKILL_IDS) * (len(EXPECTED_SKILL_IDS) - 1) // 2
+        self.assertEqual(expected_pairs, first["pair_count"])
+        self.assertEqual(expected_pairs, len(first["pairs"]))
+
+        scores = [pair["jaccard"] for pair in first["pairs"]]
+        self.assertEqual(scores, sorted(scores, reverse=True), "pairs must rank worst-first")
+        self.assertTrue(all(0.0 <= score <= 1.0 for score in scores))
+        self.assertEqual(first, module.measure(), "report must be deterministic")
+
+    def test_catalog_overlap_ignores_function_words(self) -> None:
+        """Function words appear in every description and would flatten the ranking."""
+        spec = importlib.util.spec_from_file_location(
+            "measure_catalog_overlap", REPO_ROOT / "packaging" / "measure_catalog_overlap.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        self.assertEqual(set(), module.content_words("Use when the a to and of for it is"))
+        self.assertEqual({"specification", "packets"}, module.content_words("the Specification and PACKETS"))
 
 
 if __name__ == "__main__":

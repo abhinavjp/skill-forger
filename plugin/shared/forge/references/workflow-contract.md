@@ -1,0 +1,107 @@
+# Forge workflow contract
+
+This is the portable source of truth for Forge workflow boundaries. Adapters
+and stage Skills use the deterministic terms and decisions in
+`plugin/shared/forge/scripts/workflow_state.py`; they do not redefine them.
+
+## State and boundaries
+
+```text
+discover/clarify complete
+  -> spec active
+  -> spec awaiting-approval
+  -> spec approved
+  -> plan active
+  -> plan awaiting-approval
+  -> plan approved
+  -> implementation active
+
+any required gate missing/stale/unauthorized
+  -> blocked-at-gate (read-only for source/implementation artifacts)
+
+approved artifact materially changes
+  -> approval stale
+  -> downstream dependent gates invalid
+```
+
+Discovery/clarification is evidence gathering and reconciliation. Specification
+owns the Specification artifact; Planning owns the Plan artifact; Implementation
+owns source and implementation artifacts. A stage may change only its owned
+artifact and only within its authorized scope. Discovery is read-only.
+Specification and Planning may write their own artifacts, but neither may mutate
+source or implementation artifacts. Implementation is mutation-capable only
+after all of its gates allow entry. Delivery operations are separate mutations:
+they require explicit scope authorization and an adapter-authorized operation.
+
+There is no direct transition from Discovery or Specification draft to
+Implementation. A full-workflow request may continue through eligible stages,
+but it stops at every required approval gate; it is never approval of an
+artifact.
+
+## Gates, approval, and freshness
+
+Planning requires a valid Specification approval when `requires_spec_approval`
+is true. Implementation requires a valid Plan approval and, when required, the
+valid Specification approval. Gate decisions use the state helper's
+`can_enter_stage` rules: an approval is artifact-specific, matches the current
+artifact hash and revision, is not by the current actor or artifact author, and
+precedes every mutation it is claimed to authorize. A full-workflow or
+implementation intent is not artifact approval. Approval after a mutation is
+post-hoc and does not validate that mutation.
+An approval is artifact approval only when it records no intent or the intent
+`artifact`; any other recorded intent is a continuation intent and never opens
+a gate. An approval must strictly precede the mutation it authorizes; an
+approval recorded at the same ordering value as the mutation does not
+authorize it.
+
+When an adapter supplies designated approvers or approval policy, it narrows
+the acceptable actors for its `planning` and `implementation` policy stages; it
+does not override, infer, or weaken Forge gates. A mismatch, self-approval,
+unknown authorization, stale hash/revision, or unproven approval ordering keeps
+the gate closed. Material change to an approved artifact makes its approval
+stale and invalidates dependent downstream gates.
+When an adapter supplies an approval policy, a policy stage with no designated
+approvers is closed, not unrestricted; omitting the policy entirely means no
+narrowing.
+
+`state.mutations`, when present, is a list of objects, each carrying a `stage`
+(one of the recognised stages: `discovery`, `clarification`, `specification`,
+`planning`, `implementation`) and an `at` ordering value comparable with
+`approval.approved_at`. A mutation is in scope for a gate when its `stage`
+matches the stage being entered, or when its `stage` is absent, unrecognised,
+or otherwise not a member of the recognised set — an unlabelled or malformed
+record is never assumed to be out of scope. A mutation labelled with a
+different recognised stage is out of scope and does not block. A `mutations`
+value that is not a list, or an entry that is not an object, is itself treated
+as an in-scope violation. Adapters that do not track mutations may omit the
+`mutations` key entirely; its absence is not a violation.
+
+Requirement sources and selected knowledge are fresh only when their recorded
+provenance and hashes/freshness observations still match the artifact's
+materially used inputs. A requirement-changing historical contradiction stays
+unresolved until clarified; it blocks the affected artifact and its dependants.
+
+## Checks, retries, and resume
+
+Checks are exactly `PASS`, `FAIL`, or `UNMEASURED`. `PASS` alone is passing.
+`FAIL` records failed evidence. `UNMEASURED` requires a reason and is not a
+pass; a required gate that needs it remains unsatisfied unless a separately
+authorized replacement evidence path is recorded.
+
+Retry is explicit: transient failures may retry only below their configured
+attempt limit; deterministic failures may retry only after relevant inputs
+change. Do not retry an unknown classification implicitly. A blocked artifact
+blocks every transitive dependant. Resume is idempotent: begin at the first
+incomplete or unverifiable ordered item (including hash drift), and return no
+resume point only when every completed item is verified.
+
+## Safety invariants
+
+- Do not infer approval from intent to run the full workflow.
+- Do not mutate source code before the Implementation gate; do not silently
+  mutate delivery state at any stage.
+- Refuse unauthorized scope or delivery requests, and record the refusal.
+- Isolate pre-existing changes: neither overwrite, clean up, claim, nor deliver
+  them unless separately authorized.
+- Propagate contradictions, stale approvals, and missing required gates to all
+  affected downstream work as `blocked-at-gate`.

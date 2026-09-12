@@ -1,0 +1,12 @@
+{
+  "source": "plugin/shared/forge/evals/fixtures/brain-adapter",
+  "scenarios": [
+    {"id": "safe-user-override", "case_id": "FP-EX-021", "source_case": "FORGE-EX-001", "expected": "honor explicit depth override while preserving approval boundaries"},
+    {"id": "unresolved-intent", "case_id": "FP-EX-022", "source_case": "FORGE-EX-004", "expected": "return to upstream intent instead of inventing product behavior"},
+    {"id": "duplicate-knowledge", "case_id": "FP-EX-023", "source_case": "FORGE-EX-008", "expected": "preserve provenance and resolve contradictory knowledge explicitly"},
+    {"id": "phase-splitting", "case_id": "FP-EX-024", "source_case": "FORGE-EX-011", "expected": "keep cohesive work together and expose real dependencies"},
+    {"id": "missing-sibling-resource", "case_id": "FP-EX-025", "source_case": "FORGE-EX-012", "expected": "block on missing local evidence without fabrication"},
+    {"id": "invalid-approval", "case_id": "FP-EX-026", "source_case": "FORGE-EX-003", "expected": "invalidate stale or mismatched approval"},
+    {"id": "optional-capability", "case_id": "FP-EX-027", "source_case": "FORGE-EX-007", "expected": "label unavailable live proof UNMEASURED"}
+  ]
+}

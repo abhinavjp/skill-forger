@@ -3,8 +3,9 @@
 *Forges Agent Skills. Catches the forgeries.*
 
 An agent-agnostic plugin for engineering Agent Skills, auditing project
-guidance, and reviewing merge requests, built around the repository's
-`SKILL_ENGINEERING_SPEC.md` and deterministic review tools.
+guidance, reviewing merge requests, and running portable Forge SDLC workflows,
+built around the repository's `SKILL_ENGINEERING_SPEC.md` and deterministic
+review tools.
 
 ## Canonical payload
 
@@ -22,6 +23,20 @@ The plugin includes:
   guidance and plans which reusable procedures should become Skills.
 - [forge-plan](plugin/skills/forge-plan/SKILL.md) — recommends compact or
   detailed depth and produces approved, dependency-correct implementation plans.
+- [forge-clarify](plugin/skills/forge-clarify/SKILL.md) — resolves genuine
+  human decisions from current evidence, then stops at the clarification
+  boundary.
+- [forge-discover](plugin/skills/forge-discover/SKILL.md) — produces bounded,
+  evidence-backed current-behaviour and impact context before specification.
+- [forge-spec](plugin/skills/forge-spec/SKILL.md) — turns approved discovery
+  facts and decisions into a testable behavioural contract.
+- [forge-implement](plugin/skills/forge-implement/SKILL.md) — safely executes
+  approved implementation packets with explicit gates and recorded evidence.
+
+`plugin/shared/forge/` is the portable shared core for the Forge stages: it
+holds their workflow contracts, deterministic utilities, and cross-stage evals.
+It is not a user-facing Skill and is kept outside `plugin/skills/` so it cannot
+be discovered as one.
 
 Each complete Skill package—including runtime references, scripts, agents
 metadata, and canonical eval inputs—lives beneath its canonical directory.
@@ -49,9 +64,31 @@ duplicate, conflicting Skill entries. Each guide states its route's own uninstal
 python packaging/validate_plugin.py
 ```
 
-This validates both plugin manifests and the Claude marketplace version, the
-exact four-Skill layout, unique frontmatter names, reference resolution and
-path containment, portable-core checks, and the absence of tracked host mirrors.
+This validates both plugin manifests and the Claude marketplace version; the
+canonical discovered Skill-package layout and required baseline Skills;
+frontmatter names; reference resolution and path containment; portable-core
+checks; and the absence of tracked host mirrors.
+
+For expanded Forge-suite coverage, run the packaging tests and Forge static
+checks:
+
+```bash
+python -m unittest packaging.test_validate_plugin.CanonicalPluginLayoutTests -v
+python plugin/shared/forge/evals/run_static_evals.py --json
+```
+
+When adding or rewording a Skill, review how much its routing metadata overlaps
+the rest of the catalog:
+
+```bash
+python packaging/measure_catalog_overlap.py
+```
+
+This is a lexical proxy for catalog competition, not a routing measurement, and
+deliberately has no pass/fail threshold: adjacent workflow stages legitimately
+share domain nouns, and optimising the score rewards dropping canonical
+vocabulary. Read the ranking, then judge. Routing itself is measured only by a
+host-routing trial against a recorded catalog snapshot.
 
 The Skill engineering static corpus remains available at:
 

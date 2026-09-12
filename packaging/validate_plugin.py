@@ -26,6 +26,9 @@ PLUGIN_DIR = REPO_ROOT / "plugin"
 PLUGIN_SKILLS = PLUGIN_DIR / "skills"
 CLAUDE_PLUGIN_JSON = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
+# Competitors a trigger corpus may name that this plugin does not ship: they are
+# provided by the host, so they cannot be validated against the packaged set.
+EXTERNAL_COMPETITORS = {"skill-creator"}
 REPOSITORY_URL = "https://github.com/abhinavjp/skill-forger"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
@@ -101,25 +104,26 @@ def check_schema(plugin_json: Path) -> dict | None:
     return data
 
 
-def discover_skills() -> list[Path]:
-    if not (PLUGIN_DIR / "plugin.json").is_file():
+def discover_skills(skills_dir: Path = PLUGIN_SKILLS) -> list[Path]:
+    if skills_dir == PLUGIN_SKILLS and not (PLUGIN_DIR / "plugin.json").is_file():
         fail("plugin/plugin.json missing at plugin root")
-    else:
+    elif skills_dir == PLUGIN_SKILLS:
         ok("plugin/plugin.json present at plugin root")
-    if not PLUGIN_SKILLS.is_dir():
+    if not skills_dir.is_dir():
         fail("plugin/skills/ directory missing")
         return []
 
-    children = sorted(path for path in PLUGIN_SKILLS.iterdir() if path.is_dir())
+    children = sorted(path for path in skills_dir.iterdir() if path.is_dir())
     missing_skill_md = [path.name for path in children if not (path / "SKILL.md").is_file()]
     if missing_skill_md:
         fail(f"immediate plugin/skills directories missing SKILL.md: {missing_skill_md}")
     skill_dirs = [path for path in children if (path / "SKILL.md").is_file()]
     found = {path.name for path in skill_dirs}
-    if found != EXPECTED_SKILL_IDS:
-        fail(f"expected Skill IDs {sorted(EXPECTED_SKILL_IDS)}, found {sorted(found)}")
+    if not EXPECTED_SKILL_IDS <= found:
+        missing = sorted(EXPECTED_SKILL_IDS - found)
+        fail(f"required Skill IDs missing: {missing}; found {sorted(found)}")
     else:
-        ok(f"canonical Skill IDs are exactly {sorted(found)}")
+        ok(f"required Skill IDs are present; found {sorted(found)}")
     return skill_dirs
 
 
@@ -350,7 +354,93 @@ def check_install_docs_do_not_instruct_committing_mirrors() -> None:
         ok("install docs never instruct committing a tracked Skill mirror")
 
 
-def check_manifests(agent_manifest: dict | None) -> None:
+def check_install_docs_name_every_skill(skill_dirs: list[Path]) -> None:
+    """Every install guide must name every discovered Skill.
+
+    The guides list Skill names by hand, so a newly added Skill silently leaves
+    each route's Verify step unable to detect its own absence.
+    """
+    names = sorted(path.name for path in skill_dirs)
+    docs = sorted((REPO_ROOT / "docs" / "install").glob("*.md"))
+    if not docs:
+        fail("no install guides found under docs/install/")
+        return
+
+    problems = []
+    for doc in docs:
+        try:
+            text = doc.read_text(encoding="utf-8")
+        except OSError as exc:
+            fail(f"unreadable install guide {doc.name}: {exc}")
+            return
+        missing = [name for name in names if name not in text]
+        if missing:
+            problems.append(f"{doc.relative_to(REPO_ROOT).as_posix()}: {missing}")
+    if problems:
+        fail("install guides do not name every discovered Skill: " + "; ".join(problems))
+    else:
+        ok(f"every install guide names all {len(names)} discovered Skills")
+
+
+def check_competition_candidates(skill_dirs: list[Path]) -> None:
+    """Validate trigger-corpus candidates and case-id stability.
+
+    A competition candidate naming a Skill that does not exist can never be
+    satisfied, so the case records `unmeasured` forever instead of competing.
+    A reused case id silently retargets a recorded result at different content.
+    """
+    shipped = {path.name for path in skill_dirs}
+    unknown: list[str] = []
+    duplicate_ids: list[str] = []
+    corpora = sorted(PLUGIN_SKILLS.glob("*/evals/trigger.json"))
+    if not corpora:
+        fail("no trigger corpora found under plugin/skills/*/evals/")
+        return
+
+    for corpus in corpora:
+        try:
+            cases = read_json(corpus)
+        except (OSError, json.JSONDecodeError) as exc:
+            fail(f"unreadable trigger corpus {corpus.name}: {exc}")
+            return
+        if not isinstance(cases, list):
+            cases = [cases]
+        for case in cases:
+            if not isinstance(case, dict):
+                continue
+            competition = case.get("competition")
+            if not isinstance(competition, dict):
+                continue
+            for candidate in competition.get("required_candidates", []) or []:
+                if candidate not in shipped and candidate not in EXTERNAL_COMPETITORS:
+                    where = corpus.relative_to(REPO_ROOT).as_posix()
+                    unknown.append(f"{where}:{case.get('id')} -> {candidate!r}")
+
+        seen: dict[str, int] = {}
+        for case in cases:
+            if isinstance(case, dict) and isinstance(case.get("id"), str):
+                seen[case["id"]] = seen.get(case["id"], 0) + 1
+        repeated = sorted(case_id for case_id, count in seen.items() if count > 1)
+        if repeated:
+            duplicate_ids.append(f"{corpus.relative_to(REPO_ROOT).as_posix()}: {repeated}")
+    if unknown:
+        fail(
+            "competing-skill candidates name Skills that are neither shipped nor "
+            f"declared host Skills {sorted(EXTERNAL_COMPETITORS)}: " + "; ".join(sorted(unknown))
+        )
+    else:
+        ok("every competing-skill candidate is a shipped or declared host Skill")
+
+    if duplicate_ids:
+        fail(
+            "trigger corpora reuse a case id, so a result cannot be traced to one case: "
+            + "; ".join(duplicate_ids)
+        )
+    else:
+        ok("every trigger case id is unique within its corpus")
+
+
+def check_manifests(agent_manifest: dict | None, skill_dirs: list[Path]) -> None:
     try:
         claude = read_json(CLAUDE_PLUGIN_JSON)
         market = read_json(MARKETPLACE_JSON)
@@ -390,15 +480,83 @@ def check_manifests(agent_manifest: dict | None) -> None:
     else:
         ok(f"manifest repository URL is {REPOSITORY_URL}")
 
-    descriptions = [
-        agent_manifest.get("description", ""),
-        claude.get("description", ""),
-        entries[0].get("description", "") if len(entries) == 1 else "",
-    ]
-    if any("skill" not in value.lower() or "merge" not in value.lower() for value in descriptions):
-        fail("manifest descriptions must cover Skill engineering and merge-request review")
+    descriptions = {
+        "plugin/plugin.json": agent_manifest.get("description", ""),
+        "plugin/.claude-plugin/plugin.json": claude.get("description", ""),
+        ".claude-plugin/marketplace.json plugin entry": (
+            entries[0].get("description", "") if len(entries) == 1 else ""
+        ),
+    }
+    descriptions[".claude-plugin/marketplace.json"] = market.get("description", "")
+
+    problems = []
+    for where, value in sorted(descriptions.items()):
+        lowered = value.lower()
+        for topic in ("skill", "merge"):
+            if topic not in lowered:
+                problems.append(f"{where}: missing {topic!r}")
+    if problems:
+        fail("manifest descriptions must cover Skill engineering and merge-request review: " + "; ".join(problems))
     else:
-        ok("manifest descriptions cover all included Skills")
+        ok("manifest descriptions cover Skill engineering and merge-request review")
+
+    check_skill_count_claims(len(skill_dirs), descriptions)
+
+
+# Written-out counts a manifest or install doc may use for the shipped Skill set.
+_COUNT_WORDS = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+}
+# A count only claims the whole shipped set when an all-set qualifier follows it,
+# so "the five forge-* Skills" (a subset) and "v1.0.0" (a version) are not claims.
+_COUNT_CLAIM_RE = re.compile(
+    r"(?i)\b(?:all\s+)?(%s|\d+)\s+(?:(?:portable|canonical|user-facing|shipped|included|agent)\s+){0,2}skills?\b" % "|".join(_COUNT_WORDS)
+)
+
+
+def _claimed_counts(text: str) -> set[int]:
+    counts = set()
+    for match in _COUNT_CLAIM_RE.finditer(text):
+        token = match.group(1).lower()
+        counts.add(_COUNT_WORDS.get(token) or int(token))
+    return counts
+
+
+def count_claim_documents() -> list[Path]:
+    """Every tracked document allowed to state how many Skills ship."""
+    return [REPO_ROOT / "README.md", *sorted((REPO_ROOT / "docs" / "install").glob("*.md"))]
+
+
+def check_skill_count_claims(discovered: int, descriptions: dict[str, str]) -> None:
+    """Reject any manifest, README, or install-doc claim about how many Skills ship.
+
+    ``discover_skills`` deliberately allows Skills beyond the required baseline,
+    so a hardcoded count is only correct until the next Skill lands.  Derive the
+    truth from the discovered packages and fail on every stale claim.
+    """
+    sources = dict(descriptions)
+    for doc in count_claim_documents():
+        try:
+            sources[str(doc.relative_to(REPO_ROOT)).replace(os.sep, "/")] = doc.read_text(
+                encoding="utf-8"
+            )
+        except OSError as exc:
+            fail(f"unreadable documentation file {doc.name}: {exc}")
+            return
+
+    stale = []
+    for where, text in sorted(sources.items()):
+        for claimed in sorted(_claimed_counts(text)):
+            if claimed != discovered:
+                stale.append(f"{where}: claims {claimed}")
+    if stale:
+        fail(
+            f"Skill-count claims disagree with the {discovered} discovered Skill packages: "
+            + "; ".join(stale)
+        )
+    else:
+        ok(f"every Skill-count claim matches the {discovered} discovered Skill packages")
 
 
 def main() -> int:
@@ -412,8 +570,10 @@ def main() -> int:
     check_inspector(skill_dirs)
     check_sensitive_content(skill_dirs)
     check_no_tracked_mirrors()
-    check_manifests(agent_manifest)
+    check_manifests(agent_manifest, skill_dirs)
     check_install_docs_do_not_instruct_committing_mirrors()
+    check_install_docs_name_every_skill(skill_dirs)
+    check_competition_candidates(skill_dirs)
     print()
     print("RESULT:", "PASS" if _ok else "FAIL")
     return 0 if _ok else 1

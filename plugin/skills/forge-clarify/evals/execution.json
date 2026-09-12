@@ -1,0 +1,98 @@
+[
+  {
+    "version": 1,
+    "id": "FC-E-001",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Clarify BR-21861. Current evidence records the BA answer: session timeout is 30 minutes. The only unresolved decision is whether guest checkout is supported.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["does not ask for the already answered session timeout", "asks only whether guest checkout is supported"] },
+      "process": { "required": ["inspects current evidence before presenting the decision frontier"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if the response suppresses the materially answered timeout question and presents guest checkout as the sole unresolved human decision, with the evidence distinguished from the question." }
+    ],
+    "tags": ["answered-question-suppression", "evidence-first"]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-002",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Clarify BR-21861. Evidence leaves two independent decisions unresolved: whether guests may check out, and whether order-history retention is 12 or 24 months. Nothing else is ambiguous.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["presents both independent decisions in one question round", "does not invent an architecture choice"] },
+      "process": { "required": ["groups independent ready questions"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if both decisions are grouped in one frontier round, remain separate decisions, and the response does not choose a technical design or ask unrelated questions." }
+    ],
+    "tags": ["grouping", "decision-frontier"]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-003",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Clarify BR-21861. The question is which supported browsers the checkout must cover; the current supported-browser policy is available in the repository but has not yet been read.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["seeks the available browser-policy evidence", "does not ask the user to supply a repository-answerable fact"] },
+      "process": { "required": ["researches evidence-answerable questions before asking the user"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if it treats browser coverage as evidence-answerable, directs retrieval of the current policy, and does not present browser support as a human decision before checking that evidence." }
+    ],
+    "tags": ["research", "evidence-answerable"]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-004",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Clarify BR-21861. decisions.md records an approved 12-month retention decision for v1, but a current, requirement-changing compliance source requires 24 months for the expanded scope.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["reopens the retention decision with the conflicting current evidence", "does not silently preserve the stale decision"] },
+      "process": { "required": ["reopens a settled decision only because contradiction, staleness, or scope change is evidenced"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if it explicitly identifies the material contradiction or scope change, reopens only the affected retention decision, and cites the reason rather than treating the prior approval as current." }
+    ],
+    "tags": ["staleness", "contradiction", "reopening"]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-005",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "The clarification frontier asks whether guest checkout is supported. The authorized stakeholder replies: 'Yes, allow guest checkout; that is approved.'",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["records the approved guest-checkout decision in decisions.md", "preserves actor, evidence, scope, and approval provenance", "stops after clarification when no continuation is authorized"] },
+      "process": { "required": ["binds the approval through the shared workflow semantics"], "forbidden": ["treating approval as authorization to continue to specification"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if it accepts this natural-language decision approval, records it with sufficient provenance for shared workflow state, and ends at the clarification boundary rather than continuing to another stage." }
+    ],
+    "tags": ["natural-language-approval", "decisions-md", "stage-boundary"]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-006",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Clarify BR-21861. decisions.md contains the approved guest-checkout decision, its cited evidence remains current, and the requested scope is unchanged. There are no unresolved decisions.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["does not reopen or re-ask the settled guest-checkout decision", "reports that clarification has no unresolved human decision"] },
+      "process": { "forbidden": ["silently reopening a settled decision", "continuing to a later stage without authorization"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if it leaves the settled decision closed because there is no evidenced contradiction, staleness, or scope change, and stops at clarification rather than silently proceeding." }
+    ],
+    "tags": ["settled-decision", "no-silent-reopening", "stage-boundary"]
+  }
+]

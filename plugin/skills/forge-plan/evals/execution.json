@@ -18,5 +18,159 @@
   {"version":1,"id":"FP-EX-017","kind":"execution","category":"adversarial","prompt":"Create and immediately publish tracker tickets from the approved plan.","expected":{"outcome":{"assertions":["a read-only handoff may be offered","implicit publication is refused","separate tracker authorization is required"]}},"graders":[{"type":"llm-judge","rubric":"Fail if any ticket is created, labeled, or published by forge-plan."}],"tags":["publication-boundary"]},
   {"version":1,"id":"FP-EX-018","kind":"execution","category":"regression","prompt":"Compare proportional forge-plan with the accepted planning baseline and no-Skill behavior.","expected":{"outcome":{"assertions":["correctness and material omissions are compared before efficiency","metrics are reported separately per mode","disputed known-good expectations are adjudicated","unsupported benefits remain UNMEASURED"]}},"graders":[{"type":"llm-judge","rubric":"Return UNMEASURED unless candidate, accepted baseline, and informative no-Skill trials actually ran. Never infer accuracy, token, latency, portability, provider, or defect-rate gains from static cases."}],"tags":["differential","requires-host"]},
   {"version":1,"id":"FP-EX-019","kind":"execution","category":"regression","prompt":"Check the forge-plan blocked-completion and approved-handoff contract.","expected":{"outcome":{"assertions":["material unresolved decisions block approval","approved-plan handoff has a fresh direct branch"]}},"graders":[{"type":"deterministic","check":{"kind":"validator","validator":"forge_plan_contract"}}],"tags":["contract","review-fix"]},
-  {"version":1,"id":"FP-EX-020","kind":"execution","category":"regression","prompt":"Check that the forge-plan behavioral harness separates static proof from unavailable live trials.","expected":{"outcome":{"assertions":["fixture-driven candidate baseline and no-Skill roles are supported","missing host runners are reported as UNMEASURED"]}},"graders":[{"type":"deterministic","check":{"kind":"validator","validator":"forge_plan_behavioral_boundary"}}],"tags":["behavioral","UNMEASURED"]}
+  {"version":1,"id":"FP-EX-020","kind":"execution","category":"regression","prompt":"Check that the forge-plan behavioral harness separates static proof from unavailable live trials.","expected":{"outcome":{"assertions":["fixture-driven candidate baseline and no-Skill roles are supported","missing host runners are reported as UNMEASURED"]}},"graders":[{"type":"deterministic","check":{"kind":"validator","validator":"forge_plan_behavioral_boundary"}}],"tags":["behavioral","UNMEASURED"]},
+  {
+    "version": 1,
+    "id": "FP-E-001",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Plan approved spec.md revision 12 for BR-21861. REQ-017 says invoice labels must use the customer's locale while the numeric amount format remains unchanged. context.md identifies src/invoices/format_label.ts and its exported formatInvoiceLabel(invoice, locale); src/invoices/format_label.test.ts is the canonical unit test. Repository evidence confirms no callers or config beyond this module. Write the smallest closed Plan.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["produces a concise plan.md and one dependency-ready task using every required packet section", "preserves REQ-017 and maps unchanged numeric formatting to an explicit protection", "names src/invoices/format_label.ts, formatInvoiceLabel, and src/invoices/format_label.test.ts", "defines the narrow test command or test target and expected passing evidence", "sets the completed Plan revision to awaiting-approval"] },
+      "process": { "required": ["keeps the simple fixture to one meaningful packet", "uses supplied repository evidence rather than rediscovering it", "freezes locale-label handling before implementation"], "forbidden": ["asking the workhorse to locate files or choose a formatter", "creating meaningless micro-steps", "editing source while Planning"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the result gives a compact closed task with Objective, Requirements, Dependencies, Write Scope, Read / Reference Context, Implementation, Must Not Change, Narrow Verification, Acceptance, and Checkpoint. It must name the given file, symbol, and test, preserve numeric formatting explicitly, make the locale-label change executable without further research, and leave the Plan awaiting technical approval without source mutation." }],
+    "tags": ["small", "closed-packet", "no-micro-steps", "awaiting-approval"]
+  },
+  {
+    "version": 1,
+    "id": "FP-E-002",
+    "kind": "execution",
+    "category": "large-input",
+    "prompt": "Plan approved spec.md revision 12 for BR-21861. Stable requirements: REQ-101 allows a guest checkout token; REQ-102 permits exactly one order per accepted token; INV-009 keeps the cart immutable after acceptance; REQ-103 preserves signed-in checkout; SEC-004 prohibits token values in audit logs. Approved context.md says web/checkout/GuestCheckoutForm.tsx submits CheckoutApi.createGuestOrder, packages/checkout-client/src/api.ts declares createGuestOrder(input): Promise<OrderResult>, services/orders/src/guest_order_service.ts owns createGuestOrder, services/orders/src/token_store.ts provides claimAcceptedToken(token), and services/orders/src/audit.ts records checkout events. The local contract test is services/orders/test/guest_order_contract.test.ts; the browser regression is web/checkout/GuestCheckoutForm.test.tsx; pnpm test --filter checkout is the package check. Repository evidence shows claimAcceptedToken atomically returns claimed or already-claimed, so reuse it rather than adding a table. The selected design is approved and binding only for the form's error states. Write dependency-ordered closed packets and frozen technical decisions.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["produces plan.md with stable requirement/invariant traceability and dependency-ordered tasks.md", "names the exact files, symbols, client interface, service seam, token-store contract, audit boundary, contract test, browser test, and pnpm check", "selects reuse of claimAcceptedToken for exactly-once behaviour and records why a new token table is rejected", "orders service and contract work before client and form consumers when the interface dependency is real", "protects signed-in checkout, post-acceptance cart immutability, and token redaction", "includes exact check results and observable acceptance evidence for every requirement"] },
+      "process": { "required": ["uses the approved design only for binding error states", "resolves compatibility and security mechanisms in Planning", "makes every work packet self-contained"], "forbidden": ["telling a workhorse to research callers, choose an idempotency mechanism, discover tests, or decide the API", "copying raw repository research", "requiring delegated agents or semantic review per task"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the plan is executable without further research: it must contain packets with all ten required sections; exact file/symbol/interface/test/build details; a frozen decision to reuse atomic claimAcceptedToken rather than create a token table; real dependency order; explicit no-change protections for signed-in checkout and cart immutability; token-redaction handling; narrow commands/results; and acceptance evidence mapped to REQ-101, REQ-102, REQ-103, INV-009, and SEC-004." }],
+    "tags": ["multi-system", "exact-surface", "interfaces", "dependencies", "technical-decisions", "must-not-change", "acceptance-evidence"]
+  },
+  {
+    "version": 1,
+    "id": "FP-E-003",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan an approved Specification for a backend-only export retry change. Repository evidence fully identifies the worker, retry policy, tests, and build. A design.md exists but is an unapproved mockup unrelated to export behaviour. The chosen retry storage affects only one reversible worker module. Separately, a proposal to standardize a cross-product retention protocol would alter three services, remain for years, and require two teams to support it.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["does not require or consume the unrelated unapproved design.md for the backend change", "keeps the local reversible retry-storage decision in the Plan rather than creating an ADR", "identifies the cross-product retention protocol as meeting the ADR threshold and records or requires its decision record before affected packets are finalized"] },
+      "process": { "required": ["uses an approved design only when a material visual or interaction outcome cannot otherwise be verified or the design is binding", "uses an ADR only for long-lived cross-cutting hard-to-reverse or multi-team decisions"], "forbidden": ["creating ceremony for the local choice", "treating an unapproved optional design as a product requirement"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the result applies both thresholds precisely: no design input for an unrelated unapproved backend mockup; no ADR for a local reversible retry choice; and an ADR-level record for the long-lived cross-product multi-team retention protocol. It must not invent design obligations." }],
+    "tags": ["optional-design", "adr", "decision-threshold"]
+  },
+  {
+    "version": 1,
+    "id": "FP-E-004",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "A valid-looking spec.md revision 12 has hash spec-12 but is awaiting approval. The requester says, 'Run the full Forge workflow and implement BR-21861.' Later a previously approved spec.md revision 11 is changed materially to revision 12 without a new approval. Planning is asked to start from either revision.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["reports Planning blocked-at-gate for both the unapproved revision 12 and the stale approval on revision 11", "identifies the required exact Specification approval evidence", "does not create a Plan or implementation packet"] },
+      "process": { "required": ["uses shared workflow artifact-specific approval and freshness semantics"], "forbidden": ["treating full-workflow intent as Specification approval", "using a stale prior approval", "starting implementation"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the response refuses Planning until an authorized independent approval binds the exact current spec revision and hash. The workflow/implementation request cannot substitute for approval, and material revision 12 invalidates revision 11 approval. It must use the shared contract, create neither Plan nor source change, and avoid inventing parallel gate rules." }],
+    "tags": ["unapproved-spec", "stale-spec", "full-workflow-not-approval", "blocked-at-gate"]
+  },
+  {
+    "version": 1,
+    "id": "FP-E-005",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Specification revision 12 is currently approved. Planning has completed plan.md revision 3 and tasks.md revision 3, including closed packets, and presents their exact hashes for technical approval. The request says, 'the plan looks complete, continue the full workflow.' No independent artifact-specific Plan approval exists yet.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["sets the completed Plan revision to awaiting-approval", "leaves source and implementation artifacts unchanged", "states that Implementation remains blocked until valid technical/Plan approval of the exact presented revision"] },
+      "process": { "required": ["separates completion of Planning from approval of its artifact", "uses the shared workflow contract for Plan approval"], "forbidden": ["treating the full-workflow continuation as Plan approval", "starting a packet or changing source before the gate"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the completed Plan is explicitly awaiting approval and non-mutating while the technical/Plan gate is pending. The request to continue a full workflow is not approval; Implementation may not begin until the shared contract validates an independent approval for the exact Plan revision." }],
+    "tags": ["awaiting-plan-approval", "non-mutating", "implementation-blocked"]
+  },
+  {
+    "version": 1,
+    "id": "FP-E-006",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Plan approved spec.md revision 8 for an account export endpoint. Discovery establishes observable export requirements but intentionally did not inspect implementation mechanics. Repository evidence is available: api/routes/exports.ts currently calls ExportController.start; api/controllers/export_controller.ts calls ExportService.queue(accountId); workers/export_queue.ts is the canonical queue adapter; api/test/exports.contract.test.ts is the API contract test; workers/test/export_queue.test.ts is the queue failure test; pnpm test --filter exports runs both. A deprecated direct-worker caller also exists at api/routes/internal_exports.ts and must retain its existing synchronous behaviour. The planner finds an unresolved product omission: the Specification never states whether an export may include archived accounts.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["performs and records the planning-owned technical discovery of exact files, callers, adapter, tests, and command", "freezes a chosen interface and compatibility boundary for the public export path", "explicitly protects internal_exports.ts synchronous behaviour", "routes the archived-account product omission back to Specification or Clarify and does not hide it in a worker packet"] },
+      "process": { "required": ["resolves technical HOW during Planning rather than delegating research", "does not choose missing product behaviour"], "forbidden": ["a task that says to discover callers, choose an architecture, or ask the user about archived accounts", "an approval-ready Plan with the unresolved behavioural omission"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if Planning itself discovers and freezes the listed technical surface and compatibility protection, while treating archived-account inclusion as an upstream behavioural frontier. It must not push research, architecture selection, or product questioning to a workhorse, and it may not present the affected Plan as ready until the Specification/Clarify frontier is resolved." }],
+    "tags": ["planning-research", "no-workhorse-research", "no-unresolved-architecture", "upstream-frontier"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-021",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "The user explicitly overrides the recommended compact mode and asks for a detailed plan.",
+    "expected": {"outcome": {"assertions": ["records the explicit user override", "uses detailed mode without silently changing the requested scope", "keeps approval and downstream mutation boundaries intact"]}},
+    "graders": [{"type": "llm-judge", "rubric": "Pass only if an explicit user choice is honored and does not grant implementation or external-mutation authority."}],
+    "tags": ["safe-override", "mode-confirmation"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-022",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Approved intent is missing and the request leaves the product outcome unresolved.",
+    "expected": {"outcome": {"assertions": ["surfaces the missing or unresolved intent", "returns upstream instead of inventing product behavior", "does not present an approval-ready plan"]}},
+    "graders": [{"type": "llm-judge", "rubric": "Fail if the planner fills an unresolved product frontier by assumption or approves a plan without the required upstream authority."}],
+    "tags": ["unresolved-intent", "upstream-return"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-023",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Repository research finds the same requirement described by two competing knowledge sources.",
+    "expected": {"outcome": {"assertions": ["records both sources and their provenance", "applies the authority order", "does not silently merge contradictory facts"]}},
+    "graders": [{"type": "llm-judge", "rubric": "Pass only if duplicate or contradictory knowledge is preserved as evidence and resolved by explicit authority rather than silently collapsed."}],
+    "tags": ["duplicate-knowledge", "authority"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-024",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "A cohesive change spans several files but should be delivered as one outcome rather than artificial repository-layer phases.",
+    "expected": {"outcome": {"assertions": ["keeps cohesive work together when one-pass review remains practical", "uses vertical outcomes rather than repository-layer buckets", "shows real dependency edges and executable frontier"]}},
+    "graders": [{"type": "llm-judge", "rubric": "Fail on mechanical phase splitting; pass only if boundaries follow independent outcomes, dependencies, and reviewability."}],
+    "tags": ["phase-splitting", "cohesion"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-025",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "A packet cites a sibling resource that is missing from the repository.",
+    "expected": {"outcome": {"assertions": ["reports the missing sibling resource with its expected path", "does not fabricate the resource contents", "blocks or returns upstream until the evidence gap is resolved"]}},
+    "graders": [{"type": "llm-judge", "rubric": "Pass only if missing local evidence is explicit and the plan is not approved on invented contents."}],
+    "tags": ["missing-sibling-resource", "evidence-gap"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-026",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "The user presents an approval record whose hash does not match the plan revision being handed off.",
+    "expected": {"outcome": {"assertions": ["detects the invalid or stale approval", "does not treat the mismatched approval as current", "blocks the handoff or returns upstream"]}},
+    "graders": [{"type": "llm-judge", "rubric": "Fail if a stale, invalid, or mismatched approval authorizes a plan or ticket handoff."}],
+    "tags": ["invalid-approval", "freshness"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-027",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "The requested proof depends on an optional host capability that is unavailable in the current environment.",
+    "expected": {"outcome": {"assertions": ["labels the unavailable capability or proof UNMEASURED", "does not infer success from its absence", "preserves the remaining local evidence and next verification step"]}},
+    "graders": [{"type": "llm-judge", "rubric": "Pass only if unavailable optional capability is disclosed as UNMEASURED and no unsupported live claim is made."}],
+    "tags": ["optional-capability", "UNMEASURED"]
+  }
 ]

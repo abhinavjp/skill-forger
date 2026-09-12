@@ -1,0 +1,78 @@
+{
+  "request": {
+    "text": "Implement BR-21861 using Agentic SDLC",
+    "requested_scope": ["BR-21861"],
+    "delivery_operation": "publish-release"
+  },
+  "issue_source": {
+    "issue_id": "BR-21861",
+    "current_fields": {
+      "summary": "Export audit evidence for approved access reviews",
+      "description": "Provide an export after approved review evidence is available.",
+      "custom_fields": {
+        "Business Area": "Access Governance",
+        "Acceptance Criteria": [
+          "The export contains the approved review evidence.",
+          "The export excludes pre-existing unrelated changes."
+        ],
+        "Delivery Scope": "Application source and approved release note only"
+      }
+    },
+    "sources": [
+      {"kind": "field", "locator": "BR-21861.summary", "freshness": "2026-09-01T09:00:00Z"},
+      {"kind": "custom-field", "locator": "BR-21861.Acceptance Criteria", "freshness": "2026-09-01T09:00:00Z"}
+    ],
+    "comments": {
+      "pages": [
+        {
+          "page": 1,
+          "items": [
+            {"id": "c-101", "author": "business-analyst", "text": "BA answer: reuse the approved access-review evidence mapping; no new field is required."},
+            {"id": "c-102", "author": "product-owner", "text": "Historical proposal: include every open review, approved or not."}
+          ]
+        },
+        {
+          "page": 2,
+          "items": [
+            {"id": "c-103", "author": "product-owner", "text": "Current requirement: export only approved review evidence."}
+          ]
+        }
+      ]
+    },
+    "requirement_changing_history": [
+      {"source": "c-102", "requirement": "include every open review"},
+      {"source": "c-103", "requirement": "include only approved review evidence"}
+    ],
+    "relationships": [{"type": "depends-on", "issue": "BR-21790", "relevance": "approved review evidence"}],
+    "freshness": {"observed_at": "2026-09-01T09:00:00Z", "version": "BR-21861-r17"}
+  },
+  "okf_provider": {
+    "tree": [
+      {"path": "okf/access-governance", "kind": "directory"},
+      {"path": "okf/access-governance/review-export.md", "kind": "file", "leaf": true, "hash": "okf-review-export-r4"},
+      {"path": "okf/access-governance/retention", "kind": "directory"},
+      {"path": "okf/access-governance/retention/export-retention.md", "kind": "file", "leaf": true, "hash": "okf-retention-r2"}
+    ],
+    "requested_references": ["okf/access-governance/review-export.md"],
+    "unavailable_knowledge": [{"path": "okf/access-governance/legacy-policy.md", "reason": "access denied"}]
+  },
+  "artifact_location_conventions": {
+    "specification": "brain/BR-21861/specification.md",
+    "plan": "brain/BR-21861/plan.md"
+  },
+  "project_validators": ["approved-evidence-shape"],
+  "authorized_delivery_operations": ["prepare-approved-release-note"],
+  "approval_policy": {
+    "planning": {"approvers": ["functional-owner"]},
+    "implementation": {"approvers": ["technical-owner"]}
+  },
+  "workflow_state": {
+    "current_actor": "forge-agent",
+    "requires_spec_approval": true,
+    "artifacts": {
+      "specification": {"hash": "spec-r1", "revision": "spec-r1"},
+      "plan": {"hash": "plan-r1", "revision": "plan-r1"}
+    },
+    "pre_existing_changes": ["inspect_out.json", ".claude/settings.local.json"]
+  }
+}
