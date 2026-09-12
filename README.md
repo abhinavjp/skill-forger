@@ -20,6 +20,8 @@ The plugin includes:
   scope, and implementation completeness.
 - [skill-prospector](plugin/skills/skill-prospector/SKILL.md) — audits project
   guidance and plans which reusable procedures should become Skills.
+- [forge-plan](plugin/skills/forge-plan/SKILL.md) — recommends compact or
+  detailed depth and produces approved, dependency-correct implementation plans.
 
 Each complete Skill package—including runtime references, scripts, agents
 metadata, and canonical eval inputs—lives beneath its canonical directory.
@@ -48,7 +50,7 @@ python packaging/validate_plugin.py
 ```
 
 This validates both plugin manifests and the Claude marketplace version, the
-exact three-Skill layout, unique frontmatter names, reference resolution and
+exact four-Skill layout, unique frontmatter names, reference resolution and
 path containment, portable-core checks, and the absence of tracked host mirrors.
 
 The Skill engineering static corpus remains available at:

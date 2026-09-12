@@ -13,7 +13,7 @@
       "name": "skill-engineer",
       "version": "2.1.0",
       "source": "./plugin",
-      "description": "Engineer and review Agent Skills, audit project guidance to plan new Skills, and audit merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness."
+      "description": "Engineer and review Agent Skills, audit project guidance, create proportional implementation plans, and review merge requests for defects, regressions, security risks, unsafe scope, and implementation completeness."
     }
   ]
 }

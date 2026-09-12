@@ -18,8 +18,9 @@ from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
-EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"}
+EXPECTED_SKILL_IDS = {"forge-plan", "merge-sentinel", "skill-engineer", "skill-prospector"}
 CANONICAL_EVAL_VALIDATORS = {
+    "forge-plan": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
     "merge-sentinel": PLUGIN_SKILLS / "merge-sentinel" / "evals" / "validate_corpus.py",
     "skill-engineer": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
     "skill-prospector": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
