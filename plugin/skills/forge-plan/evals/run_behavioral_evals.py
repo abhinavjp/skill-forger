@@ -99,6 +99,14 @@ def _load_cases(evals: Path, requested: list[str] | None) -> tuple[list[dict], l
     static_only = []
     behavioral = []
     for case in cases:
+        if not isinstance(case.get("prompt"), str) or not case["prompt"].strip():
+            raise CorpusError(f"case {case.get('id')} has no non-empty prompt")
+        outcome = case.get("expected", {}).get("outcome") if isinstance(case.get("expected"), dict) else None
+        assertions = outcome.get("assertions") if isinstance(outcome, dict) else None
+        if not isinstance(assertions, list) or not assertions or not all(isinstance(item, str) and item.strip() for item in assertions):
+            raise CorpusError(f"case {case.get('id')} requires a non-empty expected.outcome.assertions list")
+        if not isinstance(case.get("graders"), list) or not case["graders"]:
+            raise CorpusError(f"case {case.get('id')} requires graders")
         graders = case.get("graders", [])
         if graders and all(grader.get("type") == "deterministic" for grader in graders):
             static_only.append(case["id"])
@@ -288,6 +296,9 @@ def _run_role(role: str, command: list[str], cases: list[dict], fixture: dict, j
                     assert evidence is not None
                     result.update(_grade_case(role, case, evidence, fixture, judge_command))
                     result["evidence"] = evidence
+                    if result.get("status") == "GRADED":
+                        result["metrics"]["correctness"] = result["correctness"]
+                        result["metrics"]["material_omissions"] = result["material_omissions"]
         results.append(result)
     return results
 

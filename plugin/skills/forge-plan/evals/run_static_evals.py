@@ -90,6 +90,8 @@ def forge_plan_behavioral_boundary(_check: dict) -> tuple[bool, list[str]]:
                 scenarios = baseline.get("scenarios") if isinstance(baseline, dict) else None
                 if not isinstance(scenarios, list) or not scenarios or not all(isinstance(item, dict) and item.get("id") and item.get("case_id") for item in scenarios):
                     errors.append("accepted baseline fixture scenarios are malformed")
+                elif len({item["id"] for item in scenarios}) != len(scenarios) or len({item["case_id"] for item in scenarios}) != len(scenarios):
+                    errors.append("accepted baseline fixture scenario IDs must be unique")
     return not errors, errors
 
 
