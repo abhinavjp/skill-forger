@@ -53,7 +53,7 @@ def forge_plan_behavioral_boundary(_check: dict) -> tuple[bool, list[str]]:
         return False, [f"harness parse failed: {exc}"]
     functions = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
     errors.extend(f"harness missing function: {name}" for name in sorted({"_argv_file", "_finalize_assertions", "_run_role", "_run_judge", "main"} - functions))
-    allowed_imports = {"argparse", "ast", "json", "pathlib", "subprocess", "sys", "validate_evals"}
+    allowed_imports = {"__future__", "argparse", "ast", "json", "pathlib", "subprocess", "sys", "validate_evals"}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             imported = [alias.name.split(".")[0] for alias in node.names]
