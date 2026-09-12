@@ -221,3 +221,34 @@ for runner/grader errors, incomplete required roles, candidate incorrectness,
 or candidate regressions. Regression coverage includes candidate improvement
 over both comparators, no-Skill regression detection, malformed judge output,
 and self-attesting runner rejection.
+
+### Re-review addendum: clean-room harness, corpus, and branch integration
+
+The clean-room review at head `61aec34` found seven remaining findings. This
+pass freezes the following contracts before implementation:
+
+- Runner and judge process inputs use validated JSON argv files, never shell
+  command strings or `shlex`; arguments are passed directly with `shell=False`.
+- Runner input contains only case ID, prompt, tags, role, and fixture. Expected
+  assertions and rubrics are grader-only data and are never exposed to the
+  execution adapter.
+- Repository-static validators run only through `run_static_evals.py`. The
+  behavioral harness excludes static-only cases and reports explicit
+  `UNMEASURED` classification when selected.
+- One assertion finalizer owns schema completeness, duplicate/conflict handling,
+  failed behavioral assertions, correctness, and omission counts. Complete
+  grading reports `failed_assertions` as material omissions; missing grader
+  assertions remain a separate schema field.
+- Differential reports index every expected assertion and emit lost/gained
+  assertions, pass-count deltas, omission deltas, improvement, and regression.
+  Any candidate loss against either comparator fails the run.
+- Behavioral corpus loading validates the canonical case schema before spawning
+  processes, rejects empty/duplicate/malformed cases, and classifies missing
+  versioned metrics as `UNMEASURED` rather than zero or silently omitting them.
+
+The current PR branch is also merged with the latest `main`; conflict
+resolution preserves the intended proportional `forge-plan` package while
+retaining unrelated current-main packaging and repository changes. Verification
+must cover argv paths containing spaces/backslashes, oracle-free runner input,
+static-only routing, mixed assertion losses, malformed corpora, and the full
+package/validator/static/harness gates before delivery.
