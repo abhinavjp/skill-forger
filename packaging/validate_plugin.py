@@ -17,6 +17,8 @@ import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 
+from plugin_policy import CANONICAL_EVAL_VALIDATORS, EXPECTED_SKILL_IDS
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = Path(__file__).resolve().parent / "plugin.schema.1.0.0.json"
@@ -24,7 +26,6 @@ PLUGIN_DIR = REPO_ROOT / "plugin"
 PLUGIN_SKILLS = PLUGIN_DIR / "skills"
 CLAUDE_PLUGIN_JSON = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
-EXPECTED_SKILL_IDS = {"forge-plan", "merge-sentinel", "skill-engineer", "skill-prospector"}
 REPOSITORY_URL = "https://github.com/abhinavjp/skill-forger"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"

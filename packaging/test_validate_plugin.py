@@ -18,13 +18,6 @@ from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
-EXPECTED_SKILL_IDS = {"forge-plan", "merge-sentinel", "skill-engineer", "skill-prospector"}
-CANONICAL_EVAL_VALIDATORS = {
-    "forge-plan": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
-    "merge-sentinel": PLUGIN_SKILLS / "merge-sentinel" / "evals" / "validate_corpus.py",
-    "skill-engineer": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
-    "skill-prospector": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
-}
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
 )
@@ -35,6 +28,11 @@ VALIDATOR_SPEC = importlib.util.spec_from_file_location(
 assert VALIDATOR_SPEC is not None and VALIDATOR_SPEC.loader is not None
 validator = importlib.util.module_from_spec(VALIDATOR_SPEC)
 VALIDATOR_SPEC.loader.exec_module(validator)
+EXPECTED_SKILL_IDS = validator.EXPECTED_SKILL_IDS
+CANONICAL_EVAL_VALIDATORS = {
+    skill_id: REPO_ROOT / relative_path
+    for skill_id, relative_path in validator.CANONICAL_EVAL_VALIDATORS.items()
+}
 
 
 def frontmatter_name(skill_md: Path) -> str | None:
@@ -68,6 +66,50 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual(agent["version"], marketplace["version"])
         self.assertEqual(1, len(entries))
         self.assertEqual(agent["version"], entries[0]["version"])
+        self.assertEqual("2.1.1", agent["version"])
+
+    def test_packaging_policy_is_the_single_skill_roster_source(self) -> None:
+        """Keeps validator and tests on one canonical roster/eval map."""
+        policy_spec = importlib.util.spec_from_file_location(
+            "plugin_policy", REPO_ROOT / "packaging" / "plugin_policy.py"
+        )
+        assert policy_spec is not None and policy_spec.loader is not None
+        policy = importlib.util.module_from_spec(policy_spec)
+        policy_spec.loader.exec_module(policy)
+
+        self.assertEqual(policy.EXPECTED_SKILL_IDS, validator.EXPECTED_SKILL_IDS)
+        self.assertEqual(
+            policy.CANONICAL_EVAL_VALIDATORS,
+            validator.CANONICAL_EVAL_VALIDATORS,
+        )
+
+    def test_forge_plan_uses_its_target_specific_static_gate(self) -> None:
+        """Runs forge-plan contract checks instead of schema validation only."""
+        runner = CANONICAL_EVAL_VALIDATORS["forge-plan"]
+        proc = subprocess.run(
+            [sys.executable, str(runner), "--json"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertGreater(report["summary"]["runnable"], 0)
+        self.assertEqual(0, report["summary"]["failed"])
+
+    def test_forge_plan_behavioral_harness_discloses_missing_live_runners(self) -> None:
+        """Never turns absent candidate/baseline/no-Skill execution into a pass."""
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        proc = subprocess.run(
+            [sys.executable, str(harness), "--json"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual("UNMEASURED", report["status"])
+        self.assertNotEqual("passed", report["status"].lower())
 
     def test_plugin_skills_are_the_complete_canonical_payload(self) -> None:
         """Catches a missing, extra, or incompletely packaged canonical skill."""

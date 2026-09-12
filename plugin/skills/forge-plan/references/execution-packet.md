@@ -7,6 +7,10 @@ layer. Avoid repository-layer buckets. Record `blocked_by` only when unfinished
 work truly prevents the dependent work from starting. The executable frontier
 is every incomplete task whose dependencies are complete; show the whole set.
 
+Each packet states the closed product, architecture, scope, and material
+alternative decisions needed for implementation. A packet with an unresolved
+material decision is blocked and returns upstream; it is not approvable.
+
 Each packet states:
 
 - stable ID, title, observable outcome, and referenced canonical IDs;

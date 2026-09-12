@@ -1,0 +1,24 @@
+{
+  "authority": [
+    {
+      "path": "intent.md",
+      "approval": "approved",
+      "approval_hash": "fixture-intent-approved",
+      "fresh": true
+    },
+    {
+      "path": "spec.md",
+      "approval": "approved",
+      "approval_hash": "fixture-spec-approved",
+      "fresh": true
+    }
+  ],
+  "repository": {
+    "state": "clean",
+    "changed_paths": ["src/example.py", "tests/test_example.py"]
+  },
+  "plan": {
+    "approval_hash": "fixture-plan-approved",
+    "tracker_conversion_next_step": true
+  }
+}
