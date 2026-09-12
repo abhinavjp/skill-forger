@@ -1,5 +1,11 @@
 # Execution packet contract
 
+## Packet fields
+
+Each packet is a closed execution record, not a place to defer product or
+architecture choices. It is owned by its compact plan or detailed phase and
+uses the current artifact tree selected by the mode reference.
+
 ## Vertical work and dependencies
 
 Each slice or task delivers one observable working outcome across every relevant

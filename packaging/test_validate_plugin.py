@@ -14,6 +14,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import List, Optional
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -53,8 +54,15 @@ assert BEHAVIORAL_SPEC is not None and BEHAVIORAL_SPEC.loader is not None
 behavioral_evals = importlib.util.module_from_spec(BEHAVIORAL_SPEC)
 BEHAVIORAL_SPEC.loader.exec_module(behavioral_evals)
 
+STATIC_EVAL_SPEC = importlib.util.spec_from_file_location(
+    "forge_plan_static_evals", PLUGIN_SKILLS / "forge-plan" / "evals" / "run_static_evals.py"
+)
+assert STATIC_EVAL_SPEC is not None and STATIC_EVAL_SPEC.loader is not None
+forge_plan_static_evals = importlib.util.module_from_spec(STATIC_EVAL_SPEC)
+STATIC_EVAL_SPEC.loader.exec_module(forge_plan_static_evals)
 
-def frontmatter_name(skill_md: Path) -> str | None:
+
+def frontmatter_name(skill_md: Path) -> Optional[str]:
     lines = skill_md.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
         return None
@@ -128,6 +136,144 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         report = json.loads(proc.stdout)
         self.assertEqual("UNMEASURED", report["status"])
         self.assertNotEqual("passed", report["status"].lower())
+
+    def test_forge_plan_delegates_workflow_and_source_semantics_to_shared_contracts(self) -> None:
+        skill = (PLUGIN_SKILLS / "forge-plan" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("../../shared/forge/references/workflow-contract.md", skill)
+        self.assertIn("../../shared/forge/references/issue-source-contract.md", skill)
+        self.assertIn("../../shared/forge/references/knowledge-provider-contract.md", skill)
+        self.assertIn("can_enter_stage", skill)
+        self.assertIn("awaiting-approval", skill)
+        self.assertIn("content hash", skill)
+        self.assertNotIn("Present the artifact paths and approval hash", skill)
+        self.assertNotIn("to-tickets", skill.lower())
+
+    def test_repository_gate_requires_tracked_resolved_specification_authority(self) -> None:
+        self.assertEqual([], validator.validate_implementation_plan_specs())
+        with tempfile.TemporaryDirectory(prefix="spec-authority-") as directory:
+            root = Path(directory)
+            plan = root / "docs" / "superpowers" / "plans" / "current.md"
+            plan.parent.mkdir(parents=True)
+            plan.write_text("**Spec:** `docs/specs/current.md`\n", encoding="utf-8")
+            spec = root / "docs" / "specs" / "current.md"
+            spec.parent.mkdir(parents=True)
+            spec.write_text("Revision: 1\n## Resolved decisions\n- fixed\n", encoding="utf-8")
+            tracked = {
+                "docs/superpowers/plans/current.md",
+                "docs/specs/current.md",
+            }
+            self.assertEqual(
+                [],
+                validator.validate_implementation_plan_specs(
+                    [plan], tracked_paths=tracked, repo_root=root
+                ),
+            )
+
+            for name, content, tracked_paths in (
+                (
+                    "missing",
+                    "**Spec:** `docs/specs/missing.md`\n",
+                    {"docs/superpowers/plans/current.md"},
+                ),
+                (
+                    "untracked",
+                    "**Spec:** `docs/specs/current.md`\n",
+                    {"docs/superpowers/plans/current.md"},
+                ),
+                (
+                    "draft",
+                    "**Spec:** `docs/specs/current.md`\n",
+                    {"docs/superpowers/plans/current.md", "docs/specs/current.md"},
+                ),
+                (
+                    "unresolved",
+                    "**Spec:** `docs/specs/current.md`\n",
+                    {"docs/superpowers/plans/current.md", "docs/specs/current.md"},
+                ),
+            ):
+                with self.subTest(name=name):
+                    plan.write_text(content, encoding="utf-8")
+                    if name == "draft":
+                        spec.write_text("Revision: 1\nDraft for grilling\n", encoding="utf-8")
+                    elif name == "unresolved":
+                        spec.write_text("Revision: 1\n## Open questions\n- decide\n", encoding="utf-8")
+                    else:
+                        spec.write_text("Revision: 1\n## Resolved decisions\n- fixed\n", encoding="utf-8")
+                    errors = validator.validate_implementation_plan_specs(
+                        [plan], tracked_paths=tracked_paths, repo_root=root
+                    )
+                    self.assertTrue(errors)
+
+    def test_current_compact_and_detailed_shape_mappings_are_deterministic(self) -> None:
+        ok, errors = forge_plan_static_evals.validate_artifact_shape_mappings()
+        self.assertTrue(ok, errors)
+        self.assertEqual([], errors)
+        with tempfile.TemporaryDirectory(prefix="shape-mapping-") as directory:
+            execution = Path(directory) / "execution.json"
+            data = json.loads(
+                (PLUGIN_SKILLS / "forge-plan" / "evals" / "execution.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            case = next(item for item in data if item.get("id") == "FP-E-001")
+            assertion = case["expected"]["outcome"]["assertions"][0]
+            case["artifact_shape_mapping"]["assertions"][assertion]["authority"] = "REQ-999"
+            execution.write_text(json.dumps(data), encoding="utf-8")
+            ok, errors = forge_plan_static_evals.validate_artifact_shape_mappings(execution)
+        self.assertFalse(ok)
+        self.assertTrue(any("unknown current REQ authority" in error for error in errors))
+
+    def test_behavioral_structural_mutations_fail_even_when_names_and_options_remain(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        baseline = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "brain-plan-scenarios.json"
+        with tempfile.TemporaryDirectory(prefix="behavioral-structure-") as directory:
+            root = Path(directory)
+            mutated_harness = root / "run_behavioral_evals.py"
+            mutated_harness.write_text(
+                harness.read_text(encoding="utf-8").replace("shell=False", "shell=True", 1),
+                encoding="utf-8",
+            )
+            mutated_loader = root / "run_behavioral_loader_mutation.py"
+            mutated_loader.write_text(
+                harness.read_text(encoding="utf-8").replace(
+                    "public = load_public_fixture(path)", "public = _load_json(path)"
+                ),
+                encoding="utf-8",
+            )
+            mutated_fixture = root / "fixture.json"
+            fixture_data = json.loads(fixture.read_text(encoding="utf-8"))
+            fixture_data["schema_version"] = 99
+            mutated_fixture.write_text(json.dumps(fixture_data), encoding="utf-8")
+            copied_baseline = root / "baseline.json"
+            shutil.copy2(baseline, copied_baseline)
+
+            shell_ok, shell_errors = forge_plan_static_evals.inspect_behavioral_harness(
+                mutated_harness, fixture, baseline
+            )
+            loader_ok, loader_errors = forge_plan_static_evals.inspect_behavioral_harness(
+                mutated_loader, fixture, baseline
+            )
+            fixture_ok, fixture_errors = forge_plan_static_evals.inspect_behavioral_harness(
+                harness, mutated_fixture, copied_baseline
+            )
+
+        self.assertFalse(shell_ok, shell_errors)
+        self.assertFalse(loader_ok, loader_errors)
+        self.assertFalse(fixture_ok, fixture_errors)
+
+    def test_forge_plan_has_no_downstream_conversion_provenance(self) -> None:
+        scoped = (
+            Path("intent.md"),
+            Path("docs/research/2026-09-12-forge-plan-modes-research.md"),
+            Path("docs/superpowers/plans/2026-09-12-forge-plan-pr-2-review-fixes.md"),
+            Path("plugin/skills/forge-plan/SKILL.md"),
+            Path("plugin/skills/forge-plan/evals/execution.json"),
+        )
+        text = "\n".join((REPO_ROOT / path).read_text(encoding="utf-8") for path in scoped).lower()
+        self.assertNotIn("to-tickets", text)
+        self.assertNotIn("ticket handoff", text)
+        self.assertIn("tracker publication", text)
 
     def run_behavioral_harness(self, temporary: Path, mode: str, *, strict: bool = False, with_judge: bool = True, case_id: str = "FP-EX-001"):
         """Run one real harness case against temporary runner and judge argv files."""
@@ -241,12 +387,17 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
 
     def test_behavioral_harness_surfaces_candidate_regression(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            proc = self.run_behavioral_harness(Path(directory), "candidate-regression")
+            proc = self.run_behavioral_harness(Path(directory), "candidate-regression", case_id="FP-E-001")
         self.assertNotEqual(0, proc.returncode)
         report = json.loads(proc.stdout)
         comparison = report["comparisons"][0]
         self.assertTrue(comparison["candidate_vs_baseline"]["regression"])
         self.assertTrue(comparison["candidate_vs_no_skill"]["regression"])
+        self.assertEqual(3, comparison["trial_count"])
+        self.assertEqual(3, len(comparison["candidate_vs_baseline"]["trial_deltas"]))
+        self.assertTrue(
+            all(delta["regression"] for delta in comparison["candidate_vs_baseline"]["trial_deltas"])
+        )
 
     def test_behavioral_harness_reports_candidate_improvement_over_bad_comparators(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -295,7 +446,10 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             proc = self.run_behavioral_harness(Path(directory), "capture")
             captured = json.loads((Path(directory) / "runner-input.json").read_text(encoding="utf-8"))
         self.assertEqual(0, proc.returncode, proc.stderr)
-        forbidden_keys = {"accepted_baseline", "expected", "grader", "rubric"}
+        forbidden_keys = {
+            "accepted_baseline", "accepted_baseline_fixture", "expected", "grader",
+            "graders", "rubric", "known_answer", "known_answer_material", "oracle",
+        }
 
         def contains_forbidden(value):
             if isinstance(value, dict):
@@ -307,6 +461,45 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertFalse(contains_forbidden(captured))
         self.assertEqual({"case_id", "trial_index", "prompt", "tags", "role", "fixture"}, set(captured))
         self.assertEqual(1, captured["trial_index"])
+
+    def test_behavioral_harness_rejects_nested_public_oracles_before_spawning(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        source_fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        with tempfile.TemporaryDirectory(prefix="nested-fixture-") as directory:
+            temporary = Path(directory)
+            fixture = json.loads(source_fixture.read_text(encoding="utf-8"))
+            fixture["authority"][0]["accepted_baseline"] = "oracle"
+            fixture["authority"][0]["expected"] = "oracle"
+            fixture["repository"]["grader"] = "oracle"
+            fixture["repository"]["rubric"] = "oracle"
+            fixture["plan"]["known_answer_material"] = "oracle"
+            fixture_path = temporary / "fixture.json"
+            fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
+            counter = temporary / "runner-called.txt"
+            runner = temporary / "runner.py"
+            runner.write_text(
+                "from pathlib import Path\n"
+                "import sys\n"
+                "Path(sys.argv[1]).write_text('called', encoding='utf-8')\n"
+                "print('{}')\n",
+                encoding="utf-8",
+            )
+            argv_file = temporary / "runner-argv.json"
+            argv_file.write_text(json.dumps([sys.executable, str(runner), str(counter)]), encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable, str(harness), "--fixture", str(fixture_path),
+                    "--case-id", "FP-E-001", "--candidate-argv-file", str(argv_file),
+                    "--baseline-argv-file", str(argv_file), "--no-skill-argv-file", str(argv_file),
+                    "--json",
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(2, proc.returncode, proc.stderr)
+        self.assertIn("forbidden oracle key", proc.stderr)
+        self.assertFalse(counter.exists())
 
     def test_behavioral_harness_executes_every_declared_trial(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -386,7 +579,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         valid, errors = behavioral_evals._normalize_metrics({"mode": "compact", "input_tokens": 0, "traceability_coverage": 1.0})
         self.assertEqual([], errors)
         self.assertEqual("UNMEASURED", valid["output_tokens"])
-        for field, value in (("mode", "banana"), ("input_tokens", -1), ("retries", True), ("acceptance_coverage", 1.1), ("correctness", "yes")):
+        for field, value in (("mode", "banana"), ("mode", []), ("input_tokens", -1), ("retries", True), ("acceptance_coverage", 1.1), ("correctness", "yes")):
             normalized, errors = behavioral_evals._normalize_metrics({field: value})
             self.assertIsNone(normalized, field)
             self.assertTrue(errors, field)
@@ -414,15 +607,56 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
         with tempfile.TemporaryDirectory() as directory:
             argv_file = Path(directory) / "argv.json"
-            argv_file.write_text(json.dumps([sys.executable, ""]), encoding="utf-8")
+            for value, expected in (([sys.executable, ""], "argv file"), ([sys.executable, "\x00"], "NUL")):
+                with self.subTest(value=value):
+                    argv_file.write_text(json.dumps(value), encoding="utf-8")
+                    proc = subprocess.run(
+                        [sys.executable, str(harness), "--candidate-argv-file", str(argv_file), "--json"],
+                        cwd=REPO_ROOT,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertNotEqual(0, proc.returncode)
+                    self.assertIn(expected, proc.stderr)
+
             proc = subprocess.run(
-                [sys.executable, str(harness), "--candidate-argv-file", str(argv_file), "--json"],
+                [sys.executable, str(harness), "--candidate-argv-file", "", "--json"],
                 cwd=REPO_ROOT,
                 capture_output=True,
                 text=True,
             )
-        self.assertNotEqual(0, proc.returncode)
+        self.assertEqual(2, proc.returncode)
         self.assertIn("argv file", proc.stderr)
+
+    def test_behavioral_harness_preserves_windows_backslashes_and_shell_metacharacters(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        with tempfile.TemporaryDirectory(prefix="argv literal ") as directory:
+            temporary = Path(directory)
+            captured = temporary / "captured-argv.txt"
+            runner = temporary / "runner.py"
+            literal = r'C:\work dir\quoted "value" & ; $(literal)'
+            runner.write_text(
+                "import json, pathlib, sys\n"
+                "json.load(sys.stdin)\n"
+                "pathlib.Path(sys.argv[1]).write_text(sys.argv[2], encoding='utf-8')\n"
+                "print(json.dumps({'response': 'observed'}))\n",
+                encoding="utf-8",
+            )
+            argv_file = temporary / "runner-argv.json"
+            argv_file.write_text(json.dumps([sys.executable, str(runner), str(captured), literal]), encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable, str(harness), "--case-id", "FP-EX-001",
+                    "--candidate-argv-file", str(argv_file), "--baseline-argv-file", str(argv_file),
+                    "--no-skill-argv-file", str(argv_file), "--json",
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            observed = captured.read_text(encoding="utf-8")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual(literal, observed)
 
     def test_behavioral_harness_rejects_malformed_judge_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -474,6 +708,20 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             )
         self.assertNotEqual(0, proc.returncode)
         self.assertIn("duplicate case id", proc.stderr)
+
+        with tempfile.TemporaryDirectory() as directory:
+            evals = Path(directory)
+            malformed = dict(case)
+            malformed["id"] = []
+            (evals / "execution.json").write_text(json.dumps(malformed), encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, str(harness), "--evals", str(evals), "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("execution corpus", proc.stderr)
 
     def test_behavioral_harness_preserves_argv_paths_with_spaces(self) -> None:
         with tempfile.TemporaryDirectory(prefix="argv path ") as directory:
@@ -951,7 +1199,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_built_payload_contains_no_personal_paths(self) -> None:
         """Catches personal paths in every text artifact, including JSONL transcripts."""
         with self.built_payload() as payload:
-            findings: list[str] = []
+            findings: List[str] = []
             for path in payload.rglob("*"):
                 if not path.is_file():
                     continue
@@ -1075,7 +1323,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_inspect_cleanly(self) -> None:
         """Catches name collisions and portable-core path/reference regressions."""
         inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
-        names: list[str] = []
+        names: List[str] = []
         for skill_id in sorted(EXPECTED_SKILL_IDS):
             skill_dir = PLUGIN_SKILLS / skill_id
             skill_md = skill_dir / "SKILL.md"

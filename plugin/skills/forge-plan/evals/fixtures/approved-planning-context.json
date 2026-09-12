@@ -1,25 +1,26 @@
 {
+  "schema_version": 1,
   "authority": [
     {
       "path": "intent.md",
-      "approval": "approved",
-      "approval_hash": "fixture-intent-approved",
+      "revision": 2,
+      "status": "approved",
       "fresh": true
     },
     {
-      "path": "spec.md",
-      "approval": "approved",
-      "approval_hash": "fixture-spec-approved",
+      "path": "docs/specs/forge-plan-proportional-planning.md",
+      "revision": 1,
+      "status": "approved",
       "fresh": true
     }
   ],
   "repository": {
     "state": "clean",
-    "changed_paths": ["src/example.py", "tests/test_example.py"]
+    "changed_paths": ["plugin/skills/forge-plan/SKILL.md", "plugin/skills/forge-plan/evals/execution.json"]
   },
   "plan": {
-    "approval_hash": "fixture-plan-approved",
+    "revision": 1,
+    "status": "awaiting-approval",
     "ticket_ready": true
-  },
-  "accepted_baseline_fixture": "brain-plan-scenarios.json"
+  }
 }

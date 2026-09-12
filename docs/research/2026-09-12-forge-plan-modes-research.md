@@ -28,20 +28,21 @@ These are the useful ingredients for the detailed mode.
 - **Testing is late.** A distinct final testing phase conflicts with agent-ready vertical slices. Each slice should carry its own verification; keep only cross-cutting regression/UAT as a final gate.
 - **Its scale is costly.** The bundle is about 160 KB of Markdown before the HTML wireframe. An agent must reconcile too much context before acting.
 
-## What to borrow from `to-tickets`
+## Planning principles supported by this research
 
-Primary source: [mattpocock/skills — to-tickets](https://github.com/mattpocock/skills/blob/main/skills/engineering/to-tickets/SKILL.md).
-
-Borrow:
+The planning synthesis supports:
 
 - Tracer-bullet vertical slices: each task crosses relevant schema/API/UI/tests and is independently demoable or verifiable.
 - A fresh-context size limit per task.
 - Explicit `Blocked by` edges and dependency-order output.
 - Prefactoring before feature slices when it materially simplifies delivery.
 - Expand–migrate–contract for unavoidable wide refactors.
-- A user checkpoint on granularity and dependency edges before final publication.
+- A user checkpoint on granularity and dependency edges before final artifact
+  approval.
 
-Do not borrow tracker publication into forge-plan. Planning and publishing tickets are separate mutations/responsibilities. Forge-plan may emit ticket-ready sections; another skill can publish them.
+External publication is a separate mutation and responsibility. Forge-plan ends
+at its approved implementation-ready Plan; another authorized actor owns any
+later transport or publication step.
 
 Also do not adopt the blanket “avoid file paths” rule. A detailed implementation plan needs verified paths/symbols to reduce rediscovery. Avoid pasted working code and line numbers likely to drift; retain paths, contracts, and decision-rich shapes.
 

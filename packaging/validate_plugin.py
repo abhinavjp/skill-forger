@@ -15,7 +15,8 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import Dict, List, Optional, Set
 
 from plugin_policy import CANONICAL_EVAL_VALIDATORS, EXPECTED_SKILL_IDS
 
@@ -56,7 +57,7 @@ def read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def frontmatter_name(skill_md: Path) -> str | None:
+def frontmatter_name(skill_md: Path) -> Optional[str]:
     lines = skill_md.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
         return None
@@ -68,7 +69,7 @@ def frontmatter_name(skill_md: Path) -> str | None:
     return None
 
 
-def check_schema(plugin_json: Path) -> dict | None:
+def check_schema(plugin_json: Path) -> Optional[dict]:
     try:
         data = read_json(plugin_json)
         schema = read_json(SCHEMA_PATH)
@@ -104,7 +105,7 @@ def check_schema(plugin_json: Path) -> dict | None:
     return data
 
 
-def discover_skills(skills_dir: Path = PLUGIN_SKILLS) -> list[Path]:
+def discover_skills(skills_dir: Path = PLUGIN_SKILLS) -> List[Path]:
     if skills_dir == PLUGIN_SKILLS and not (PLUGIN_DIR / "plugin.json").is_file():
         fail("plugin/plugin.json missing at plugin root")
     elif skills_dir == PLUGIN_SKILLS:
@@ -135,8 +136,8 @@ def _is_relative_to(path: Path, root: Path) -> bool:
     return True
 
 
-def check_skill_names(skill_dirs: list[Path]) -> None:
-    names: list[str] = []
+def check_skill_names(skill_dirs: List[Path]) -> None:
+    names: List[str] = []
     for skill_dir in skill_dirs:
         name = frontmatter_name(skill_dir / "SKILL.md")
         if name is None:
@@ -154,7 +155,7 @@ def check_skill_names(skill_dirs: list[Path]) -> None:
 
 def check_containment() -> None:
     root = PLUGIN_DIR.resolve()
-    escapes: list[str] = []
+    escapes: List[str] = []
     for path in PLUGIN_DIR.rglob("*"):
         try:
             resolved = path.resolve()
@@ -172,7 +173,7 @@ def check_containment() -> None:
 GENERATED_RESULTS_RE = re.compile(r"^plugin/skills/[^/]+/evals/results/")
 
 
-def tracked_generated_results(paths: list[str]) -> list[str]:
+def tracked_generated_results(paths: List[str]) -> List[str]:
     """Return tracked per-Skill ``evals/results/`` paths in the canonical payload.
 
     Generated result artifacts are ignored working-tree state, not source. A local,
@@ -210,7 +211,7 @@ def reference_escapes_plugin(skill_dir: Path, reference: dict) -> bool:
     return any(not _is_relative_to(candidate, plugin_root) for candidate in existing)
 
 
-def check_inspector(skill_dirs: list[Path]) -> None:
+def check_inspector(skill_dirs: List[Path]) -> None:
     inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
     if not inspector.is_file():
         fail("canonical inspect_skill.py missing from skill-engineer")
@@ -263,8 +264,8 @@ def check_inspector(skill_dirs: list[Path]) -> None:
             ok(f"inspect_skill.py passes portable-core checks ({label})")
 
 
-def check_sensitive_content(skill_dirs: list[Path]) -> None:
-    findings: list[str] = []
+def check_sensitive_content(skill_dirs: List[Path]) -> None:
+    findings: List[str] = []
     for skill_dir in skill_dirs:
         generated_results = skill_dir / "evals" / "results"
         for path in skill_dir.rglob("*"):
@@ -288,7 +289,7 @@ def check_sensitive_content(skill_dirs: list[Path]) -> None:
         ok("no personal paths or credential-like material found in packaged text")
 
 
-def illegal_tracked_skill_sources(paths: list[str]) -> list[str]:
+def illegal_tracked_skill_sources(paths: List[str]) -> List[str]:
     """Return tracked SKILL.md paths outside the canonical plugin Skill tree."""
     skill_sources = []
     for path in paths:
@@ -329,7 +330,7 @@ BANNED_MIRROR_FRAGMENTS = (
 GIT_MUTATING_COMMAND = re.compile(r"\bgit\s+(?:add|commit|mv)\b")
 
 
-def _install_doc_files() -> list[Path]:
+def _install_doc_files() -> List[Path]:
     docs = [REPO_ROOT / "README.md"]
     if INSTALL_DOCS_DIR.is_dir():
         docs.extend(sorted(INSTALL_DOCS_DIR.glob("*.md")))
@@ -344,7 +345,7 @@ def check_install_docs_do_not_instruct_committing_mirrors() -> None:
     blocks, so documenting a mirror as a forbidden or host-owned destination is not itself
     a failure.
     """
-    problems: list[str] = []
+    problems: List[str] = []
     for doc in _install_doc_files():
         in_code_block = False
         for line in doc.read_text(encoding="utf-8").splitlines():
@@ -362,7 +363,7 @@ def check_install_docs_do_not_instruct_committing_mirrors() -> None:
         ok("install docs never instruct committing a tracked Skill mirror")
 
 
-def check_install_docs_name_every_skill(skill_dirs: list[Path]) -> None:
+def check_install_docs_name_every_skill(skill_dirs: List[Path]) -> None:
     """Every install guide must name every discovered Skill.
 
     The guides list Skill names by hand, so a newly added Skill silently leaves
@@ -390,7 +391,7 @@ def check_install_docs_name_every_skill(skill_dirs: list[Path]) -> None:
         ok(f"every install guide names all {len(names)} discovered Skills")
 
 
-def check_competition_candidates(skill_dirs: list[Path]) -> None:
+def check_competition_candidates(skill_dirs: List[Path]) -> None:
     """Validate trigger-corpus candidates and case-id stability.
 
     A competition candidate naming a Skill that does not exist can never be
@@ -398,8 +399,8 @@ def check_competition_candidates(skill_dirs: list[Path]) -> None:
     A reused case id silently retargets a recorded result at different content.
     """
     shipped = {path.name for path in skill_dirs}
-    unknown: list[str] = []
-    duplicate_ids: list[str] = []
+    unknown: List[str] = []
+    duplicate_ids: List[str] = []
     corpora = sorted(PLUGIN_SKILLS.glob("*/evals/trigger.json"))
     if not corpora:
         fail("no trigger corpora found under plugin/skills/*/evals/")
@@ -424,7 +425,7 @@ def check_competition_candidates(skill_dirs: list[Path]) -> None:
                     where = corpus.relative_to(REPO_ROOT).as_posix()
                     unknown.append(f"{where}:{case.get('id')} -> {candidate!r}")
 
-        seen: dict[str, int] = {}
+        seen: Dict[str, int] = {}
         for case in cases:
             if isinstance(case, dict) and isinstance(case.get("id"), str):
                 seen[case["id"]] = seen.get(case["id"], 0) + 1
@@ -448,7 +449,7 @@ def check_competition_candidates(skill_dirs: list[Path]) -> None:
         ok("every trigger case id is unique within its corpus")
 
 
-def check_manifests(agent_manifest: dict | None, skill_dirs: list[Path]) -> None:
+def check_manifests(agent_manifest: Optional[dict], skill_dirs: List[Path]) -> None:
     try:
         claude = read_json(CLAUDE_PLUGIN_JSON)
         market = read_json(MARKETPLACE_JSON)
@@ -523,20 +524,20 @@ _COUNT_CLAIM_RE = re.compile(
 )
 
 
-def _claimed_counts(text: str) -> set[int]:
-    counts = set()
+def _claimed_counts(text: str) -> Set[int]:
+    counts: Set[int] = set()
     for match in _COUNT_CLAIM_RE.finditer(text):
         token = match.group(1).lower()
         counts.add(_COUNT_WORDS.get(token) or int(token))
     return counts
 
 
-def count_claim_documents() -> list[Path]:
+def count_claim_documents() -> List[Path]:
     """Every tracked document allowed to state how many Skills ship."""
     return [REPO_ROOT / "README.md", *sorted((REPO_ROOT / "docs" / "install").glob("*.md"))]
 
 
-def check_skill_count_claims(discovered: int, descriptions: dict[str, str]) -> None:
+def check_skill_count_claims(discovered: int, descriptions: Dict[str, str]) -> None:
     """Reject any manifest, README, or install-doc claim about how many Skills ship.
 
     ``discover_skills`` deliberately allows Skills beyond the required baseline,
@@ -567,6 +568,105 @@ def check_skill_count_claims(discovered: int, descriptions: dict[str, str]) -> N
         ok(f"every Skill-count claim matches the {discovered} discovered Skill packages")
 
 
+SPEC_REFERENCE_RE = re.compile(r"(?m)^\*\*Spec:\*\*\s+`?([^`\r\n]+?)`?\s*$")
+UNRESOLVED_AUTHORITY_HEADING_RE = re.compile(
+    r"(?im)^\s*#{1,6}\s+(?:open questions?|unresolved decisions?)\b"
+)
+UNRESOLVED_AUTHORITY_STATUS_RE = re.compile(
+    r"(?im)^\s*(?:status|state):\s*(?:draft|unresolved)\b"
+)
+REVISION_RE = re.compile(r"(?im)^\s*-?\s*revision:\s*\d+\b")
+
+
+def _tracked_paths() -> Set[str]:
+    proc = subprocess.run(
+        ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True
+    )
+    if proc.returncode != 0:
+        return set()
+    return {
+        PurePosixPath(path.replace("\\", "/")).as_posix()
+        for path in proc.stdout.splitlines()
+        if path.strip()
+    }
+
+
+def validate_implementation_plan_specs(
+    plan_paths: Optional[List[Path]] = None,
+    tracked_paths: Optional[Set[str]] = None,
+    repo_root: Path = REPO_ROOT,
+) -> List[str]:
+    """Validate explicit Specification bindings on implementation plans.
+
+    A plan without a ``**Spec:**`` binding is outside this repository gate's
+    explicit-authority protocol.  When a binding is present, its target must be
+    tracked, inside the repository, revisioned, and free of Draft/open-decision
+    authority markers.
+    """
+    root = Path(repo_root).resolve()
+    paths = plan_paths
+    if paths is None:
+        paths = sorted((root / "docs" / "superpowers" / "plans").glob("*.md"))
+    tracked = tracked_paths if tracked_paths is not None else _tracked_paths()
+    errors: List[str] = []
+    if tracked_paths is None and not tracked:
+        errors.append("cannot enumerate tracked files for Specification authority")
+        return errors
+
+    for plan_path in paths:
+        plan_path = Path(plan_path)
+        try:
+            plan_text = plan_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append("{}: unreadable plan: {}".format(plan_path, exc))
+            continue
+        matches = SPEC_REFERENCE_RE.findall(plan_text)
+        if not matches:
+            continue
+        if len(matches) != 1:
+            errors.append("{}: requires exactly one **Spec:** reference".format(plan_path))
+            continue
+        reference = matches[0].strip()
+        posix = PurePosixPath(reference.replace("\\", "/"))
+        windows = PureWindowsPath(reference)
+        if posix.is_absolute() or windows.is_absolute() or bool(windows.drive):
+            errors.append("{}: Specification path must be repository-relative".format(plan_path))
+            continue
+        candidate = (root / reference.replace("/", os.sep).replace("\\", os.sep)).resolve()
+        try:
+            relative = candidate.relative_to(root).as_posix()
+        except ValueError:
+            errors.append("{}: Specification path escapes repository".format(plan_path))
+            continue
+        if relative not in tracked:
+            errors.append("{}: Specification is not tracked: {}".format(plan_path, reference))
+            continue
+        if not candidate.is_file():
+            errors.append("{}: Specification does not resolve: {}".format(plan_path, reference))
+            continue
+        try:
+            authority = candidate.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append("{}: unreadable Specification: {}".format(plan_path, exc))
+            continue
+        lowered = authority.casefold()
+        if "draft for grilling" in lowered or UNRESOLVED_AUTHORITY_HEADING_RE.search(authority):
+            errors.append("{}: Specification is Draft or has unresolved decisions".format(plan_path))
+        if UNRESOLVED_AUTHORITY_STATUS_RE.search(authority):
+            errors.append("{}: Specification status is unresolved".format(plan_path))
+        if not REVISION_RE.search(authority):
+            errors.append("{}: Specification has no numeric current revision".format(plan_path))
+    return errors
+
+
+def check_implementation_plan_specs() -> None:
+    errors = validate_implementation_plan_specs()
+    if errors:
+        fail("implementation-plan Specification authority: " + "; ".join(errors))
+    else:
+        ok("implementation-plan Specification references are tracked and resolved")
+
+
 def main() -> int:
     global _ok
     _ok = True
@@ -579,6 +679,7 @@ def main() -> int:
     check_sensitive_content(skill_dirs)
     check_no_tracked_mirrors()
     check_manifests(agent_manifest, skill_dirs)
+    check_implementation_plan_specs()
     check_install_docs_do_not_instruct_committing_mirrors()
     check_install_docs_name_every_skill(skill_dirs)
     check_competition_candidates(skill_dirs)

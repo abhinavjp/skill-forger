@@ -22,3 +22,9 @@ jobs:
         run: python plugin/skills/forge-plan/evals/run_static_evals.py --json
       - name: Run forge-plan behavioral boundary
         run: python plugin/skills/forge-plan/evals/run_behavioral_evals.py --json
+      - name: Require strict no-runner disclosure
+        run: |
+          if python plugin/skills/forge-plan/evals/run_behavioral_evals.py --strict --json; then
+            echo "strict no-runner evaluation unexpectedly passed"
+            exit 1
+          fi

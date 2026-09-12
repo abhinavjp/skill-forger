@@ -20,10 +20,18 @@ from typing import Any, Dict, List, Optional, Tuple
 HERE = Path(__file__).resolve().parent
 SKILL_ROOT = HERE.parent
 DEFAULT_FIXTURE = HERE / "fixtures" / "approved-planning-context.json"
+PRIVATE_BASELINE_FIXTURE = HERE / "fixtures" / "brain-plan-scenarios.json"
 SCRIPTS = SKILL_ROOT.parent / "skill-engineer" / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
 import validate_evals  # noqa: E402
+from fixture_schema import (  # noqa: E402
+    FixtureSchemaError,
+    load_private_baseline,
+    load_public_fixture,
+)
 
 
 EVIDENCE_KEYS = {"response", "artifacts", "trace", "mutations", "errors", "metrics"}
@@ -48,7 +56,7 @@ def _load_json(path: Path):
 
 
 def _argv_file(value: Optional[str]) -> Optional[List[str]]:
-    if not value:
+    if value is None:
         return None
     path = Path(value)
     try:
@@ -63,25 +71,21 @@ def _argv_file(value: Optional[str]) -> Optional[List[str]]:
 
 
 def _load_fixture(path: Path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    data = _load_json(path)
-    if not isinstance(data, dict) or not isinstance(data.get("authority"), list) or not isinstance(data.get("repository"), dict) or not isinstance(data.get("plan"), dict):
-        raise CorpusError("fixture must contain authority, repository, and plan objects")
-    baseline_name = data.get("accepted_baseline_fixture")
-    if not isinstance(baseline_name, str) or Path(baseline_name).is_absolute() or ".." in Path(baseline_name).parts:
-        raise CorpusError("fixture accepted_baseline_fixture must be a safe relative path")
-    baseline_path = path.parent / baseline_name
-    baseline = _load_json(baseline_path)
-    if not isinstance(baseline, dict) or not isinstance(baseline.get("scenarios"), list) or not baseline.get("scenarios"):
-        raise CorpusError("accepted baseline fixture must contain scenarios")
-    public = dict(data)
-    public.pop("accepted_baseline_fixture", None)
-    private = {"accepted_baseline": baseline, "accepted_baseline_fixture": baseline_name}
-    return public, private
+    """Load public runner data and fixed trusted judge/control data separately."""
+    try:
+        public = load_public_fixture(path)
+        baseline = load_private_baseline(PRIVATE_BASELINE_FIXTURE)
+    except FixtureSchemaError as exc:
+        raise CorpusError(str(exc)) from exc
+    return public, {"accepted_baseline": baseline}
 
 
 def _load_cases(evals: Path, requested: Optional[List[str]]) -> Tuple[List[Dict[str, Any]], List[str]]:
     corpus = evals / "execution.json"
-    validation = validate_evals.validate_paths([str(corpus)])
+    try:
+        validation = validate_evals.validate_paths([str(corpus)])
+    except (OSError, TypeError, ValueError) as exc:
+        raise CorpusError(f"invalid execution corpus: {exc}") from exc
     if validation["errors"]:
         raise CorpusError(f"invalid execution corpus: {validation['errors']}")
     try:
@@ -91,6 +95,13 @@ def _load_cases(evals: Path, requested: Optional[List[str]]) -> Tuple[List[Dict[
     cases = data if isinstance(data, list) else [data]
     if not cases:
         raise CorpusError("execution corpus must contain at least one case")
+    if any(
+        not isinstance(case, dict)
+        or not isinstance(case.get("id"), str)
+        or not case["id"].strip()
+        for case in cases
+    ):
+        raise CorpusError("execution corpus case IDs must be non-empty strings")
     ids = [case.get("id") for case in cases if isinstance(case, dict)]
     if len(ids) != len(set(ids)):
         raise CorpusError("execution corpus contains duplicate case IDs")
@@ -143,7 +154,7 @@ def _normalize_metrics(value: object) -> Tuple[Optional[Dict[str, Any]], List[st
         normalized[field] = value.get(field, UNMEASURED)
     enum_fields = {"mode": {"compact", "detailed", UNMEASURED}}
     for field, allowed in enum_fields.items():
-        if normalized[field] not in allowed:
+        if not isinstance(normalized[field], str) or normalized[field] not in allowed:
             errors.append(f"metrics.{field} must be one of {sorted(allowed)}")
     boolean_fields = {"correctness"}
     for field in boolean_fields:

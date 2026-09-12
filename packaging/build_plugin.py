@@ -17,6 +17,7 @@ import argparse
 import shutil
 import sys
 from pathlib import Path
+from typing import List, Set, Tuple
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -39,9 +40,9 @@ def frontmatter_name(skill_md: Path) -> str:
     raise ValueError(f"{skill_md}: missing frontmatter name")
 
 
-def discover_skills() -> list[tuple[Path, str]]:
+def discover_skills() -> List[Tuple[Path, str]]:
     skills_dir = PLUGIN_DIR / "skills"
-    skills: list[tuple[Path, str]] = []
+    skills: List[Tuple[Path, str]] = []
     for skill_dir in sorted(path for path in skills_dir.iterdir() if path.is_dir()):
         skill_md = skill_dir / "SKILL.md"
         if not skill_md.is_file():
@@ -71,7 +72,7 @@ def output_path(value: str) -> Path:
     return candidate
 
 
-def ignore_generated_results(directory: str, names: list[str]) -> set[str]:
+def ignore_generated_results(directory: str, names: List[str]) -> Set[str]:
     """Exclude host-generated artifacts from distribution copies.
 
     Two kinds of ignored working-tree state must never reach a distribution

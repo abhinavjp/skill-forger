@@ -11,6 +11,13 @@ Use after the user confirms `detailed`. Produce this progressively loadable tree
       01-<task-slug>.md
 ```
 
+## Detailed artifact tree
+
+`plan.md` is the control plane. Each `phases/<phase>/phase.md` is shared phase
+context. Ordered task files inside that phase directory are execution packets;
+they are not a flat second plan. Do not create a separate repository-wide task
+index or copy global facts into packets.
+
 ## Control plane
 
 `plan.md` owns all global facts: outcome, scope, exclusions, approved baseline

@@ -30,6 +30,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional, Set, Tuple
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -44,7 +45,7 @@ STOPWORDS = frozenset(
 )
 
 
-def read_metadata(skill_md: Path) -> tuple[str, str] | None:
+def read_metadata(skill_md: Path) -> Optional[Tuple[str, str]]:
     """Return (name, description) from a SKILL.md frontmatter block."""
     text = skill_md.read_text(encoding="utf-8")
     if not text.startswith("---"):
@@ -60,7 +61,7 @@ def read_metadata(skill_md: Path) -> tuple[str, str] | None:
     return name.group(1).strip(), " ".join(description.group(1).split())
 
 
-def content_words(text: str) -> set[str]:
+def content_words(text: str) -> Set[str]:
     return {
         word
         for word in re.findall(r"[a-z][a-z-]+", text.lower())
@@ -69,7 +70,7 @@ def content_words(text: str) -> set[str]:
 
 
 def measure(skills_dir: Path = PLUGIN_SKILLS) -> dict:
-    vocabularies: dict[str, set[str]] = {}
+    vocabularies: Dict[str, Set[str]] = {}
     for skill_md in sorted(skills_dir.glob("*/SKILL.md")):
         metadata = read_metadata(skill_md)
         if metadata is None:
@@ -100,7 +101,7 @@ def measure(skills_dir: Path = PLUGIN_SKILLS) -> dict:
     }
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="emit the full report as JSON")
     parser.add_argument("--top", type=int, default=8, help="how many pairs to print")
