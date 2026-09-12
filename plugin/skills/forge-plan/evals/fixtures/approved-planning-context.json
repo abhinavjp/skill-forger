@@ -19,7 +19,7 @@
   },
   "plan": {
     "approval_hash": "fixture-plan-approved",
-    "tracker_conversion_next_step": true
+    "ticket_ready": true
   },
   "accepted_baseline_fixture": "brain-plan-scenarios.json"
 }

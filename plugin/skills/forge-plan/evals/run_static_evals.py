@@ -8,6 +8,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
 HERE = Path(__file__).resolve().parent
 SKILL_ROOT = HERE.parent
@@ -20,8 +21,8 @@ def _text(relative: str) -> str:
     return (SKILL_ROOT / relative).read_text(encoding="utf-8")
 
 
-def forge_plan_contract(_check: dict) -> tuple[bool, list[str]]:
-    errors = []
+def forge_plan_contract(_check: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    errors: List[str] = []
     required_files = ["SKILL.md", "references/compact-mode.md", "references/detailed-mode.md", "references/execution-packet.md"]
     for relative in required_files:
         path = SKILL_ROOT / relative
@@ -32,9 +33,6 @@ def forge_plan_contract(_check: dict) -> tuple[bool, list[str]]:
         lines = skill.read_text(encoding="utf-8").splitlines()
         if not lines or lines[0].strip() != "---" or not any(line.startswith("name: forge-plan") for line in lines):
             errors.append("SKILL.md frontmatter does not declare forge-plan")
-        headings = {line.lstrip("#").strip() for line in lines if line.startswith("#")}
-        required_headings = {"Approved-plan handoff branch", "Shared workflow", "Read-only ticket handoff", "Completion"}
-        errors.extend(f"SKILL.md missing heading: {heading}" for heading in sorted(required_headings - headings))
         for target in re.findall(r"\[[^]]+\]\(([^)]+)\)", skill.read_text(encoding="utf-8")):
             if target.startswith(("http://", "https://", "#")):
                 continue
@@ -43,8 +41,8 @@ def forge_plan_contract(_check: dict) -> tuple[bool, list[str]]:
     return not errors, errors
 
 
-def forge_plan_behavioral_boundary(_check: dict) -> tuple[bool, list[str]]:
-    errors = []
+def forge_plan_behavioral_boundary(_check: Dict[str, Any]) -> Tuple[bool, List[str]]:
+    errors: List[str] = []
     harness_path = HERE / "run_behavioral_evals.py"
     fixture_path = HERE / "fixtures" / "approved-planning-context.json"
     try:
@@ -53,7 +51,7 @@ def forge_plan_behavioral_boundary(_check: dict) -> tuple[bool, list[str]]:
         return False, [f"harness parse failed: {exc}"]
     functions = {node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
     errors.extend(f"harness missing function: {name}" for name in sorted({"_argv_file", "_finalize_assertions", "_run_role", "_run_judge", "main"} - functions))
-    allowed_imports = {"__future__", "argparse", "ast", "json", "pathlib", "subprocess", "sys", "validate_evals"}
+    allowed_imports = {"__future__", "argparse", "ast", "json", "pathlib", "subprocess", "sys", "typing", "validate_evals"}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             imported = [alias.name.split(".")[0] for alias in node.names]
@@ -101,7 +99,7 @@ VALIDATORS = {
 }
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Any = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("evals_positional", nargs="?", type=Path)
     parser.add_argument("--evals", type=Path)

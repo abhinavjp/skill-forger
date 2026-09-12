@@ -1,23 +1,12 @@
 ---
 name: forge-plan
-description: Create an approved implementation plan with proportional compact or detailed depth. Use for planning, breaking work into dependency-correct phases or tasks, or preparing a read-only ticket handoff; do not use to implement work or publish tracker tickets.
+description: Create an approved implementation plan with proportional compact or detailed depth. Use for planning or breaking work into dependency-correct phases or tasks; do not use to implement work or publish tracker tickets.
 ---
 
 # Forge Plan
 
 Produce an implementation-ready plan, then stop. Planning approval never grants
 authority to implement, commit, publish tickets, push, merge, deploy, or release.
-
-## Approved-plan handoff branch
-
-When the request is a read-only `to-tickets` handoff from an already approved
-plan, do not re-run mode selection or draft a new plan. Verify the plan's
-approval record, approval hash, source freshness, and current repository state.
-If any required proof is missing or stale, stop with a blocked/upstream-return
-outcome and name the exact correction. Otherwise emit the handoff by reference
-to the approved plan's stable IDs, outcomes, dependencies, executable frontier,
-scope, acceptance, and policies; report missing tracker capability as
-`UNMEASURED`; then stop without creating, publishing, or mutating tickets.
 
 ## Shared workflow
 
@@ -53,21 +42,12 @@ scope, acceptance, and policies; report missing tracker capability as
    decision is still open, return upstream rather than presenting an approvable
    packet.
 8. Present the artifact paths and approval hash only after all material decisions
-   are closed. Obtain explicit plan approval, record it, and stop. If the
-   approved plan names tracker conversion as the next step, produce the
-   read-only `to-tickets` handoff by reference before stopping; do not publish.
+   are closed. Obtain explicit plan approval, record it, and stop with the
+   approved, ticket-ready plan. Tracker conversion and publication are outside
+   this Skill and require a separately invoked, separately authorized actor.
 
 If later evidence materially changes the mode recommendation, pause, show the
 new evidence, and reconfirm. Never switch modes silently.
-
-## Read-only ticket handoff
-
-After plan approval, a requested `to-tickets` handoff may reference the approved
-plan hash, stable phase/task IDs, outcomes, real dependency edges, current
-frontier, scope and acceptance IDs, and applicable risk/review/approval policies.
-Derive ticket prose from canonical plan content; do not duplicate requirements
-or invent tracker fields. Missing tracker capability does not invalidate this
-local handoff. Creating it performs no tracker write or other external mutation.
 
 ## Completion
 

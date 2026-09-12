@@ -64,7 +64,7 @@ def frontmatter_name(skill_md: Path) -> str | None:
         if line.strip() == "---":
             break
         if line.startswith("name:"):
-            return line.removeprefix("name:").strip().strip("'\"") or None
+            return line[len("name:"):].strip().strip("'\"") or None
     return None
 
 
@@ -127,6 +127,14 @@ def discover_skills(skills_dir: Path = PLUGIN_SKILLS) -> list[Path]:
     return skill_dirs
 
 
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def check_skill_names(skill_dirs: list[Path]) -> None:
     names: list[str] = []
     for skill_dir in skill_dirs:
@@ -153,7 +161,7 @@ def check_containment() -> None:
         except OSError:
             escapes.append(str(path.relative_to(REPO_ROOT)))
             continue
-        if resolved != root and not resolved.is_relative_to(root):
+        if resolved != root and not _is_relative_to(resolved, root):
             escapes.append(str(path.relative_to(REPO_ROOT)))
     if escapes:
         fail(f"paths resolve outside plugin root: {escapes}")
@@ -199,7 +207,7 @@ def reference_escapes_plugin(skill_dir: Path, reference: dict) -> bool:
         candidates.append((skill_dir / target).resolve())
     existing = [candidate for candidate in candidates if candidate.exists()]
     plugin_root = PLUGIN_DIR.resolve()
-    return any(not candidate.is_relative_to(plugin_root) for candidate in existing)
+    return any(not _is_relative_to(candidate, plugin_root) for candidate in existing)
 
 
 def check_inspector(skill_dirs: list[Path]) -> None:
@@ -262,7 +270,7 @@ def check_sensitive_content(skill_dirs: list[Path]) -> None:
         for path in skill_dir.rglob("*"):
             if not path.is_file():
                 continue
-            if path.is_relative_to(generated_results):
+            if _is_relative_to(path, generated_results):
                 # Ignored local run output, excluded from every distribution copy.
                 continue
             try:

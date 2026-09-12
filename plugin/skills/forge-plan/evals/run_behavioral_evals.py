@@ -14,6 +14,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 
 HERE = Path(__file__).resolve().parent
@@ -46,7 +47,7 @@ def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _argv_file(value: str | None) -> list[str] | None:
+def _argv_file(value: Optional[str]) -> Optional[List[str]]:
     if not value:
         return None
     path = Path(value)
@@ -61,7 +62,7 @@ def _argv_file(value: str | None) -> list[str] | None:
     return data
 
 
-def _load_fixture(path: Path) -> dict:
+def _load_fixture(path: Path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     data = _load_json(path)
     if not isinstance(data, dict) or not isinstance(data.get("authority"), list) or not isinstance(data.get("repository"), dict) or not isinstance(data.get("plan"), dict):
         raise CorpusError("fixture must contain authority, repository, and plan objects")
@@ -72,11 +73,13 @@ def _load_fixture(path: Path) -> dict:
     baseline = _load_json(baseline_path)
     if not isinstance(baseline, dict) or not isinstance(baseline.get("scenarios"), list) or not baseline.get("scenarios"):
         raise CorpusError("accepted baseline fixture must contain scenarios")
-    data["accepted_baseline"] = baseline
-    return data
+    public = dict(data)
+    public.pop("accepted_baseline_fixture", None)
+    private = {"accepted_baseline": baseline, "accepted_baseline_fixture": baseline_name}
+    return public, private
 
 
-def _load_cases(evals: Path, requested: list[str] | None) -> tuple[list[dict], list[str]]:
+def _load_cases(evals: Path, requested: Optional[List[str]]) -> Tuple[List[Dict[str, Any]], List[str]]:
     corpus = evals / "execution.json"
     validation = validate_evals.validate_paths([str(corpus)])
     if validation["errors"]:
@@ -107,6 +110,10 @@ def _load_cases(evals: Path, requested: list[str] | None) -> tuple[list[dict], l
             raise CorpusError(f"case {case.get('id')} requires a non-empty expected.outcome.assertions list")
         if not isinstance(case.get("graders"), list) or not case["graders"]:
             raise CorpusError(f"case {case.get('id')} requires graders")
+        # Omitted trials are a single required trial; explicit values must be positive integers.
+        trials = case.get("trials", 1)
+        if isinstance(trials, bool) or not isinstance(trials, int) or trials <= 0:
+            raise CorpusError(f"case {case.get('id')} trials must be a positive integer")
         graders = case.get("graders", [])
         if graders and all(grader.get("type") == "deterministic" for grader in graders):
             static_only.append(case["id"])
@@ -115,17 +122,18 @@ def _load_cases(evals: Path, requested: list[str] | None) -> tuple[list[dict], l
     return behavioral, static_only
 
 
-def _expected(case: dict) -> list[str]:
+def _expected(case: Dict[str, Any]) -> List[str]:
     return case["expected"]["outcome"]["assertions"]
 
 
-def _normalize_metrics(value: object) -> tuple[dict | None, list[str]]:
+def _normalize_metrics(value: object) -> Tuple[Optional[Dict[str, Any]], List[str]]:
     if value is None:
         value = {}
     if not isinstance(value, dict):
         return None, ["metrics must be an object"]
-    errors = []
-    if value.get("version", METRICS_VERSION) != METRICS_VERSION:
+    errors: List[str] = []
+    version = value.get("version", METRICS_VERSION)
+    if isinstance(version, bool) or not isinstance(version, int) or version != METRICS_VERSION:
         errors.append(f"metrics.version must be {METRICS_VERSION}")
     unknown = sorted(set(value) - ({"version"} | set(METRIC_FIELDS)))
     if unknown:
@@ -133,14 +141,42 @@ def _normalize_metrics(value: object) -> tuple[dict | None, list[str]]:
     normalized = {"version": METRICS_VERSION}
     for field in METRIC_FIELDS:
         normalized[field] = value.get(field, UNMEASURED)
+    enum_fields = {"mode": {"compact", "detailed", UNMEASURED}}
+    for field, allowed in enum_fields.items():
+        if normalized[field] not in allowed:
+            errors.append(f"metrics.{field} must be one of {sorted(allowed)}")
+    boolean_fields = {"correctness"}
+    for field in boolean_fields:
+        item = normalized[field]
+        if item != UNMEASURED and not isinstance(item, bool):
+            errors.append(f"metrics.{field} must be boolean or {UNMEASURED}")
+    count_fields = {
+        "material_omissions", "blocking_questions", "rediscovery", "dependency_errors",
+        "scope_errors", "input_tokens", "context_tokens", "output_tokens", "references",
+        "tool_calls", "duration_ms", "retries",
+    }
+    for field in count_fields:
+        item = normalized[field]
+        if item != UNMEASURED and (isinstance(item, bool) or not isinstance(item, int) or item < 0):
+            errors.append(f"metrics.{field} must be a nonnegative integer or {UNMEASURED}")
+    coverage_fields = {"traceability_coverage", "acceptance_coverage"}
+    for field in coverage_fields:
+        item = normalized[field]
+        if item != UNMEASURED and (isinstance(item, bool) or not isinstance(item, (int, float)) or not 0 <= item <= 1):
+            errors.append(f"metrics.{field} must be a number from 0 to 1 or {UNMEASURED}")
+    collection_fields = {"errors", "review_findings", "deviations"}
+    for field in collection_fields:
+        item = normalized[field]
+        if item != UNMEASURED and not isinstance(item, (list, dict, str)):
+            errors.append(f"metrics.{field} must be a JSON collection/string or {UNMEASURED}")
     return (normalized if not errors else None), errors
 
 
-def _normalize_evidence(output: object) -> tuple[dict | None, list[str]]:
+def _normalize_evidence(output: object) -> Tuple[Optional[Dict[str, Any]], List[str]]:
     """Accept execution evidence, never runner-provided correctness."""
     if not isinstance(output, dict):
         return None, ["runner output must be an object"]
-    errors = []
+    errors: List[str] = []
     unknown = sorted(set(output) - EVIDENCE_KEYS)
     if unknown:
         errors.append(f"unknown runner output fields: {unknown}")
@@ -158,11 +194,11 @@ def _normalize_evidence(output: object) -> tuple[dict | None, list[str]]:
     return normalized, []
 
 
-def _finalize_assertions(expected: list[str], payloads: list[object]) -> dict:
+def _finalize_assertions(expected: List[str], payloads: List[object]) -> Dict[str, Any]:
     """Canonical finalizer for one or more trusted grader payloads."""
-    errors: list[str] = []
-    records: dict[str, dict] = {}
-    metrics: list[dict] = []
+    errors: List[str] = []
+    records: Dict[str, Dict[str, Any]] = {}
+    metrics: List[Dict[str, Any]] = []
     for payload in payloads:
         if not isinstance(payload, dict):
             errors.append("grader output must be an object")
@@ -178,7 +214,7 @@ def _finalize_assertions(expected: list[str], payloads: list[object]) -> dict:
         errors.extend(f"grader {error}" for error in metric_errors)
         if metric_value is not None:
             metrics.append(metric_value)
-        local_seen: set[str] = set()
+        local_seen = set()
         for item in raw_assertions:
             if not isinstance(item, dict) or set(item) != {"text", "passed", "evidence"}:
                 errors.append("each grader assertion requires exactly text, passed, evidence")
@@ -222,15 +258,16 @@ def _finalize_assertions(expected: list[str], payloads: list[object]) -> dict:
     }
 
 
-def _run_judge(command: list[str], role: str, case: dict, evidence: dict, fixture: dict, grader: dict) -> dict:
+def _run_judge(command: List[str], role: str, case: Dict[str, Any], trial_index: int, evidence: Dict[str, Any], judge_fixture: Dict[str, Any], grader: Dict[str, Any]) -> Dict[str, Any]:
     request = {
         "role": role,
         "case_id": case["id"],
+        "trial_index": trial_index,
         "prompt": case["prompt"],
         "tags": case.get("tags", []),
         "expected": case["expected"],
         "grader": grader,
-        "fixture": fixture,
+        "fixture": judge_fixture,
         "evidence": evidence,
     }
     try:
@@ -245,7 +282,7 @@ def _run_judge(command: list[str], role: str, case: dict, evidence: dict, fixtur
         return {"status": "INCOMPLETE", "error": f"judge output is not JSON: {exc}"}
 
 
-def _grade_case(role: str, case: dict, evidence: dict, fixture: dict, judge_command: list[str] | None) -> dict:
+def _grade_case(role: str, case: Dict[str, Any], trial_index: int, evidence: Dict[str, Any], judge_fixture: Dict[str, Any], judge_command: Optional[List[str]]) -> Dict[str, Any]:
     graders = case.get("graders", [])
     payloads = []
     grader_results = []
@@ -254,7 +291,7 @@ def _grade_case(role: str, case: dict, evidence: dict, fixture: dict, judge_comm
             return {"status": "UNMEASURED", "error": "static-only or unsupported grader excluded from behavioral harness"}
         if judge_command is None:
             return {"status": "UNMEASURED", "error": "missing trusted judge argv"}
-        result = _run_judge(judge_command, role, case, evidence, fixture, grader)
+        result = _run_judge(judge_command, role, case, trial_index, evidence, judge_fixture, grader)
         if result["status"] != "PAYLOAD":
             return result
         payloads.append(result["payload"])
@@ -265,45 +302,48 @@ def _grade_case(role: str, case: dict, evidence: dict, fixture: dict, judge_comm
     return final
 
 
-def _run_role(role: str, command: list[str], cases: list[dict], fixture: dict, judge_command: list[str] | None) -> list[dict]:
-    results = []
+def _run_role(role: str, command: List[str], cases: List[Dict[str, Any]], fixture: Dict[str, Any], judge_fixture: Dict[str, Any], judge_command: Optional[List[str]]) -> List[Dict[str, Any]]:
+    results: List[Dict[str, Any]] = []
     for case in cases:
-        envelope = {
-            "case_id": case["id"],
-            "prompt": case["prompt"],
-            "tags": case.get("tags", []),
-            "role": role,
-            "fixture": fixture,
-        }
-        try:
-            proc = subprocess.run(command, input=json.dumps(envelope), capture_output=True, text=True, timeout=120, shell=False)
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            results.append({"role": role, "id": case["id"], "status": "FAILED", "error": str(exc)})
-            continue
-        result = {"role": role, "id": case["id"], "exit": proc.returncode}
-        if proc.returncode != 0:
-            result.update({"status": "FAILED", "error": proc.stderr[-1000:]})
-        else:
+        trials = case.get("trials", 1)
+        for trial_index in range(1, trials + 1):
+            envelope = {
+                "case_id": case["id"],
+                "trial_index": trial_index,
+                "prompt": case["prompt"],
+                "tags": case.get("tags", []),
+                "role": role,
+                "fixture": fixture,
+            }
             try:
-                output = json.loads(proc.stdout)
-            except json.JSONDecodeError as exc:
-                result.update({"status": "INCOMPLETE", "error": f"runner output is not JSON: {exc}"})
+                proc = subprocess.run(command, input=json.dumps(envelope), capture_output=True, text=True, timeout=120, shell=False)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                results.append({"role": role, "id": case["id"], "trial_index": trial_index, "status": "FAILED", "error": str(exc)})
+                continue
+            result = {"role": role, "id": case["id"], "trial_index": trial_index, "exit": proc.returncode}
+            if proc.returncode != 0:
+                result.update({"status": "FAILED", "error": proc.stderr[-1000:]})
             else:
-                evidence, errors = _normalize_evidence(output)
-                if errors:
-                    result.update({"status": "INCOMPLETE", "errors": errors})
+                try:
+                    output = json.loads(proc.stdout)
+                except json.JSONDecodeError as exc:
+                    result.update({"status": "INCOMPLETE", "error": f"runner output is not JSON: {exc}"})
                 else:
-                    assert evidence is not None
-                    result.update(_grade_case(role, case, evidence, fixture, judge_command))
-                    result["evidence"] = evidence
-                    if result.get("status") == "GRADED":
-                        result["metrics"]["correctness"] = result["correctness"]
-                        result["metrics"]["material_omissions"] = result["material_omissions"]
-        results.append(result)
+                    evidence, errors = _normalize_evidence(output)
+                    if errors:
+                        result.update({"status": "INCOMPLETE", "errors": errors})
+                    else:
+                        assert evidence is not None
+                        result.update(_grade_case(role, case, trial_index, evidence, judge_fixture, judge_command))
+                        result["evidence"] = evidence
+                        if result.get("status") == "GRADED":
+                            result["metrics"]["correctness"] = result["correctness"]
+                            result["metrics"]["material_omissions"] = result["material_omissions"]
+            results.append(result)
     return results
 
 
-def _comparison(case: dict, role_results: dict[str, dict]) -> dict:
+def _comparison_trial(case: Dict[str, Any], role_results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     expected = _expected(case)
     role_assertions = {
         role: {item["text"]: item for item in result["assertions"]}
@@ -319,7 +359,7 @@ def _comparison(case: dict, role_results: dict[str, dict]) -> dict:
         for text in expected
     }
 
-    def delta(other: str) -> dict:
+    def delta(other: str) -> Dict[str, Any]:
         lost = [text for text in expected if role_assertions[other][text]["passed"] and not role_assertions["candidate"][text]["passed"]]
         gained = [text for text in expected if role_assertions["candidate"][text]["passed"] and not role_assertions[other][text]["passed"]]
         pass_count_delta = sum(role_assertions["candidate"][text]["passed"] for text in expected) - sum(role_assertions[other][text]["passed"] for text in expected)
@@ -346,7 +386,59 @@ def _comparison(case: dict, role_results: dict[str, dict]) -> dict:
     return comparison
 
 
-def _static_structure_ok() -> tuple[bool, list[str]]:
+def _comparison(case: Dict[str, Any], role_results: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
+    trial_count = case.get("trials", 1)
+    trial_comparisons = []
+    for trial_index in range(1, trial_count + 1):
+        trial_results = {
+            role: next((result for result in results if result.get("trial_index") == trial_index), None)
+            for role, results in role_results.items()
+        }
+        if any(result is None or result.get("status") != "GRADED" for result in trial_results.values()):
+            return {"status": "INCOMPLETE", "trial_count": trial_count, "incomplete_trial": trial_index}
+        trial_comparisons.append(_comparison_trial(case, trial_results))  # type: ignore[arg-type]
+
+    def aggregate(name: str) -> Dict[str, Any]:
+        deltas = [item[name] for item in trial_comparisons]
+        lost = sorted({text for item in deltas for text in item["lost_assertions"]})
+        gained = sorted({text for item in deltas for text in item["gained_assertions"]})
+        return {
+            "lost_assertions": lost,
+            "gained_assertions": gained,
+            "pass_count_delta": sum(item["pass_count_delta"] for item in deltas),
+            "correctness_delta": sum(item["correctness_delta"] for item in deltas),
+            "material_omission_delta": sum(item["material_omission_delta"] for item in deltas),
+            "improvement": any(item["improvement"] for item in deltas) and not any(item["regression"] for item in deltas),
+            "regression": any(item["regression"] for item in deltas),
+            "trial_deltas": deltas,
+        }
+
+    correctness = {
+        role: ([result["correctness"] for result in results] if trial_count > 1 else results[0]["correctness"])
+        for role, results in role_results.items()
+    }
+    material_omissions = {
+        role: ([result["material_omissions"] for result in results] if trial_count > 1 else results[0]["material_omissions"])
+        for role, results in role_results.items()
+    }
+    metrics = {
+        role: ([result["metrics"] for result in results] if trial_count > 1 else results[0]["metrics"])
+        for role, results in role_results.items()
+    }
+    return {
+        "status": "COMPARED",
+        "trial_count": trial_count,
+        "trial_comparisons": trial_comparisons,
+        "correctness": correctness,
+        "material_omissions": material_omissions,
+        "assertion_results": {str(index): item["assertion_results"] for index, item in enumerate(trial_comparisons, 1)},
+        "candidate_vs_baseline": aggregate("candidate_vs_baseline"),
+        "candidate_vs_no_skill": aggregate("candidate_vs_no_skill"),
+        "metrics": metrics,
+    }
+
+
+def _static_structure_ok() -> Tuple[bool, List[str]]:
     """Structural self-check used by the static corpus, not a prose gate."""
     try:
         tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
@@ -361,7 +453,7 @@ def _static_structure_ok() -> tuple[bool, list[str]]:
     return not missing, missing
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evals", type=Path, default=HERE)
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
@@ -374,7 +466,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
-        fixture = _load_fixture(args.fixture)
+        fixture, judge_fixture = _load_fixture(args.fixture)
         cases, static_only = _load_cases(args.evals, args.case_ids)
         commands = {
             "candidate": _argv_file(args.candidate_argv_file),
@@ -404,18 +496,25 @@ def main(argv: list[str] | None = None) -> int:
     results = []
     for role, command in commands.items():
         assert command is not None
-        results.extend(_run_role(role, command, cases, fixture, judge_command))
-    by_case = {case["id"]: {role: None for role in commands} for case in cases}
+        results.extend(_run_role(role, command, cases, fixture, judge_fixture, judge_command))
+    by_case = {case["id"]: {role: [] for role in commands} for case in cases}
     for result in results:
-        by_case[result["id"]][result["role"]] = result
+        by_case[result["id"]][result["role"]].append(result)
     comparisons = []
     for case in cases:
         role_results = by_case[case["id"]]
-        incomplete_roles = [role for role, result in role_results.items() if result is None or result.get("status") != "GRADED"]
+        trial_count = case.get("trials", 1)
+        expected_trials = list(range(1, trial_count + 1))
+        incomplete_roles = [
+            role for role, role_trials in role_results.items()
+            if len(role_trials) != trial_count
+            or sorted(result.get("trial_index") for result in role_trials) != expected_trials
+            or any(result.get("status") != "GRADED" for result in role_trials)
+        ]
         if incomplete_roles:
-            comparisons.append({"id": case["id"], "status": "INCOMPLETE", "incomplete_roles": incomplete_roles})
+            comparisons.append({"id": case["id"], "status": "INCOMPLETE", "trial_count": trial_count, "incomplete_roles": incomplete_roles})
         else:
-            comparison = _comparison(case, role_results)  # type: ignore[arg-type]
+            comparison = _comparison(case, role_results)
             comparison["id"] = case["id"]
             comparisons.append(comparison)
     failures = [result for result in results if result["status"] in {"FAILED", "INCOMPLETE"}]

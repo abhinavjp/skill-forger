@@ -14,7 +14,7 @@
 
 - Every execution packet closes product, architecture, scope, and material alternative decisions before implementation.
 - If compact mode cannot close material decisions, evidence, or safety constraints, identify the exact gap and offer scope reduction, detailed mode, or an upstream return.
-- Provide a formal read-only `to-tickets` handoff when requested or approved as the next step; it references canonical plan content and never publishes.
+- Produce an approved, ticket-ready plan; downstream ticket conversion is outside `forge-plan` and remains separately authorized.
 - Planning approval is terminal for the Skill and grants no implementation or external-mutation authority.
 - Behavioral claims require fixture-driven candidate, accepted-baseline, and no-Skill trials; unavailable live behavior remains `UNMEASURED`.
 - Keep the portable core free of named hosts, models, agents, absolute paths, hooks, and required host-only features.
@@ -77,22 +77,22 @@
 - Modify: `plugin/skills/forge-plan/evals/execution.json`
 
 **Interfaces:**
-- The main Skill owns two observable routes: normal proportional planning and a direct read-only handoff from a fresh approved plan.
+- The main Skill owns one observable route: normal proportional planning ending in an approved, ticket-ready plan.
 - A material unresolved decision returns a blocked/upstream outcome and cannot reach plan approval.
 
 - [ ] **Step 1: Add failing contract assertions**
 
-  Add deterministic eval cases asserting that the Skill has an explicit blocked/upstream outcome, forbids approval with material unresolved decisions, validates freshness in the direct handoff route, and emits a read-only handoff when tracker conversion is an approved next step.
+  Add deterministic eval cases for the structural Skill/package contract and the blocked/upstream completion boundary. Downstream ticket conversion is outside this Skill.
 
 - [ ] **Step 2: Run the target eval gate**
 
   Run: `python plugin\skills\forge-plan\evals\run_static_evals.py --json`
 
-  Expected: FAIL because the current Skill has no direct handoff branch and permits explicitly blocked decisions at completion.
+  Expected: FAIL until the structural contract and blocked/upstream wording are aligned.
 
 - [ ] **Step 3: Implement the smallest wording/contract change**
 
-  Add the direct branch before mode selection; require approval-hash/freshness validation; state that stale or unresolved material decisions block approval and return upstream; update compact-mode and packet completion language to remove “unresolved blockers” as an acceptable approved state; state that an approved tracker-conversion next step produces a read-only handoff without tracker mutation.
+  State that stale or unresolved material decisions block approval and return upstream; update compact-mode and packet completion language to remove “unresolved blockers” as an acceptable approved state; stop at the approved, ticket-ready plan and leave tracker conversion to a separately authorized downstream actor.
 
 - [ ] **Step 4: Run target and corpus checks**
 
@@ -112,7 +112,7 @@
 **Interfaces:**
 - `run_static_evals.py [--evals DIR] [--json]` validates the corpus and runs only trusted in-process checks; it returns schema `case_count`/`errors` plus deterministic results and never executes corpus-provided commands.
 - `run_behavioral_evals.py [--fixture FILE] [--candidate-command CMD] [--baseline-command CMD] [--no-skill-command CMD] [--json]` sends each selected case and fixture to the explicitly supplied trusted runner commands; absent any required runner reports `UNMEASURED`.
-- Runner input is a JSON envelope containing case ID, prompt, expected assertions, fixture content, and role (`candidate`, `baseline`, or `no-skill`). Runner output must be JSON; malformed output or nonzero exit is a recorded failure.
+- Runner input is a JSON envelope containing case ID, trial index, prompt, public fixture content, and role (`candidate`, `baseline`, or `no-skill`); expected assertions, rubrics, and accepted-baseline scenarios stay in the trusted control plane. Runner output must be normalized evidence JSON; malformed output or nonzero exit is a recorded failure.
 
 - [ ] **Step 1: Add failing packaging tests**
 
@@ -168,7 +168,7 @@
 
 - [ ] **Step 4: Perform final semantic review**
 
-  Confirm: all four PR inline threads are addressed; material blockers cannot be approved; direct handoff freshness and read-only boundaries are explicit; the approved-next-step handoff is present; the release version is synchronized; static and behavioral evidence are separated; unavailable live behavior is labeled `UNMEASURED`.
+  Confirm: all PR threads are addressed; material blockers cannot be approved; the plan stops at approved ticket-ready output; the release version is synchronized; static and behavioral evidence are separated; unavailable live behavior is labeled `UNMEASURED`.
 
 ### Re-review addendum: strict behavioral grading
 
@@ -252,3 +252,26 @@ retaining unrelated current-main packaging and repository changes. Verification
 must cover argv paths containing spaces/backslashes, oracle-free runner input,
 static-only routing, mixed assertion losses, malformed corpora, and the full
 package/validator/static/harness gates before delivery.
+
+### Re-review addendum: trials, metrics, portability, and scope correction
+
+The clean-room re-review at head `93eb3e0` found five remaining roots and
+retracted the earlier ticket-handoff requirement as unsupported by committed
+authority. This pass therefore:
+
+- keeps accepted-baseline scenarios private to the trusted judge/control plane;
+- validates positive integer `trials` (default `1` when omitted), sends one-based `trial_index` to runner
+  and judge, requires every role/trial, and compares matching trials without
+  hiding any trial regression;
+- validates metric enums, booleans, nonnegative integer counts, bounded
+  coverage, and typed collection fields, with per-field `UNMEASURED` defaults;
+- keeps the new eval runners compatible with Python 3.8+ typing syntax;
+- treats the static evaluator as structural/package evidence only, not a
+  semantic heading-presence claim; and
+- removes `to-tickets` ownership from forge-plan, its trigger/eval case, and
+  the tracked plan/design language. Forge-plan ends at an approved ticket-ready
+  plan; downstream conversion is a separate actor and authorization.
+
+Regression coverage includes recursive oracle-key checks, 3-trial/9-invocation
+cardinality, missing-trial failure, metric boundary/type validation, and the
+existing static/package/harness gates.

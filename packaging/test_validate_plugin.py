@@ -62,7 +62,7 @@ def frontmatter_name(skill_md: Path) -> str | None:
         if line.strip() == "---":
             break
         if line.startswith("name:"):
-            return line.removeprefix("name:").strip().strip("'\"")
+            return line[len("name:"):].strip().strip("'\"")
     return None
 
 
@@ -295,10 +295,101 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             proc = self.run_behavioral_harness(Path(directory), "capture")
             captured = json.loads((Path(directory) / "runner-input.json").read_text(encoding="utf-8"))
         self.assertEqual(0, proc.returncode, proc.stderr)
-        self.assertNotIn("expected", captured)
-        self.assertNotIn("grader", captured)
-        self.assertNotIn("rubric", captured)
-        self.assertEqual({"case_id", "prompt", "tags", "role", "fixture"}, set(captured))
+        forbidden_keys = {"accepted_baseline", "expected", "grader", "rubric"}
+
+        def contains_forbidden(value):
+            if isinstance(value, dict):
+                return any(key in forbidden_keys or contains_forbidden(item) for key, item in value.items())
+            if isinstance(value, list):
+                return any(contains_forbidden(item) for item in value)
+            return False
+
+        self.assertFalse(contains_forbidden(captured))
+        self.assertEqual({"case_id", "trial_index", "prompt", "tags", "role", "fixture"}, set(captured))
+        self.assertEqual(1, captured["trial_index"])
+
+    def test_behavioral_harness_executes_every_declared_trial(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            runner = temporary / "trial-runner.py"
+            judge = temporary / "trial-judge.py"
+            runner_count = temporary / "runner-count.txt"
+            judge_count = temporary / "judge-count.txt"
+            runner_count.write_text("0", encoding="utf-8")
+            judge_count.write_text("0", encoding="utf-8")
+            runner.write_text(
+                "import json, pathlib, sys\n"
+                "request = json.load(sys.stdin)\n"
+                "path = pathlib.Path(sys.argv[1])\n"
+                "path.write_text(str(int(path.read_text() or '0') + 1), encoding='utf-8')\n"
+                "print(json.dumps({'response': request['trial_index'], 'metrics': {'version': 1}}))\n",
+                encoding="utf-8",
+            )
+            judge.write_text(
+                "import json, pathlib, sys\n"
+                "request = json.load(sys.stdin)\n"
+                "path = pathlib.Path(sys.argv[1])\n"
+                "path.write_text(str(int(path.read_text() or '0') + 1), encoding='utf-8')\n"
+                "assertions = request['expected']['outcome']['assertions']\n"
+                "print(json.dumps({'assertions': [{'text': text, 'passed': True, 'evidence': str(request['trial_index'])} for text in assertions]}))\n",
+                encoding="utf-8",
+            )
+            runner_argv = temporary / "runner-argv.json"
+            judge_argv = temporary / "judge-argv.json"
+            runner_argv.write_text(json.dumps([sys.executable, str(runner), str(runner_count)]), encoding="utf-8")
+            judge_argv.write_text(json.dumps([sys.executable, str(judge), str(judge_count)]), encoding="utf-8")
+            harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+            args = [
+                sys.executable, str(harness), "--case-id", "FP-E-001",
+                "--candidate-argv-file", str(runner_argv),
+                "--baseline-argv-file", str(runner_argv),
+                "--no-skill-argv-file", str(runner_argv),
+                "--judge-argv-file", str(judge_argv), "--json",
+            ]
+            proc = subprocess.run(args, cwd=REPO_ROOT, capture_output=True, text=True)
+            report = json.loads(proc.stdout)
+            runner_invocations = int(runner_count.read_text(encoding="utf-8"))
+            judge_invocations = int(judge_count.read_text(encoding="utf-8"))
+        self.assertEqual(0, proc.returncode, proc.stderr + proc.stdout)
+        self.assertEqual("EXECUTED", report["status"])
+        self.assertEqual(9, runner_invocations)
+        self.assertEqual(9, judge_invocations)
+        self.assertEqual(3, report["comparisons"][0]["trial_count"])
+        self.assertEqual([1, 2, 3], [item["trial_index"] for item in report["results"] if item["role"] == "candidate"])
+
+    def test_behavioral_harness_rejects_a_missing_declared_trial(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            runner = temporary / "missing-trial-runner.py"
+            argv_file = temporary / "runner-argv.json"
+            runner.write_text(
+                "import json, sys\n"
+                "request = json.load(sys.stdin)\n"
+                "if request['trial_index'] == 2: sys.exit(9)\n"
+                "print(json.dumps({'response': 'observed', 'metrics': {'version': 1}}))\n",
+                encoding="utf-8",
+            )
+            argv_file.write_text(json.dumps([sys.executable, str(runner)]), encoding="utf-8")
+            harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+            args = [
+                sys.executable, str(harness), "--case-id", "FP-E-001",
+                "--candidate-argv-file", str(argv_file), "--baseline-argv-file", str(argv_file),
+                "--no-skill-argv-file", str(argv_file), "--json",
+            ]
+            proc = subprocess.run(args, cwd=REPO_ROOT, capture_output=True, text=True)
+            report = json.loads(proc.stdout)
+        self.assertNotEqual(0, proc.returncode)
+        self.assertEqual("FAILED", report["status"])
+        self.assertTrue(report["comparisons"][0]["incomplete_roles"])
+
+    def test_behavioral_metrics_validate_types_ranges_and_partial_values(self) -> None:
+        valid, errors = behavioral_evals._normalize_metrics({"mode": "compact", "input_tokens": 0, "traceability_coverage": 1.0})
+        self.assertEqual([], errors)
+        self.assertEqual("UNMEASURED", valid["output_tokens"])
+        for field, value in (("mode", "banana"), ("input_tokens", -1), ("retries", True), ("acceptance_coverage", 1.1), ("correctness", "yes")):
+            normalized, errors = behavioral_evals._normalize_metrics({field: value})
+            self.assertIsNone(normalized, field)
+            self.assertTrue(errors, field)
 
     def test_behavioral_harness_reports_mixed_assertion_regression(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

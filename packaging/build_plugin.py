@@ -33,7 +33,7 @@ def frontmatter_name(skill_md: Path) -> str:
         if line.strip() == "---":
             break
         if line.startswith("name:"):
-            name = line.removeprefix("name:").strip().strip("'\"")
+            name = line[len("name:"):].strip().strip("'\"")
             if name:
                 return name
     raise ValueError(f"{skill_md}: missing frontmatter name")
@@ -62,7 +62,11 @@ def output_path(value: str) -> Path:
         candidate = REPO_ROOT / candidate
     candidate = candidate.resolve()
     dist_dir = DIST_DIR.resolve()
-    if not candidate.is_relative_to(dist_dir) or candidate == dist_dir:
+    try:
+        candidate.relative_to(dist_dir)
+    except ValueError:
+        raise ValueError("--out must be a new directory beneath the ignored dist/ tree")
+    if candidate == dist_dir:
         raise ValueError("--out must be a new directory beneath the ignored dist/ tree")
     return candidate
 

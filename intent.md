@@ -249,7 +249,7 @@ Add differential cases for compact defaulting, detailed risk selection, explicit
 5. Must compact mode retain every current execution-packet section, or may low-risk packets use a reduced contract?
 6. What measurable reviewability limit should trigger splitting a phase?
 7. Which risk level requires an independent reviewer?
-8. Is ticket-ready output enough, or should a separate handoff to `to-tickets` be formalized?
+8. Ticket-ready output is sufficient; any downstream ticket conversion is outside `forge-plan` and belongs to a separately invoked, separately authorized actor.
 
 ## Non-goals
 
