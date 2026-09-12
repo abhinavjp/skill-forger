@@ -169,3 +169,36 @@
 - [ ] **Step 4: Perform final semantic review**
 
   Confirm: all four PR inline threads are addressed; material blockers cannot be approved; direct handoff freshness and read-only boundaries are explicit; the approved-next-step handoff is present; the release version is synchronized; static and behavioral evidence are separated; unavailable live behavior is labeled `UNMEASURED`.
+
+### Re-review addendum: strict behavioral grading
+
+The re-review at head `3291c74` found two additional issues. Remove the
+hardcoded release literal from `packaging/test_validate_plugin.py`; synchronized
+manifest equality is the only release check. Replace the behavioral harness's
+zero-exit/JSON-only acceptance with a strict runner contract:
+
+- runner output contains only `assertions` and optional `metrics`;
+- every expected assertion appears exactly once with exact text, boolean
+  `passed`, and non-empty `evidence`;
+- missing, unknown, malformed, or non-JSON assertion evidence is incomplete and
+  fails the run;
+- a complete response with failed assertions is graded incorrect, not treated
+  as incomplete;
+- candidate, accepted-baseline, and no-Skill results are compared per case;
+- correctness and material omissions are reported before optional efficiency
+  metrics; candidate regression against baseline fails the run;
+- missing roles remain `UNMEASURED`, and `--strict` exits nonzero;
+- runner commands remain explicit maintainer input and execute with `shell=False`.
+
+Regression coverage uses temporary trusted runners for empty output, malformed
+JSON, nonzero exit, missing assertions, complete three-role comparison,
+candidate regression, and strict missing-role behavior. Required checks:
+
+```text
+python packaging/test_validate_plugin.py -v
+python packaging/validate_plugin.py
+python plugin/skills/forge-plan/evals/run_static_evals.py --json
+python plugin/skills/forge-plan/evals/run_behavioral_evals.py --json
+python plugin/skills/forge-plan/evals/run_behavioral_evals.py --strict --json
+git diff --check 2fcb82ce50332de2ce5ff97d15d652098d7a3655...HEAD
+```
