@@ -2,7 +2,12 @@
 
 ## Status
 
-Draft for grilling. Mode names and exact selection policy are intentionally unresolved.
+Revision: 2
+
+Resolved decision record; awaiting explicit approval of Intent revision 2 and
+Specification revision 1 at `docs/specs/forge-plan-proportional-planning.md`.
+The content hashes are presented at the approval checkpoint and are not approval
+hashes until the shared workflow contract records valid artifact approval.
 
 ## Why
 
@@ -217,11 +222,17 @@ Every context pointer states the branch that loads its target. Each concept has 
 - Tracker publishing remains outside `forge-plan`.
 - Phase review and commits remain implementation responsibilities; `forge-plan` freezes their policy but does not perform them.
 
-## Proposed mode selection
+## Resolved mode selection
 
-Selection happens during grilling. Default to compact unless risk or coordination justifies detail. A starting heuristic: recommend detailed mode when at least two apply—multiple repositories/deployables, schema or hard-to-reverse migration, security/permissions/compliance, external integration, multiple implementers/agents, ambiguous legacy behaviour, or explicit audit/recovery needs.
+The two modes are `compact` and `detailed`. Selection happens during grilling.
+Forge recommends a mode from the verified risk and coordination evidence, then
+waits for the user's confirmation or explicit override before loading
+mode-specific guidance. It never switches modes silently.
 
-This heuristic requires evaluation before becoming a hard rule.
+Compact is the default only for verified bounded, low-risk work with no
+unresolved material decision. Detailed is recommended when one severe factor or
+several connected moderate factors make a single compact packet unsafe. The
+decision is evidence-based; no fixed signal count decides it.
 
 ## Success criteria
 
@@ -240,16 +251,32 @@ This heuristic requires evaluation before becoming a hard rule.
 
 Add differential cases for compact defaulting, detailed risk selection, explicit user override, vertical slicing, cohesive phase boundaries, phase size, wide-refactor handling, blocker/frontier correctness, phase review closure, stalled review loops, commit authorization, stale-source conflict detection, unresolved-intent preservation, duplication avoidance, simple language, conditional risk controls, progressive context loading, and work-packet closure. Compare candidate versus current `forge-plan`; leave unrun model behavior `UNMEASURED`.
 
-## Open questions for grilling
+## Resolved decisions for Specification
 
-1. What should the two modes be called?
-2. Should the user always choose, or may Forge recommend/select with confirmation?
-3. Is “two risk signals” the right detailed-mode threshold?
-4. Should detailed artifacts use one phase file plus task files, or one phase directory containing its phase index and task files?
-5. Must compact mode retain every current execution-packet section, or may low-risk packets use a reduced contract?
-6. What measurable reviewability limit should trigger splitting a phase?
-7. Which risk level requires an independent reviewer?
-8. Ticket-ready output is sufficient; any downstream ticket conversion is outside `forge-plan` and belongs to a separately invoked, separately authorized actor.
+1. `DEC-001` — Use the mode names `compact` and `detailed`.
+2. `DEC-002` — Forge recommends a mode during grilling from verified evidence;
+   the user must confirm or override before mode-specific guidance loads.
+3. `DEC-003` — Default to compact for verified bounded low-risk work. Recommend
+   detailed for one severe factor or connected moderate factors whose combined
+   coordination, uncertainty, or impact makes compact unsafe. Do not use a fixed
+   signal count.
+4. `DEC-004` — Detailed output uses `plan.md`, then
+   `phases/<phase>/phase.md`, then ordered task files in each phase directory.
+5. `DEC-005` — Compact output is one `plan.md` with inline,
+   dependency-ordered vertical slices. It uses the reduced compact contract and
+   creates no phase or task files.
+6. `DEC-006` — A phase is one cohesive working outcome with one integration
+   point. Split before execution when independent deployable/reversible outcomes
+   exist or one reviewer cannot understand and verify the complete phase in one
+   focused pass. Do not split by repository layer, task count, or line count.
+7. `DEC-007` — Independent review is mandatory for high-risk work and for any
+   security, permission, privacy, compliance, irreversible-migration,
+   credible-data-loss, or recovery-critical boundary. Low risk uses same-agent
+   integrated review; medium risk does so unless novelty makes independence
+   necessary.
+
+Ticket-ready output is sufficient. Any downstream ticket conversion is outside
+`forge-plan` and belongs to a separately invoked, separately authorized actor.
 
 ## Non-goals
 
@@ -263,7 +290,6 @@ Add differential cases for compact defaulting, detailed risk selection, explicit
 
 - Local BR-21598 planning/as-built dossier: `D:\AI\skills\BR-21598-company-timesheet`
 - [Anthropic: The AI-native software development lifecycle](https://claude.com/blog/the-ai-native-sdlc-playbook)
-- [mattpocock/skills: to-tickets](https://github.com/mattpocock/skills/tree/main/skills/engineering/to-tickets)
 - [mattpocock/skills: writing-for-agents](https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents)
 - [Intent-Driven Development case study](https://dev.to/copyleftdev/intent-driven-development-define-the-system-before-you-write-the-code-22pe) — secondary source; not normative.
 - [Google Engineering Practices: Small CLs](https://google.github.io/eng-practices/review/developer/small-cls.html)
