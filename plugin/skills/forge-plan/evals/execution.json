@@ -373,16 +373,17 @@
     "expected": {
       "outcome": {
         "assertions": [
-          "compact defaults to end always_ask separate",
-          "detailed defaults to phase always_ask separate",
-          "commit approval remains independent from implementation, push, merge, tracker, deploy and release"
+          "compact defaults to commit_granularity end and history_style separate",
+          "detailed defaults to commit_granularity phase and history_style separate",
+          "commit_granularity and history_style remain independent from implementation, push, merge, tracker, deploy and release",
+          "no third commit-policy field such as an approval or always-ask flag is present"
         ]
       }
     },
     "graders": [
       {
         "type": "llm-judge",
-        "rubric": "Pass only if all three policy fields are independent and no authority implication is made."
+        "rubric": "Pass only if the frozen commit policy consists of exactly commit_granularity and history_style at the stated defaults, both independent of downstream authority, with no third field (an approval/always-ask flag) present."
       }
     ],
     "tags": [
