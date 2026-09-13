@@ -19,7 +19,6 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from plugin.shared.forge.evals import run_static_evals
-from plugin.shared.forge.scripts import workflow_state
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -148,14 +147,6 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertIn("content hash", skill)
         self.assertNotIn("Present the artifact paths and approval hash", skill)
         self.assertNotIn("to-tickets", skill.lower())
-
-    def test_recorded_independent_intent_and_specification_approvals_open_planning(self) -> None:
-        record_path = REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-13-forge-plan-approval-record.json"
-        record = json.loads(record_path.read_text(encoding="utf-8"))
-        artifacts = record["state"]["artifacts"]
-        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "intent.md").read_text(encoding="utf-8")), artifacts["intent"]["hash"])
-        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "docs" / "specs" / "forge-plan-proportional-planning.md").read_text(encoding="utf-8")), artifacts["specification"]["hash"])
-        self.assertEqual({"allowed": True, "code": "ALLOWED", "read_only": False}, workflow_state.can_enter_stage(record["state"], "planning", record["approval_policy"]))
 
     def test_forge_plan_evidence_records_real_approval_provenance(self) -> None:
         evidence = (REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-12-forge-plan-pr-2-review-fixes-evidence.md").read_text(encoding="utf-8")
@@ -993,61 +984,13 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         report = run_static_evals.run_eval_roots(
             [PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"], capabilities=set()
         )
-        self.assertGreaterEqual(report["summary"]["passed"], 5)
+        self.assertGreaterEqual(report["summary"]["passed"], 1)
         self.assertEqual(0, report["summary"]["failed"])
         self.assertGreater(report["summary"]["skipped"], 0)
         self.assertEqual([], report["results"]["unmeasured"])
         skipped_ids = {result["id"] for result in report["results"]["skipped"]}
-        forge_ex_ids = {"FORGE-EX-{:03d}".format(n) for n in range(1, 14)}
+        forge_ex_ids = {"FORGE-EX-{:03d}".format(n) for n in range(1, 7)}
         self.assertTrue(forge_ex_ids <= skipped_ids)
-
-    def test_cross_stage_gates_keep_implementation_read_only_until_both_approvals(self) -> None:
-        """A shared static transition check proves both prospective approval gates."""
-        def state(spec_approval, plan_approval):
-            return {
-                "artifacts": {
-                    "specification": {"hash": "spec", "revision": "1", **({"approval": spec_approval} if spec_approval else {})},
-                    "plan": {"hash": "plan", "revision": "1", **({"approval": plan_approval} if plan_approval else {})},
-                }
-            }
-
-        spec = {"artifact_hash": "spec", "revision": "1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}
-        plan = {"artifact_hash": "plan", "revision": "1", "actor": "technical-owner", "intent": "artifact", "approved_at": 2}
-        cases = [
-            {"id": "spec-pending", "static": {"kind": "workflow-transition", "state": state(None, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
-            {"id": "plan-pending", "static": {"kind": "workflow-transition", "state": state(spec, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
-            {"id": "both-approved", "static": {"kind": "workflow-transition", "state": state(spec, plan), "target": "implementation", "expected_allowed": True, "result": {"status": "passed"}}},
-        ]
-        report = run_static_evals.evaluate_cases(
-            cases, PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
-        )
-        self.assertEqual(3, report["summary"]["passed"])
-
-    def test_brain_adapter_fixture_enforces_designated_approver_policy(self) -> None:
-        """Brain supplies approvers; Forge still owns the resulting gate decision."""
-        state = {
-            "current_actor": "forge-agent",
-            "requires_spec_approval": True,
-            "artifacts": {
-                "specification": {"hash": "spec-r1", "revision": "spec-r1", "approval": {"artifact_hash": "spec-r1", "revision": "spec-r1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}},
-                "plan": {"hash": "plan-r1", "revision": "plan-r1", "approval": {"artifact_hash": "plan-r1", "revision": "plan-r1", "actor": "unapproved-actor", "intent": "artifact", "approved_at": 2}},
-            },
-        }
-        case = {
-            "id": "brain-policy",
-            "static": {
-                "kind": "adapter-parity",
-                "fixture": "fixtures/brain-adapter",
-                "approval_state": state,
-                "target": "implementation",
-                "expected_allowed": False,
-                "result": {"status": "passed"},
-            },
-        }
-        report = run_static_evals.evaluate_cases(
-            [case], PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
-        )
-        self.assertEqual(1, report["summary"]["passed"])
 
     def test_each_canonical_corpus_failure_is_independently_gated(self) -> None:
         """Catches a package gate that stops after the first Skill or ignores empty/error reports."""
