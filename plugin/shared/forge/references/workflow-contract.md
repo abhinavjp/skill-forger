@@ -2,7 +2,7 @@
 
 Every Forge skill points here instead of copying these rules. Terms (work
 item, high risk, go, stop, blocker, backfill, second reviewer) are defined in
-root [CONTEXT.md](../../../../CONTEXT.md) and used as-is.
+root `CONTEXT.md` and used as-is.
 
 ## Lifecycle and backfill
 
@@ -116,7 +116,7 @@ report once nothing else is ready.
 
 At the end of each phase (or at the end of a compact plan): run its checks,
 then review the diff against the Goal and the plan. High risk needs a
-[second reviewer](../../../../CONTEXT.md); with none available, ask the human
+second reviewer (root `CONTEXT.md`); with none available, ask the human
 to review. Fix findings, re-run affected checks, and re-review — at most two
 fix loops. If it still is not clean after that, stop and report to the user
 rather than looping again. Stop before the commit that follows.

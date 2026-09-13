@@ -1,37 +1,31 @@
 # Compact mode
 
-Use after the user confirms `compact`. Create exactly one `plan.md`; create no
-phase or task artifacts.
+Use after the user confirms `compact`. Create exactly one `plan.md`; no phase
+or task files.
 
-## Compact artifact contract
+## Compact plan contract
 
-The plan is semantically closed and contains:
+The plan is self-contained:
 
-- outcome and the approved source basis, with path, revision, current content
-  hash, provenance, and freshness result;
-- scope, exclusions, preserved behaviour, and verified current state;
-- frozen decisions and bounded assumptions; unresolved material decisions block
-  approval and require an upstream return, scope reduction, or detailed mode;
-- inline dependency-ordered vertical slices with exact write scope, relevant
-  symbols, constraints, ordered changes, narrow proof, and expected results;
-- observable acceptance, final integrated gates, and implementation handoff;
-- commit policy defaulting to `commit_granularity: end`,
-  `commit_approval: always_ask`, and `history_style: separate`.
+- outcome and the source it is based on (`context.md` Goal, `decisions.md`,
+  `spec.md` if present);
+- scope, exclusions, and preserved behaviour;
+- dependency-ordered vertical slices, each with the six packet headings from
+  [execution packets](execution-packet.md) and a `risk:` label;
+- observable acceptance and the final check;
+- `commit_granularity: end` and `history_style: separate` unless the repo's
+  convention says otherwise.
 
 ## Vertical slices and dependencies
 
-Keep each slice independently observable where the change permits it. Record
-only real start-blocking edges and show the initial executable frontier. Do not
-turn the compact plan into a list of repository layers or mechanical subtasks.
+Keep each slice independently observable where the change allows it. Record
+only real start-blocking edges. Do not turn this into a list of repository
+layers.
 
-Include rollback, compatibility, security, observability, idempotency, manual,
-live-provider, performance, migration, browser, hardware, or UAT material only
-when verified risk requires it. Omit empty conditional sections.
+Include rollback, compatibility, security, observability, or migration
+material only when a real risk in this change needs it. Omit sections that
+would be empty.
 
-Review the complete plan once for intent, behaviour, architecture, regression,
-scope, and proof. Use the shared Forge workflow contract for artifact approval
-and mutation boundaries. At completion, present the exact Plan path, revision,
-and content hash as `awaiting-approval`; this is `PAUSED` /
-`AWAITING_APPROVAL`, not success. Do not label that pre-approval hash an
-approval hash. `COMPLETE` requires a contract-valid artifact approval, then
-Forge stops.
+End by showing the exact path and asking "review or go?" — see the shared
+[workflow contract](../../../shared/forge/references/workflow-contract.md)
+for what counts as approval.

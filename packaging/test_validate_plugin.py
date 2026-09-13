@@ -140,11 +140,10 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_forge_plan_delegates_workflow_and_source_semantics_to_shared_contracts(self) -> None:
         skill = (PLUGIN_SKILLS / "forge-plan" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("../../shared/forge/references/workflow-contract.md", skill)
-        self.assertIn("../../shared/forge/references/issue-source-contract.md", skill)
-        self.assertIn("../../shared/forge/references/knowledge-provider-contract.md", skill)
-        self.assertIn("can_enter_stage", skill)
-        self.assertIn("awaiting-approval", skill)
-        self.assertIn("content hash", skill)
+        self.assertIn("review or go", skill)
+        self.assertNotIn("can_enter_stage", skill)
+        self.assertNotIn("awaiting-approval", skill)
+        self.assertNotIn("content hash", skill)
         self.assertNotIn("Present the artifact paths and approval hash", skill)
         self.assertNotIn("to-tickets", skill.lower())
 

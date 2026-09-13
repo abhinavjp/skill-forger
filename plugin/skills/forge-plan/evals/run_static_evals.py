@@ -50,15 +50,11 @@ def forge_plan_contract(_check: Dict[str, Any]) -> Tuple[bool, List[str]]:
                 continue
             if not (skill.parent / target).resolve().is_file():
                 errors.append(f"SKILL.md broken relative reference: {target}")
-        for target in (
-            "../../shared/forge/references/workflow-contract.md",
-            "../../shared/forge/references/issue-source-contract.md",
-            "../../shared/forge/references/knowledge-provider-contract.md",
-        ):
+        for target in ("../../shared/forge/references/workflow-contract.md",):
             if target not in skill_text:
                 errors.append("SKILL.md missing shared contract pointer: {}".format(target))
-        if "can_enter_stage" not in skill_text:
-            errors.append("SKILL.md must delegate stage eligibility to can_enter_stage")
+        if "review or go" not in skill_text:
+            errors.append("SKILL.md must stop and ask \"review or go?\" before implementation")
     return not errors, errors
 
 
