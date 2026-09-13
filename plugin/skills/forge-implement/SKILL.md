@@ -38,10 +38,12 @@ Done when: `progress.md` has a baseline and you know where to start.
 ## 3. Do each ready task
 
 A task is ready when everything in its `Depends on` is done. For each ready
-task: read only its packet, write a file under `changed:` before editing it,
-stay inside `Write scope`, leave `Must not change` alone, and run its `Proof`.
-Test first where the plan names a seam. Record `PASS`, `FAIL`, or
-`UNMEASURED` with a reason.
+task: read its packet plus the `phase.md`/`plan.md` facts it points to (its
+own phase's control-plane invariants and scope — leave unrelated phases
+unloaded), write a file under `changed:` before editing it, stay inside
+`Write scope`, leave `Must not change` alone, and run its `Proof`. Test
+first where the plan names a seam. Record `PASS`, `FAIL`, or `UNMEASURED`
+with a reason.
 
 If the code and plan disagree, a needed change falls outside `Write scope`,
 or checks still fail after retries: mark the task `[!]`, block its

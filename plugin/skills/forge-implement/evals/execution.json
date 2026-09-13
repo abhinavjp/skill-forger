@@ -53,6 +53,53 @@
   },
   {
     "version": 1,
+    "id": "FI-E-018",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Run TSK-04 in phases/02-checkout/. Its task packet's Must not change and Proof say nothing about audit logs. phases/02-checkout/phase.md states a control-plane invariant: token values must never appear in audit log output. TSK-04's change touches the audit logging call site.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "reads phase.md's invariant before editing, not just TSK-04's own packet",
+          "the change preserves token redaction in the audit log even though the packet never states it",
+          "the task only passes because phase.md's invariant was honoured"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the implementer loads phase.md's control-plane invariant in addition to TSK-04's own packet and the delivered change preserves that invariant; a change that only satisfies the packet's own explicit fields while breaking the phase-level invariant must fail."
+      }
+    ],
+    "tags": ["task-plus-control-plane", "invariant-preservation"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-019",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Run TSK-01 in phases/01-auth/. The plan has three phases: 01-auth, 02-checkout, 03-reporting. TSK-01 depends only on facts in plan.md and phases/01-auth/phase.md.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "loads TSK-01's packet plus plan.md and phases/01-auth/phase.md",
+          "does not load phases/02-checkout/ or phases/03-reporting/ files"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the implementer loads exactly the current task's packet plus plan.md and its own phase's phase.md, and does not read any file under an unrelated phase directory."
+      }
+    ],
+    "tags": ["task-plus-control-plane", "progressive-loading"]
+  },
+  {
+    "version": 1,
     "id": "FI-E-005",
     "kind": "execution",
     "category": "boundary",
