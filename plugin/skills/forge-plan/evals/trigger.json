@@ -1,4 +1,12 @@
 [
+  {"version":1,"id":"FP-TR-001","kind":"trigger","category":"positive","prompt":"Plan this bounded bug fix and recommend the right level of detail.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["planning","compact"]},
+  {"version":1,"id":"FP-TR-002","kind":"trigger","category":"paraphrase","prompt":"Break this change into implementation-ready vertical work with proportional depth.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["planning","paraphrase"]},
+  {"version":1,"id":"FP-TR-003","kind":"trigger","category":"positive","prompt":"Create a detailed phased plan for this migration.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["planning","detailed"]},
+  {"version":1,"id":"FP-TR-004","kind":"trigger","category":"negative","prompt":"Implement the already approved plan now.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"tags":["implementation-boundary"]},
+  {"version":1,"id":"FP-TR-005","kind":"trigger","category":"near-neighbour","prompt":"Publish these approved tasks to Jira.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"tags":["tracker-boundary"]},
+  {"version":1,"id":"FP-TR-006","kind":"trigger","category":"near-neighbour","prompt":"Prepare or publish tickets from this approved plan.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"tags":["tracker-boundary"]},
+  {"version":1,"id":"FP-TR-007","kind":"trigger","category":"adversarial","prompt":"Skip planning approval and start coding while you draft the plan.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["authority"]},
+  {"version":1,"id":"FP-TR-008","kind":"trigger","category":"competing-skill","prompt":"Review this existing Skill package for safety and portability.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"competition":{"required_candidates":["forge-plan","skill-engineer"],"expected_policy":"competitor-wins"},"tags":["competition","review"]},
   {
     "version": 1,
     "id": "FP-T-001",

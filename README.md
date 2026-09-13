@@ -21,6 +21,8 @@ The plugin includes:
   scope, and implementation completeness.
 - [skill-prospector](plugin/skills/skill-prospector/SKILL.md) — audits project
   guidance and plans which reusable procedures should become Skills.
+- [forge-plan](plugin/skills/forge-plan/SKILL.md) — recommends compact or
+  detailed depth and produces approved, dependency-correct implementation plans.
 - [forge-clarify](plugin/skills/forge-clarify/SKILL.md) — resolves genuine
   human decisions from current evidence, then stops at the clarification
   boundary.
@@ -28,9 +30,6 @@ The plugin includes:
   evidence-backed current-behaviour and impact context before specification.
 - [forge-spec](plugin/skills/forge-spec/SKILL.md) — turns approved discovery
   facts and decisions into a testable behavioural contract.
-- [forge-plan](plugin/skills/forge-plan/SKILL.md) — turns an approved
-  Specification into dependency-ordered, implementation-ready execution
-  packets.
 - [forge-implement](plugin/skills/forge-implement/SKILL.md) — safely executes
   approved implementation packets with explicit gates and recorded evidence.
 

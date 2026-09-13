@@ -234,6 +234,21 @@ class WorkflowStateTests(unittest.TestCase):
                 self.assertFalse(decision["allowed"])
                 self.assertEqual(decision["code"], "GATE_REQUIRED")
 
+    def test_revision_mismatch_and_undesignated_approval_keep_gate_closed(self):
+        cases = (
+            ("revision mismatch", {"revision": "spec-old"}, None),
+            ("undesignated", {"actor": "unlisted-reviewer"}, {"planning": ["product-owner"]}),
+        )
+        for name, approval_change, policy in cases:
+            with self.subTest(name=name):
+                state = self.valid_state()
+                state["artifacts"]["specification"]["approval"].update(approval_change)
+
+                decision = workflow_state.can_enter_stage(state, "planning", policy)
+
+                self.assertFalse(decision["allowed"])
+                self.assertEqual(decision["code"], "GATE_REQUIRED")
+
     def test_supplied_policy_without_the_checked_stage_closes_the_gate(self):
         state = self.valid_state()
 

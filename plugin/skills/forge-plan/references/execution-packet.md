@@ -1,86 +1,48 @@
-# Forge execution-packet contract
+# Execution packet contract
 
-Use this readable structure for every task in `tasks.md`. It is a closed
-execution packet: a competent workhorse can execute it using the packet and
-the cited local context without new research, architecture selection, product
-questions, or requirement interpretation. The shared
-[workflow contract](../../../shared/forge/references/workflow-contract.md)
-owns approval and mutation gate semantics; do not repeat them here.
+## Packet fields
 
-```text
-Task N — <outcome>
+Each packet is a closed execution record, not a place to defer product or
+architecture choices. It is owned by its compact plan or detailed phase and
+uses the current artifact tree selected by the mode reference.
 
-Objective
-<One observable task outcome.>
+## Vertical work and dependencies
 
-Requirements
-<Stable REQ-/INV-/constraint IDs, each with its planned handling.>
+Each slice or task delivers one observable working outcome across every relevant
+layer. Avoid repository-layer buckets. Record `blocked_by` only when unfinished
+work truly prevents the dependent work from starting. The executable frontier
+is every incomplete task whose dependencies are complete; show the whole set.
 
-Dependencies
-<Completed task IDs, required artifacts/contracts, or “None”.>
+Each packet states the closed product, architecture, scope, and material
+alternative decisions needed for implementation. A packet with an unresolved
+material decision is blocked and returns upstream; it is not approvable.
 
-Write Scope
-<Exact files and symbols to create, modify, delete, or move.>
+Each packet states:
 
-Read / Reference Context
-<Exact upstream artifact sections, repository paths/symbols, local rules, and
-frozen decision records needed to perform this task.>
+- stable ID, title, observable outcome, and referenced canonical IDs;
+- exact write scope, relevant symbols, preserved behavior, and must-not-change
+  constraints;
+- ordered implementation changes without copied working code;
+- narrow automated proof, command where stable, and expected result;
+- conditional manual/live proof and why automation is insufficient;
+- handoff status, evidence, deviations, findings, and `UNMEASURED` behavior.
 
-Implementation
-<Ordered, concrete changes: interfaces, algorithms, data/config/migration,
-compatibility/security handling, and the selected local patterns.>
+## Acceptance and gates
 
-Must Not Change
-<Explicit preserved behaviours, untouched files/symbols, contracts, cohorts,
-or compatibility boundaries.>
+Acceptance describes observable behavior. Every task carries local proof; every
+phase or compact plan carries an integrated gate and final semantic review.
+Required checks precede any approval or next-action menu.
 
-Narrow Verification
-<Exact commands, tests, inspection, and expected result or evidence.>
+## Authority
 
-Acceptance
-<Observable proof that the listed requirements are satisfied.>
+Freeze these independently:
 
-Checkpoint
-<The authorized checkpoint action or the explicit no-commit condition.>
+```yaml
+commit_granularity: task | phase | end | none
+commit_approval: always_ask | preapproved
+history_style: separate | fixup_then_squash | squash
 ```
 
-## Closure rules
-
-- Name actual paths and symbols, not folders to investigate or “the relevant
-  service.” State whether each target is created, modified, deleted, or moved.
-- Cite the specific caller, contract, example, test, build target, and config
-  that explains the chosen change. Summarize evidence; do not embed a raw
-  research dump.
-- Record a resolved meaningful alternative and why it was rejected when it
-  affects implementation. A workhorse never chooses among material options.
-- Give each requirement and invariant a packet mapping or an explicit
-  no-change/protection mapping with verification. Do not lose unchanged
-  behaviour in a generic “regression test” claim.
-- Use real prerequisites to order packets. A contract, migration, fixture, or
-  shared component precedes its consumers only when the dependency is real.
-- Keep coupled work together when splitting it would force the workhorse to
-  infer an interface or run a broad intermediate search. Do not create
-  meaningless micro-steps.
-
-## Reject before approval
-
-Return the Plan to Planning when a packet says any equivalent of:
-
-- “research which files or symbols are affected”;
-- “choose the service, schema, protocol, or architecture”;
-- “ask the user whether the requirement means X or Y”;
-- “determine the test/build command”; or
-- “interpret the Specification and implement it.”
-
-Resolve the fact or choice in Planning. If it is an unresolved product decision
-or a contradiction in the approved inputs, route it back to Specification or
-Clarify rather than hiding it in a task.
-
-## Decision-record thresholds
-
-An approved `design.md` is an input only when a visual or interaction outcome
-cannot otherwise be implemented and verified, or when that design is already
-binding. An ADR is warranted only for a long-lived, cross-cutting,
-hard-to-reverse, or multi-team decision. Reference the relevant record in
-`Read / Reference Context`; do not create ceremony for a local reversible
-choice.
+`preapproved` permits commits only after the selected clean gate. Commit authority
+does not imply implementation, tracker, push, merge, deployment, or release
+authority. Record every separately authorized action; otherwise pause.

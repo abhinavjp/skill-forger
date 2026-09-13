@@ -1,0 +1,30 @@
+name: Python 3.8 Forge evals
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  python38:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+      - name: Compile packaged Python
+        run: python -m py_compile packaging/*.py plugin/skills/forge-plan/evals/*.py
+      - name: Run package tests
+        run: python packaging/test_validate_plugin.py -q
+      - name: Validate package
+        run: python packaging/validate_plugin.py
+      - name: Run forge-plan static evals
+        run: python plugin/skills/forge-plan/evals/run_static_evals.py --json
+      - name: Run forge-plan behavioral boundary
+        run: python plugin/skills/forge-plan/evals/run_behavioral_evals.py --json
+      - name: Require strict no-runner disclosure
+        run: |
+          if python plugin/skills/forge-plan/evals/run_behavioral_evals.py --strict --json; then
+            echo "strict no-runner evaluation unexpectedly passed"
+            exit 1
+          fi

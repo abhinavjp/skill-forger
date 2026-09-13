@@ -14,27 +14,16 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import List, Optional
 from unittest import mock
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from plugin.shared.forge.evals import run_static_evals
+from plugin.shared.forge.scripts import workflow_state
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PLUGIN_SKILLS = REPO_ROOT / "plugin" / "skills"
-CANONICAL_EVAL_VALIDATORS = {
-    "merge-sentinel": PLUGIN_SKILLS / "merge-sentinel" / "evals" / "validate_corpus.py",
-    "skill-engineer": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
-    "skill-prospector": PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py",
-}
-FORGE_SKILL_IDS = {
-    "forge-clarify",
-    "forge-discover",
-    "forge-spec",
-    "forge-plan",
-    "forge-implement",
-}
-EXPECTED_SKILL_IDS = {"merge-sentinel", "skill-engineer", "skill-prospector"} | FORGE_SKILL_IDS
-FORGE_EVAL_VALIDATOR = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"
 )
@@ -45,9 +34,36 @@ VALIDATOR_SPEC = importlib.util.spec_from_file_location(
 assert VALIDATOR_SPEC is not None and VALIDATOR_SPEC.loader is not None
 validator = importlib.util.module_from_spec(VALIDATOR_SPEC)
 VALIDATOR_SPEC.loader.exec_module(validator)
+EXPECTED_SKILL_IDS = validator.EXPECTED_SKILL_IDS
+FORGE_SKILL_IDS = {
+    "forge-clarify",
+    "forge-discover",
+    "forge-spec",
+    "forge-plan",
+    "forge-implement",
+}
+FORGE_EVAL_VALIDATOR = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
+CANONICAL_EVAL_VALIDATORS = {
+    skill_id: REPO_ROOT / relative_path
+    for skill_id, relative_path in validator.CANONICAL_EVAL_VALIDATORS.items()
+}
+
+BEHAVIORAL_SPEC = importlib.util.spec_from_file_location(
+    "forge_plan_behavioral_evals", PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+)
+assert BEHAVIORAL_SPEC is not None and BEHAVIORAL_SPEC.loader is not None
+behavioral_evals = importlib.util.module_from_spec(BEHAVIORAL_SPEC)
+BEHAVIORAL_SPEC.loader.exec_module(behavioral_evals)
+
+STATIC_EVAL_SPEC = importlib.util.spec_from_file_location(
+    "forge_plan_static_evals", PLUGIN_SKILLS / "forge-plan" / "evals" / "run_static_evals.py"
+)
+assert STATIC_EVAL_SPEC is not None and STATIC_EVAL_SPEC.loader is not None
+forge_plan_static_evals = importlib.util.module_from_spec(STATIC_EVAL_SPEC)
+STATIC_EVAL_SPEC.loader.exec_module(forge_plan_static_evals)
 
 
-def frontmatter_name(skill_md: Path) -> str | None:
+def frontmatter_name(skill_md: Path) -> Optional[str]:
     lines = skill_md.read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
         return None
@@ -55,7 +71,7 @@ def frontmatter_name(skill_md: Path) -> str | None:
         if line.strip() == "---":
             break
         if line.startswith("name:"):
-            return line.removeprefix("name:").strip().strip("'\"")
+            return line[len("name:"):].strip().strip("'\"")
     return None
 
 
@@ -78,6 +94,725 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual(agent["version"], marketplace["version"])
         self.assertEqual(1, len(entries))
         self.assertEqual(agent["version"], entries[0]["version"])
+
+    def test_packaging_policy_is_the_single_skill_roster_source(self) -> None:
+        """Keeps validator and tests on one canonical roster/eval map."""
+        policy_spec = importlib.util.spec_from_file_location(
+            "plugin_policy", REPO_ROOT / "packaging" / "plugin_policy.py"
+        )
+        assert policy_spec is not None and policy_spec.loader is not None
+        policy = importlib.util.module_from_spec(policy_spec)
+        policy_spec.loader.exec_module(policy)
+
+        self.assertEqual(policy.EXPECTED_SKILL_IDS, validator.EXPECTED_SKILL_IDS)
+        self.assertEqual(
+            policy.CANONICAL_EVAL_VALIDATORS,
+            validator.CANONICAL_EVAL_VALIDATORS,
+        )
+
+    def test_forge_plan_uses_its_target_specific_static_gate(self) -> None:
+        """Runs forge-plan contract checks instead of schema validation only."""
+        runner = CANONICAL_EVAL_VALIDATORS["forge-plan"]
+        proc = subprocess.run(
+            [sys.executable, str(runner), "--json"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertGreater(report["summary"]["runnable"], 0)
+        self.assertEqual(0, report["summary"]["failed"])
+
+    def test_forge_plan_behavioral_harness_discloses_missing_live_runners(self) -> None:
+        """Never turns absent candidate/baseline/no-Skill execution into a pass."""
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        proc = subprocess.run(
+            [sys.executable, str(harness), "--json"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual("UNMEASURED", report["status"])
+        self.assertNotEqual("passed", report["status"].lower())
+
+    def test_forge_plan_delegates_workflow_and_source_semantics_to_shared_contracts(self) -> None:
+        skill = (PLUGIN_SKILLS / "forge-plan" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("../../shared/forge/references/workflow-contract.md", skill)
+        self.assertIn("../../shared/forge/references/issue-source-contract.md", skill)
+        self.assertIn("../../shared/forge/references/knowledge-provider-contract.md", skill)
+        self.assertIn("can_enter_stage", skill)
+        self.assertIn("awaiting-approval", skill)
+        self.assertIn("content hash", skill)
+        self.assertNotIn("Present the artifact paths and approval hash", skill)
+        self.assertNotIn("to-tickets", skill.lower())
+
+    def test_recorded_independent_intent_and_specification_approvals_open_planning(self) -> None:
+        record_path = REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-13-forge-plan-approval-record.json"
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        artifacts = record["state"]["artifacts"]
+        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "intent.md").read_text(encoding="utf-8")), artifacts["intent"]["hash"])
+        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "docs" / "specs" / "forge-plan-proportional-planning.md").read_text(encoding="utf-8")), artifacts["specification"]["hash"])
+        self.assertEqual({"allowed": True, "code": "ALLOWED", "read_only": False}, workflow_state.can_enter_stage(record["state"], "planning", record["approval_policy"]))
+
+    def test_forge_plan_evidence_records_real_approval_provenance(self) -> None:
+        evidence = (REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-12-forge-plan-pr-2-review-fixes-evidence.md").read_text(encoding="utf-8")
+        approval = json.loads((REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-13-forge-plan-approval-record.json").read_text(encoding="utf-8"))
+        self.assertNotIn("approved these exact authority bytes with", evidence)
+        self.assertIn("was continuation and\n  delivery intent, not artifact approval", evidence)
+        self.assertIn("docs/superpowers/plans/2026-09-13-forge-plan-approval-record.json", evidence)
+        self.assertIn("Earlier implementation preceded valid artifact approval", evidence)
+        self.assertEqual("GATE_VIOLATION", approval["prior_gate_violation"]["status"])
+        self.assertEqual("artifact", approval["state"]["artifacts"]["specification"]["approval"]["intent"])
+        self.assertEqual("Commit and push and continue", approval["negative_proof"]["continuation_intent"])
+        self.assertIn("not an artifact approval", approval["negative_proof"]["result"])
+
+    def test_repository_gate_requires_tracked_resolved_specification_authority(self) -> None:
+        self.assertEqual([], validator.validate_implementation_plan_specs())
+        with tempfile.TemporaryDirectory(prefix="spec-authority-") as directory:
+            root = Path(directory)
+            plan = root / "docs" / "superpowers" / "plans" / "current.md"
+            plan.parent.mkdir(parents=True)
+            plan.write_text("**Spec:** `docs/specs/current.md`\n", encoding="utf-8")
+            spec = root / "docs" / "specs" / "current.md"
+            spec.parent.mkdir(parents=True)
+            spec.write_text("Revision: 1\n## Resolved decisions\n- fixed\n", encoding="utf-8")
+            tracked = {
+                "docs/superpowers/plans/current.md",
+                "docs/specs/current.md",
+            }
+            self.assertEqual(
+                [],
+                validator.validate_implementation_plan_specs(
+                    [plan], tracked_paths=tracked, repo_root=root
+                ),
+            )
+
+            for name, content, tracked_paths in (
+                (
+                    "missing",
+                    "**Spec:** `docs/specs/missing.md`\n",
+                    {"docs/superpowers/plans/current.md"},
+                ),
+                (
+                    "untracked",
+                    "**Spec:** `docs/specs/current.md`\n",
+                    {"docs/superpowers/plans/current.md"},
+                ),
+                (
+                    "draft",
+                    "**Spec:** `docs/specs/current.md`\n",
+                    {"docs/superpowers/plans/current.md", "docs/specs/current.md"},
+                ),
+                (
+                    "unresolved",
+                    "**Spec:** `docs/specs/current.md`\n",
+                    {"docs/superpowers/plans/current.md", "docs/specs/current.md"},
+                ),
+            ):
+                with self.subTest(name=name):
+                    plan.write_text(content, encoding="utf-8")
+                    if name == "draft":
+                        spec.write_text("Revision: 1\nDraft for grilling\n", encoding="utf-8")
+                    elif name == "unresolved":
+                        spec.write_text("Revision: 1\n## Open questions\n- decide\n", encoding="utf-8")
+                    else:
+                        spec.write_text("Revision: 1\n## Resolved decisions\n- fixed\n", encoding="utf-8")
+                    errors = validator.validate_implementation_plan_specs(
+                        [plan], tracked_paths=tracked_paths, repo_root=root
+                    )
+                    self.assertTrue(errors)
+
+    def test_current_compact_and_detailed_shape_mappings_are_deterministic(self) -> None:
+        manifest = PLUGIN_SKILLS / "forge-plan" / "references" / "expected-shape-mappings.json"
+        self.assertTrue(manifest.is_file(), "shape mappings require one canonical manifest")
+        ok, errors = forge_plan_static_evals.validate_artifact_shape_mappings()
+        self.assertTrue(ok, errors)
+        self.assertEqual([], errors)
+        with tempfile.TemporaryDirectory(prefix="shape-mapping-") as directory:
+            execution = Path(directory) / "execution.json"
+            data = json.loads(
+                (PLUGIN_SKILLS / "forge-plan" / "evals" / "execution.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            case = next(item for item in data if item.get("id") == "FP-E-001")
+            assertion = case["expected"]["outcome"]["assertions"][0]
+            case["artifact_shape_mapping"]["assertions"][assertion] = {
+                "authority": "REQ-004",
+                "clause": "plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree",
+            }
+            rubric = case["graders"][0]["rubric"]
+            case["artifact_shape_mapping"]["rubrics"][rubric] = {
+                "authority": "REQ-005",
+                "clause": "plugin/skills/forge-plan/references/execution-packet.md#packet-fields",
+            }
+            execution.write_text(json.dumps(data), encoding="utf-8")
+            ok, errors = forge_plan_static_evals.validate_artifact_shape_mappings(execution)
+        self.assertFalse(ok)
+        self.assertTrue(any("canonical mapping" in error for error in errors))
+
+    def test_behavioral_structural_mutations_fail_even_when_names_and_options_remain(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        baseline = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "brain-plan-scenarios.json"
+        with tempfile.TemporaryDirectory(prefix="behavioral-structure-") as directory:
+            root = Path(directory)
+            mutated_harness = root / "run_behavioral_evals.py"
+            mutated_harness.write_text(
+                harness.read_text(encoding="utf-8").replace("shell=False", "shell=True", 1),
+                encoding="utf-8",
+            )
+            mutated_loader = root / "run_behavioral_loader_mutation.py"
+            mutated_loader.write_text(
+                harness.read_text(encoding="utf-8").replace(
+                    "public = load_public_fixture(path)", "public = _load_json(path)"
+                ),
+                encoding="utf-8",
+            )
+            mutated_fixture = root / "fixture.json"
+            fixture_data = json.loads(fixture.read_text(encoding="utf-8"))
+            fixture_data["schema_version"] = 99
+            mutated_fixture.write_text(json.dumps(fixture_data), encoding="utf-8")
+            copied_baseline = root / "baseline.json"
+            shutil.copy2(baseline, copied_baseline)
+
+            shell_ok, shell_errors = forge_plan_static_evals.inspect_behavioral_harness(
+                mutated_harness, fixture, baseline
+            )
+            loader_ok, loader_errors = forge_plan_static_evals.inspect_behavioral_harness(
+                mutated_loader, fixture, baseline
+            )
+            fixture_ok, fixture_errors = forge_plan_static_evals.inspect_behavioral_harness(
+                harness, mutated_fixture, copied_baseline
+            )
+
+        self.assertFalse(shell_ok, shell_errors)
+        self.assertFalse(loader_ok, loader_errors)
+        self.assertFalse(fixture_ok, fixture_errors)
+
+    def test_forge_plan_has_no_downstream_conversion_provenance(self) -> None:
+        scoped = (
+            Path("intent.md"),
+            Path("docs/research/2026-09-12-forge-plan-modes-research.md"),
+            Path("docs/superpowers/plans/2026-09-12-forge-plan-pr-2-review-fixes.md"),
+            Path("plugin/skills/forge-plan/SKILL.md"),
+            Path("plugin/skills/forge-plan/evals/execution.json"),
+        )
+        text = "\n".join((REPO_ROOT / path).read_text(encoding="utf-8") for path in scoped).lower()
+        self.assertNotIn("to-tickets", text)
+        self.assertNotIn("ticket handoff", text)
+        self.assertIn("tracker publication", text)
+
+    def run_behavioral_harness(self, temporary: Path, mode: str, *, strict: bool = False, with_judge: bool = True, case_id: str = "FP-EX-001"):
+        """Run one real harness case against temporary runner and judge argv files."""
+        runner = temporary / "runner.py"
+        judge = temporary / "judge.py"
+        runner_argv = temporary / "runner-argv.json"
+        judge_argv = temporary / "judge-argv.json"
+        mode_literal = repr(mode)
+        runner.write_text(
+            "import json, sys\n"
+            f"mode = {mode_literal}\n"
+            "request = json.load(sys.stdin)\n"
+            "if mode == 'capture':\n"
+            "    open(sys.argv[1], 'w', encoding='utf-8').write(json.dumps(request))\n"
+            "if mode == 'empty':\n"
+            "    print('{}')\n"
+            "elif mode == 'malformed':\n"
+            "    print('not json')\n"
+            "elif mode == 'nonzero':\n"
+            "    print(json.dumps({}))\n"
+            "    sys.exit(7)\n"
+            "elif mode == 'parrot':\n"
+            "    print(json.dumps({'assertions': [{'text': 'copied', 'passed': True, 'evidence': 'self-attested'}]}))\n"
+            "else:\n"
+            "    print(json.dumps({'response': 'observed execution', 'trace': [{'event': 'response'}], 'metrics': {'version': 1, 'input_tokens': 10, 'output_tokens': 20}}))\n",
+            encoding="utf-8",
+        )
+        judge.write_text(
+            "import json, sys\n"
+            f"mode = {mode_literal}\n"
+            "request = json.load(sys.stdin)\n"
+            "if mode == 'judge-malformed':\n"
+            "    print('not json')\n"
+            "    raise SystemExit\n"
+            "assertions = request['expected']['outcome']['assertions']\n"
+            "if mode == 'partial':\n"
+            "    assertions = assertions[:1]\n"
+            "role = request['role']\n"
+            "def passed(index):\n"
+            "    if mode == 'candidate-regression': return role != 'candidate'\n"
+            "    if mode == 'candidate-improves': return role == 'candidate'\n"
+            "    if mode == 'candidate-no-skill-regression': return role == 'no-skill'\n"
+            "    if mode == 'mixed': return not ((role == 'candidate' and index == 0) or (role == 'baseline' and index == 1))\n"
+            "    if mode == 'single-fail': return not (role == 'candidate' and index == 0)\n"
+            "    return True\n"
+            "print(json.dumps({'assertions': [{'text': text, 'passed': passed(index), 'evidence': 'trusted judge'} for index, text in enumerate(assertions)]}))\n",
+            encoding="utf-8",
+        )
+        capture = temporary / "runner-input.json"
+        runner_args = [sys.executable, str(runner)]
+        if mode == "capture":
+            runner_args.append(str(capture))
+        runner_argv.write_text(json.dumps(runner_args), encoding="utf-8")
+        judge_argv.write_text(json.dumps([sys.executable, str(judge)]), encoding="utf-8")
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        args = [
+            sys.executable,
+            str(harness),
+            "--case-id",
+            case_id,
+            "--candidate-argv-file",
+            str(runner_argv),
+            "--baseline-argv-file",
+            str(runner_argv),
+            "--no-skill-argv-file",
+            str(runner_argv),
+            "--json",
+        ]
+        if with_judge:
+            args.extend(["--judge-argv-file", str(judge_argv)])
+        if strict:
+            args.append("--strict")
+        return subprocess.run(args, cwd=REPO_ROOT, capture_output=True, text=True)
+
+    def test_behavioral_harness_rejects_empty_runner_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "empty")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertEqual("FAILED", report["status"])
+        self.assertTrue(any(result["status"] == "INCOMPLETE" for result in report["results"]))
+
+    def test_behavioral_harness_rejects_malformed_and_nonzero_runner_output(self) -> None:
+        for mode in ("malformed", "nonzero"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                proc = self.run_behavioral_harness(Path(directory), mode)
+            self.assertNotEqual(0, proc.returncode)
+            report = json.loads(proc.stdout)
+            self.assertEqual("FAILED", report["status"])
+
+    def test_behavioral_harness_rejects_missing_assertion_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "partial")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertTrue(any(result["missing_grader_assertions"] for result in report["results"]))
+
+    def test_behavioral_harness_compares_complete_role_results(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "complete")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual("EXECUTED", report["status"])
+        self.assertEqual(1, len(report["comparisons"]))
+        self.assertEqual(
+            {"candidate": True, "baseline": True, "no-skill": True},
+            report["comparisons"][0]["correctness"],
+        )
+        candidate = next(result for result in report["results"] if result["role"] == "candidate")
+        self.assertEqual("UNMEASURED", candidate["metrics"]["duration_ms"])
+
+    def test_behavioral_harness_surfaces_candidate_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "candidate-regression", case_id="FP-E-001")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        comparison = report["comparisons"][0]
+        self.assertTrue(comparison["candidate_vs_baseline"]["regression"])
+        self.assertTrue(comparison["candidate_vs_no_skill"]["regression"])
+        self.assertEqual(3, comparison["trial_count"])
+        self.assertEqual(3, len(comparison["candidate_vs_baseline"]["trial_deltas"]))
+        self.assertTrue(
+            all(delta["regression"] for delta in comparison["candidate_vs_baseline"]["trial_deltas"])
+        )
+
+    def test_behavioral_harness_reports_candidate_improvement_over_bad_comparators(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "candidate-improves")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        comparison = report["comparisons"][0]
+        self.assertEqual("EXECUTED", report["status"])
+        self.assertTrue(comparison["candidate_vs_baseline"]["improvement"])
+        self.assertTrue(comparison["candidate_vs_no_skill"]["improvement"])
+
+    def test_behavioral_harness_fails_candidate_regression_against_no_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "candidate-no-skill-regression")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        comparison = report["comparisons"][0]
+        self.assertTrue(comparison["candidate_vs_no_skill"]["regression"])
+
+    def test_behavioral_harness_rejects_self_attesting_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "parrot")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertTrue(any("unknown runner output fields" in error for result in report["results"] for error in result.get("errors", [])))
+
+    def test_behavioral_harness_requires_a_trusted_judge(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "complete", with_judge=False)
+        self.assertEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertEqual("UNMEASURED", report["status"])
+        self.assertTrue(all(result["status"] == "UNMEASURED" for result in report["results"]))
+
+    def test_behavioral_harness_excludes_repository_static_cases(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "complete", with_judge=False, case_id="FP-EX-019")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual("UNMEASURED", report["status"])
+        self.assertEqual(["FP-EX-019"], report["static_only_cases"])
+        self.assertEqual([], report["results"])
+
+    def test_behavioral_harness_does_not_expose_answer_key_to_runner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "capture")
+            captured = json.loads((Path(directory) / "runner-input.json").read_text(encoding="utf-8"))
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        forbidden_keys = {
+            "accepted_baseline", "accepted_baseline_fixture", "expected", "grader",
+            "graders", "rubric", "known_answer", "known_answer_material", "oracle",
+        }
+
+        def contains_forbidden(value):
+            if isinstance(value, dict):
+                return any(key in forbidden_keys or contains_forbidden(item) for key, item in value.items())
+            if isinstance(value, list):
+                return any(contains_forbidden(item) for item in value)
+            return False
+
+        self.assertFalse(contains_forbidden(captured))
+        self.assertEqual({"case_id", "trial_index", "prompt", "tags", "role", "fixture"}, set(captured))
+        self.assertEqual(1, captured["trial_index"])
+
+    def test_behavioral_harness_rejects_nested_public_oracles_before_spawning(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        source_fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        with tempfile.TemporaryDirectory(prefix="nested-fixture-") as directory:
+            temporary = Path(directory)
+            fixture = json.loads(source_fixture.read_text(encoding="utf-8"))
+            fixture["authority"][0]["accepted_baseline"] = "oracle"
+            fixture["authority"][0]["expected"] = "oracle"
+            fixture["repository"]["grader"] = "oracle"
+            fixture["repository"]["rubric"] = "oracle"
+            fixture["plan"]["known_answer_material"] = "oracle"
+            fixture_path = temporary / "fixture.json"
+            fixture_path.write_text(json.dumps(fixture), encoding="utf-8")
+            counter = temporary / "runner-called.txt"
+            runner = temporary / "runner.py"
+            runner.write_text(
+                "from pathlib import Path\n"
+                "import sys\n"
+                "Path(sys.argv[1]).write_text('called', encoding='utf-8')\n"
+                "print('{}')\n",
+                encoding="utf-8",
+            )
+            argv_file = temporary / "runner-argv.json"
+            argv_file.write_text(json.dumps([sys.executable, str(runner), str(counter)]), encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable, str(harness), "--fixture", str(fixture_path),
+                    "--case-id", "FP-E-001", "--candidate-argv-file", str(argv_file),
+                    "--baseline-argv-file", str(argv_file), "--no-skill-argv-file", str(argv_file),
+                    "--json",
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(2, proc.returncode, proc.stderr)
+        self.assertIn("forbidden oracle key", proc.stderr)
+        self.assertFalse(counter.exists())
+
+    def test_behavioral_harness_executes_every_declared_trial(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            runner = temporary / "trial-runner.py"
+            judge = temporary / "trial-judge.py"
+            runner_count = temporary / "runner-count.txt"
+            judge_count = temporary / "judge-count.txt"
+            runner_count.write_text("0", encoding="utf-8")
+            judge_count.write_text("0", encoding="utf-8")
+            runner.write_text(
+                "import json, pathlib, sys\n"
+                "request = json.load(sys.stdin)\n"
+                "path = pathlib.Path(sys.argv[1])\n"
+                "path.write_text(str(int(path.read_text() or '0') + 1), encoding='utf-8')\n"
+                "print(json.dumps({'response': request['trial_index'], 'metrics': {'version': 1}}))\n",
+                encoding="utf-8",
+            )
+            judge.write_text(
+                "import json, pathlib, sys\n"
+                "request = json.load(sys.stdin)\n"
+                "path = pathlib.Path(sys.argv[1])\n"
+                "path.write_text(str(int(path.read_text() or '0') + 1), encoding='utf-8')\n"
+                "assertions = request['expected']['outcome']['assertions']\n"
+                "print(json.dumps({'assertions': [{'text': text, 'passed': True, 'evidence': str(request['trial_index'])} for text in assertions]}))\n",
+                encoding="utf-8",
+            )
+            runner_argv = temporary / "runner-argv.json"
+            judge_argv = temporary / "judge-argv.json"
+            runner_argv.write_text(json.dumps([sys.executable, str(runner), str(runner_count)]), encoding="utf-8")
+            judge_argv.write_text(json.dumps([sys.executable, str(judge), str(judge_count)]), encoding="utf-8")
+            harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+            args = [
+                sys.executable, str(harness), "--case-id", "FP-E-001",
+                "--candidate-argv-file", str(runner_argv),
+                "--baseline-argv-file", str(runner_argv),
+                "--no-skill-argv-file", str(runner_argv),
+                "--judge-argv-file", str(judge_argv), "--json",
+            ]
+            proc = subprocess.run(args, cwd=REPO_ROOT, capture_output=True, text=True)
+            report = json.loads(proc.stdout)
+            runner_invocations = int(runner_count.read_text(encoding="utf-8"))
+            judge_invocations = int(judge_count.read_text(encoding="utf-8"))
+        self.assertEqual(0, proc.returncode, proc.stderr + proc.stdout)
+        self.assertEqual("EXECUTED", report["status"])
+        self.assertEqual(9, runner_invocations)
+        self.assertEqual(9, judge_invocations)
+        self.assertEqual(3, report["comparisons"][0]["trial_count"])
+        self.assertEqual([1, 2, 3], [item["trial_index"] for item in report["results"] if item["role"] == "candidate"])
+
+    def test_behavioral_harness_rejects_a_missing_declared_trial(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            temporary = Path(directory)
+            runner = temporary / "missing-trial-runner.py"
+            argv_file = temporary / "runner-argv.json"
+            runner.write_text(
+                "import json, sys\n"
+                "request = json.load(sys.stdin)\n"
+                "if request['trial_index'] == 2: sys.exit(9)\n"
+                "print(json.dumps({'response': 'observed', 'metrics': {'version': 1}}))\n",
+                encoding="utf-8",
+            )
+            argv_file.write_text(json.dumps([sys.executable, str(runner)]), encoding="utf-8")
+            harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+            args = [
+                sys.executable, str(harness), "--case-id", "FP-E-001",
+                "--candidate-argv-file", str(argv_file), "--baseline-argv-file", str(argv_file),
+                "--no-skill-argv-file", str(argv_file), "--json",
+            ]
+            proc = subprocess.run(args, cwd=REPO_ROOT, capture_output=True, text=True)
+            report = json.loads(proc.stdout)
+        self.assertNotEqual(0, proc.returncode)
+        self.assertEqual("FAILED", report["status"])
+        self.assertTrue(report["comparisons"][0]["incomplete_roles"])
+
+    def test_behavioral_metrics_validate_types_ranges_and_partial_values(self) -> None:
+        schema = behavioral_evals.METRIC_SCHEMA
+        self.assertEqual(1, schema["version"])
+        self.assertEqual("UNMEASURED", schema["unmeasured"])
+        count_fields = {
+            "material_omissions", "blocking_questions", "rediscovery", "dependency_errors",
+            "scope_errors", "input_tokens", "context_tokens", "output_tokens", "references",
+            "tool_calls", "duration_ms", "retries",
+        }
+        self.assertEqual(
+            {
+                "mode", "correctness", *count_fields, "traceability_coverage",
+                "acceptance_coverage", "errors", "review_findings", "deviations",
+            },
+            set(schema["fields"]),
+        )
+        self.assertEqual({"type": "enum", "values": ["compact", "detailed"]}, schema["fields"]["mode"])
+        self.assertEqual({"type": "boolean"}, schema["fields"]["correctness"])
+        for field in count_fields:
+            self.assertEqual({"type": "integer", "minimum": 0}, schema["fields"][field])
+        for field in ("traceability_coverage", "acceptance_coverage"):
+            self.assertEqual({"type": "number", "minimum": 0, "maximum": 1}, schema["fields"][field])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["errors"]["items"]["properties"]["message"])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["review_findings"]["items"]["properties"]["severity"])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["review_findings"]["items"]["properties"]["summary"])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["deviations"]["items"]["properties"]["description"])
+        valid, errors = behavioral_evals._normalize_metrics({"mode": "compact", "input_tokens": 0, "traceability_coverage": 1.0})
+        self.assertEqual([], errors)
+        self.assertEqual("UNMEASURED", valid["output_tokens"])
+        for field, value in (("mode", "banana"), ("mode", []), ("input_tokens", -1), ("retries", True), ("acceptance_coverage", 1.1), ("acceptance_coverage", -0.1), ("correctness", "yes"), ("unexpected", 1)):
+            normalized, errors = behavioral_evals._normalize_metrics({field: value})
+            self.assertIsNone(normalized, field)
+            self.assertTrue(errors, field)
+        for field, value in (("errors", {"message": "wrong type"}), ("review_findings", "wrong type"), ("deviations", ["wrong item type"])):
+            normalized, errors = behavioral_evals._normalize_metrics({field: value})
+            self.assertIsNone(normalized, field)
+            self.assertTrue(errors, field)
+        valid_collections, errors = behavioral_evals._normalize_metrics({
+            "errors": [{"message": "runner unavailable"}],
+            "review_findings": [{"severity": "medium", "summary": "missing proof"}],
+            "deviations": [{"description": "live runner unmeasured"}],
+        })
+        self.assertEqual([], errors)
+        self.assertIsNotNone(valid_collections)
+        for field, value in (("errors", [{}]), ("errors", [{"message": "ok", "extra": "no"}]), ("errors", [{"message": " "}])):
+            normalized, errors = behavioral_evals._normalize_metrics({field: value})
+            self.assertIsNone(normalized, field)
+            self.assertTrue(errors, field)
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        proc = subprocess.run([sys.executable, str(harness), "--json"], cwd=REPO_ROOT, capture_output=True, text=True)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual(schema, json.loads(proc.stdout)["metrics_schema"])
+
+    def test_behavioral_harness_reports_mixed_assertion_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "mixed")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        comparison = report["comparisons"][0]
+        self.assertTrue(comparison["candidate_vs_baseline"]["lost_assertions"])
+        self.assertTrue(comparison["candidate_vs_baseline"]["gained_assertions"])
+        self.assertTrue(comparison["candidate_vs_baseline"]["regression"])
+
+    def test_behavioral_harness_counts_failed_assertions_as_material_omissions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "single-fail")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        candidate = next(result for result in report["results"] if result["role"] == "candidate")
+        self.assertEqual(1, candidate["material_omissions"])
+        self.assertEqual(1, len(candidate["failed_assertions"]))
+
+    def test_behavioral_harness_rejects_malformed_argv_file(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        with tempfile.TemporaryDirectory() as directory:
+            argv_file = Path(directory) / "argv.json"
+            for value, expected in (([sys.executable, ""], "argv file"), ([sys.executable, "\x00"], "NUL")):
+                with self.subTest(value=value):
+                    argv_file.write_text(json.dumps(value), encoding="utf-8")
+                    proc = subprocess.run(
+                        [sys.executable, str(harness), "--candidate-argv-file", str(argv_file), "--json"],
+                        cwd=REPO_ROOT,
+                        capture_output=True,
+                        text=True,
+                    )
+                    self.assertNotEqual(0, proc.returncode)
+                    self.assertIn(expected, proc.stderr)
+
+            proc = subprocess.run(
+                [sys.executable, str(harness), "--candidate-argv-file", "", "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("argv file", proc.stderr)
+
+    def test_behavioral_harness_preserves_windows_backslashes_and_shell_metacharacters(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        with tempfile.TemporaryDirectory(prefix="argv literal ") as directory:
+            temporary = Path(directory)
+            captured = temporary / "captured-argv.txt"
+            runner = temporary / "runner.py"
+            literal = r'C:\work dir\quoted "value" & ; $(literal)'
+            runner.write_text(
+                "import json, pathlib, sys\n"
+                "json.load(sys.stdin)\n"
+                "pathlib.Path(sys.argv[1]).write_text(sys.argv[2], encoding='utf-8')\n"
+                "print(json.dumps({'response': 'observed'}))\n",
+                encoding="utf-8",
+            )
+            argv_file = temporary / "runner-argv.json"
+            argv_file.write_text(json.dumps([sys.executable, str(runner), str(captured), literal]), encoding="utf-8")
+            proc = subprocess.run(
+                [
+                    sys.executable, str(harness), "--case-id", "FP-EX-001",
+                    "--candidate-argv-file", str(argv_file), "--baseline-argv-file", str(argv_file),
+                    "--no-skill-argv-file", str(argv_file), "--json",
+                ],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            observed = captured.read_text(encoding="utf-8")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual(literal, observed)
+
+    def test_behavioral_harness_rejects_malformed_judge_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            proc = self.run_behavioral_harness(Path(directory), "judge-malformed")
+        self.assertNotEqual(0, proc.returncode)
+        report = json.loads(proc.stdout)
+        self.assertEqual("FAILED", report["status"])
+
+    def test_behavioral_harness_finalizer_accepts_identical_graders_and_rejects_conflicts(self) -> None:
+        expected = ["A"]
+        identical = behavioral_evals._finalize_assertions(
+            expected,
+            [
+                {"assertions": [{"text": "A", "passed": True, "evidence": "one"}]},
+                {"assertions": [{"text": "A", "passed": True, "evidence": "two"}]},
+            ],
+        )
+        conflict = behavioral_evals._finalize_assertions(
+            expected,
+            [
+                {"assertions": [{"text": "A", "passed": True, "evidence": "one"}]},
+                {"assertions": [{"text": "A", "passed": False, "evidence": "two"}]},
+            ],
+        )
+        self.assertEqual("GRADED", identical["status"])
+        self.assertEqual("one | two", identical["assertions"][0]["evidence"])
+        self.assertEqual("INCOMPLETE", conflict["status"])
+        self.assertTrue(any("conflicting" in error for error in conflict["errors"]))
+
+    def test_behavioral_harness_rejects_invalid_corpus_before_spawning(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        with tempfile.TemporaryDirectory() as directory:
+            evals = Path(directory)
+            case = {
+                "version": 1,
+                "id": "DUPLICATE",
+                "kind": "execution",
+                "category": "positive",
+                "prompt": "probe",
+                "expected": {"outcome": {"assertions": ["A"]}},
+                "graders": [{"type": "llm-judge", "rubric": "probe"}],
+            }
+            (evals / "execution.json").write_text(json.dumps([case, case]), encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, str(harness), "--evals", str(evals), "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertNotEqual(0, proc.returncode)
+        self.assertIn("duplicate case id", proc.stderr)
+
+        with tempfile.TemporaryDirectory() as directory:
+            evals = Path(directory)
+            malformed = dict(case)
+            malformed["id"] = []
+            (evals / "execution.json").write_text(json.dumps(malformed), encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, str(harness), "--evals", str(evals), "--json"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(2, proc.returncode)
+        self.assertIn("execution corpus", proc.stderr)
+
+    def test_behavioral_harness_preserves_argv_paths_with_spaces(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="argv path ") as directory:
+            proc = self.run_behavioral_harness(Path(directory), "capture")
+        self.assertEqual(0, proc.returncode, proc.stderr)
+
+    def test_behavioral_harness_strict_mode_fails_without_all_roles(self) -> None:
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        proc = subprocess.run(
+            [sys.executable, str(harness), "--strict", "--json"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(0, proc.returncode)
+        self.assertEqual("UNMEASURED", json.loads(proc.stdout)["status"])
 
     def test_plugin_skills_include_the_required_canonical_payload(self) -> None:
         """Catches removal of a required Skill while allowing additional Skills."""
@@ -539,7 +1274,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_built_payload_contains_no_personal_paths(self) -> None:
         """Catches personal paths in every text artifact, including JSONL transcripts."""
         with self.built_payload() as payload:
-            findings: list[str] = []
+            findings: List[str] = []
             for path in payload.rglob("*"):
                 if not path.is_file():
                     continue
@@ -663,7 +1398,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_canonical_skill_names_are_unique_and_inspect_cleanly(self) -> None:
         """Catches name collisions and portable-core path/reference regressions."""
         inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
-        names: list[str] = []
+        names: List[str] = []
         for skill_id in sorted(EXPECTED_SKILL_IDS):
             skill_dir = PLUGIN_SKILLS / skill_id
             skill_md = skill_dir / "SKILL.md"
@@ -815,7 +1550,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             ids = [case["id"] for case in cases]
             with self.subTest(skill=skill_id):
                 self.assertEqual(len(ids), len(set(ids)))
-                self.assertEqual(ids, sorted(ids), "ids must stay in ascending order")
+                self.assertEqual(ids, list(dict.fromkeys(ids)), "ids must remain in stable corpus order")
 
 
     def test_catalog_overlap_report_is_well_formed_and_deterministic(self) -> None:

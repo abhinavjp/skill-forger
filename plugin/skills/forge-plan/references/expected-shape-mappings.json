@@ -1,0 +1,30 @@
+{
+  "FP-E-001": {
+    "assertions": {
+      "produces one plan.md with the current compact-mode fields and no phase or task files": {"authority": "REQ-003", "clause": "plugin/skills/forge-plan/references/compact-mode.md#compact-artifact-contract"},
+      "uses inline dependency-ordered vertical slices with exact scope and no artificial micro-steps": {"authority": "REQ-005", "clause": "plugin/skills/forge-plan/references/compact-mode.md#vertical-slices-and-dependencies"},
+      "preserves REQ-017 and maps unchanged numeric formatting to an explicit protection": {"authority": "REQ-003", "clause": "plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
+      "names src/invoices/format_label.ts, formatInvoiceLabel, and src/invoices/format_label.test.ts": {"authority": "REQ-003", "clause": "plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
+      "defines narrow per-slice proof and an integrated gate with observable acceptance": {"authority": "REQ-005", "clause": "plugin/skills/forge-plan/references/execution-packet.md#acceptance-and-gates"},
+      "presents the exact Plan path, revision, and content hash as awaiting-approval": {"authority": "REQ-010", "clause": "plugin/shared/forge/references/workflow-contract.md#gates-approval-and-freshness"}
+    },
+    "rubrics": {
+      "Pass only if the result is one compact plan.md with the current compact contract, inline dependency-ordered vertical slices, exact write scope, preserved numeric formatting, named file/symbol/test, narrow proof, integrated acceptance, and no phase or task files. It must present the exact Plan path, revision, and content hash as awaiting-approval, without source mutation or a pre-approval approval claim.": {"authority": "REQ-003", "clause": "plugin/skills/forge-plan/references/compact-mode.md#compact-artifact-contract"}
+    }
+  },
+  "FP-E-002": {
+    "assertions": {
+      "produces plan.md plus phases/<phase>/phase.md and ordered task files inside each phase directory": {"authority": "REQ-004", "clause": "plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"},
+      "records stable requirement/invariant traceability, phase outcomes, dependencies, frontier, integration points, and final gates in plan.md": {"authority": "REQ-004", "clause": "plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"},
+      "names the exact files, symbols, client interface, service seam, token-store contract, audit boundary, contract test, browser test, and pnpm check": {"authority": "REQ-004", "clause": "plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
+      "selects reuse of claimAcceptedToken for exactly-once behaviour and records why a new token table is rejected": {"authority": "REQ-006", "clause": "plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
+      "orders service and contract work before client and form consumers when the interface dependency is real": {"authority": "REQ-004", "clause": "plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"},
+      "protects signed-in checkout, post-acceptance cart immutability, and token redaction": {"authority": "REQ-006", "clause": "plugin/skills/forge-plan/references/detailed-mode.md#risk-routing"},
+      "includes exact check results, handoff fields, and observable acceptance evidence for every requirement": {"authority": "REQ-005", "clause": "plugin/skills/forge-plan/references/execution-packet.md#acceptance-and-gates"},
+      "presents the exact Plan path, revision, and content hash as awaiting-approval": {"authority": "REQ-010", "clause": "plugin/shared/forge/references/workflow-contract.md#gates-approval-and-freshness"}
+    },
+    "rubrics": {
+      "Pass only if the result uses the current detailed tree: plan.md, phases/<phase>/phase.md, and ordered task files with current execution-packet fields. It must carry stable traceability, exact file/symbol/interface/test/build details, frozen idempotency and compatibility decisions, real dependency order, preserved behaviour, risk-conditioned proof, handoff fields, and acceptance evidence mapped to REQ-101, REQ-102, REQ-103, INV-009, and SEC-004. It must present the exact Plan path, revision, and content hash as awaiting-approval and omit obsolete flat control files or fixed section-count requirements.": {"authority": "REQ-004", "clause": "plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"}
+    }
+  }
+}
