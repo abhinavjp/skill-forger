@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 HERE = Path(__file__).resolve().parent
 SKILL_ROOT = HERE.parent
+EXPECTED_SHAPE_MAPPINGS = SKILL_ROOT / "references" / "expected-shape-mappings.json"
 REPO_ROOT = HERE.parents[3]
 SCRIPTS = SKILL_ROOT.parent / "skill-engineer" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -134,8 +135,9 @@ def validate_artifact_shape_mappings(
     errors: List[str] = []
     try:
         data = json.loads(execution_path.read_text(encoding="utf-8"))
+        expected_mappings = json.loads(EXPECTED_SHAPE_MAPPINGS.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return False, ["execution corpus is unreadable: {}".format(exc)]
+        return False, ["execution corpus or canonical mapping manifest is unreadable: {}".format(exc)]
     cases = data if isinstance(data, list) else [data]
     by_id = {case.get("id"): case for case in cases if isinstance(case, dict)}
     requirement_ids = _current_requirement_ids(Path(repo_root))
@@ -155,12 +157,15 @@ def validate_artifact_shape_mappings(
             if isinstance(grader, dict) and isinstance(grader.get("rubric"), str)
         ]
         mapping = case.get("artifact_shape_mapping")
+        expected_mapping = expected_mappings.get(case_id) if isinstance(expected_mappings, dict) else None
         if not isinstance(assertions, list) or not all(isinstance(item, str) for item in assertions):
             errors.append("{} has malformed outcome assertions".format(case_id))
             continue
         if not isinstance(mapping, dict) or set(mapping) != {"assertions", "rubrics"}:
             errors.append("{} must carry assertion and rubric mappings".format(case_id))
             continue
+        if mapping != expected_mapping:
+            errors.append("{} mappings do not exactly match the canonical mapping manifest".format(case_id))
         assertion_mapping = mapping.get("assertions")
         rubric_mapping = mapping.get("rubrics")
         if not isinstance(assertion_mapping, dict) or not isinstance(rubric_mapping, dict):

@@ -13,6 +13,10 @@ Use after the user confirms `detailed`. Produce this progressively loadable tree
 
 ## Detailed artifact tree
 
+A complete draft awaiting approval is `PAUSED` / `AWAITING_APPROVAL`, not
+success. `COMPLETE` requires a contract-valid recorded approval for that exact
+Plan; Forge then stops without implementation.
+
 `plan.md` is the control plane. Each `phases/<phase>/phase.md` is shared phase
 context. Ordered task files inside that phase directory are execution packets;
 they are not a flat second plan. Do not create a separate repository-wide task

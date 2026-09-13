@@ -266,6 +266,14 @@ or correctness field. Judge output has only `assertions` and `metrics`; each
 assertion has exactly non-empty string `text`, boolean `passed`, and non-empty
 string `evidence`, and every expected assertion appears exactly once.
 
+Metric schema version 1 permits `UNMEASURED` for any metric. `mode` is
+`compact` or `detailed`; `correctness` is boolean; count fields are nonnegative
+integers; coverage fields are numbers in `[0,1]`. `errors` is an array of
+`{"message": non-empty string}`; `review_findings` is an array of
+`{"severity": non-empty string, "summary": non-empty string}`; and
+`deviations` is an array of `{"description": non-empty string}`. Cross-type
+substitutions are invalid. The report metadata includes this exact schema.
+
 The harness uses one-based trial indices. For a case with `trials: 3`, it
 requires candidate, baseline, and no-Skill results for trials 1, 2, and 3 and
 the corresponding nine judge results. Any missing or failed required result

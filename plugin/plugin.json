@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "skill-engineer",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Eight portable Agent Skills for engineering and reviewing Skills, auditing project guidance, reviewing merge requests, and running Forge's five-stage SDLC workflow.",
   "author": {
     "name": "Abhinav Pisharody",

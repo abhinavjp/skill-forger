@@ -31,6 +31,7 @@ when verified risk requires it. Omit empty conditional sections.
 Review the complete plan once for intent, behaviour, architecture, regression,
 scope, and proof. Use the shared Forge workflow contract for artifact approval
 and mutation boundaries. At completion, present the exact Plan path, revision,
-and content hash as `awaiting-approval`; do not label that pre-approval hash an
-approval hash. Planning ends only after a contract-valid artifact approval is
-recorded, then stops.
+and content hash as `awaiting-approval`; this is `PAUSED` /
+`AWAITING_APPROVAL`, not success. Do not label that pre-approval hash an
+approval hash. `COMPLETE` requires a contract-valid artifact approval, then
+Forge stops.

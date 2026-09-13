@@ -19,6 +19,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from plugin.shared.forge.evals import run_static_evals
+from plugin.shared.forge.scripts import workflow_state
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -148,6 +149,14 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertNotIn("Present the artifact paths and approval hash", skill)
         self.assertNotIn("to-tickets", skill.lower())
 
+    def test_recorded_independent_intent_and_specification_approvals_open_planning(self) -> None:
+        record_path = REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-13-forge-plan-approval-record.json"
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        artifacts = record["state"]["artifacts"]
+        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "intent.md").read_text(encoding="utf-8")), artifacts["intent"]["hash"])
+        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "docs" / "specs" / "forge-plan-proportional-planning.md").read_text(encoding="utf-8")), artifacts["specification"]["hash"])
+        self.assertEqual({"allowed": True, "code": "ALLOWED", "read_only": False}, workflow_state.can_enter_stage(record["state"], "planning", record["approval_policy"]))
+
     def test_repository_gate_requires_tracked_resolved_specification_authority(self) -> None:
         self.assertEqual([], validator.validate_implementation_plan_specs())
         with tempfile.TemporaryDirectory(prefix="spec-authority-") as directory:
@@ -205,6 +214,8 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                     self.assertTrue(errors)
 
     def test_current_compact_and_detailed_shape_mappings_are_deterministic(self) -> None:
+        manifest = PLUGIN_SKILLS / "forge-plan" / "references" / "expected-shape-mappings.json"
+        self.assertTrue(manifest.is_file(), "shape mappings require one canonical manifest")
         ok, errors = forge_plan_static_evals.validate_artifact_shape_mappings()
         self.assertTrue(ok, errors)
         self.assertEqual([], errors)
@@ -217,11 +228,19 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             )
             case = next(item for item in data if item.get("id") == "FP-E-001")
             assertion = case["expected"]["outcome"]["assertions"][0]
-            case["artifact_shape_mapping"]["assertions"][assertion]["authority"] = "REQ-999"
+            case["artifact_shape_mapping"]["assertions"][assertion] = {
+                "authority": "REQ-004",
+                "clause": "plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree",
+            }
+            rubric = case["graders"][0]["rubric"]
+            case["artifact_shape_mapping"]["rubrics"][rubric] = {
+                "authority": "REQ-005",
+                "clause": "plugin/skills/forge-plan/references/execution-packet.md#packet-fields",
+            }
             execution.write_text(json.dumps(data), encoding="utf-8")
             ok, errors = forge_plan_static_evals.validate_artifact_shape_mappings(execution)
         self.assertFalse(ok)
-        self.assertTrue(any("unknown current REQ authority" in error for error in errors))
+        self.assertTrue(any("canonical mapping" in error for error in errors))
 
     def test_behavioral_structural_mutations_fail_even_when_names_and_options_remain(self) -> None:
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
@@ -583,6 +602,17 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
             normalized, errors = behavioral_evals._normalize_metrics({field: value})
             self.assertIsNone(normalized, field)
             self.assertTrue(errors, field)
+        for field, value in (("errors", {"message": "wrong type"}), ("review_findings", "wrong type"), ("deviations", ["wrong item type"])):
+            normalized, errors = behavioral_evals._normalize_metrics({field: value})
+            self.assertIsNone(normalized, field)
+            self.assertTrue(errors, field)
+        valid_collections, errors = behavioral_evals._normalize_metrics({
+            "errors": [{"message": "runner unavailable"}],
+            "review_findings": [{"severity": "medium", "summary": "missing proof"}],
+            "deviations": [{"description": "live runner unmeasured"}],
+        })
+        self.assertEqual([], errors)
+        self.assertIsNotNone(valid_collections)
 
     def test_behavioral_harness_reports_mixed_assertion_regression(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -1,7 +1,7 @@
 {
   "name": "skill-engineer",
   "description": "Eight portable Agent Skills for engineering and reviewing Skills, auditing project guidance, reviewing merge requests, and running Forge's five-stage SDLC workflow.",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "author": {
     "name": "Abhinav Pisharody",
     "email": "ai.abhinavjp@gmail.com"

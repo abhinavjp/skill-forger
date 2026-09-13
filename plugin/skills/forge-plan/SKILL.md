@@ -32,8 +32,9 @@ may not weaken those rules.
 2. Before Planning, apply the shared contract's conditional Specification gate
    through `can_enter_stage(state, "planning", approval_policy)`. When the gate
    is required, it must validate the exact current artifact revision and
-   content hash, a designated independent non-self approver, approval ordering,
-   continuation intent, and freshness. Do not replace this with local checks.
+   content hash, approver eligibility, ordering, continuation intent, and
+   freshness. Obey the returned decision and reason; do not replace it with
+   local checks.
 3. Normalize supplied issue evidence through the issue-source contract and load
    only selected knowledge leaves through the knowledge-provider contract.
    Preserve unavailable sources, contradictions, provenance, hashes, and
@@ -76,9 +77,10 @@ new evidence, and reconfirm. Never switch modes silently.
 
 ## Completion
 
-Complete only when the selected artifact contract is satisfied, sources and
-freshness are recorded, every material decision is closed, dependencies and
-acceptance are checkable, and the Plan is awaiting approval or has a
-contract-valid artifact approval recorded. A material unresolved decision is a
-blocked or upstream-return outcome, never a completed Plan. Label unavailable
-live or manual behaviour `UNMEASURED`.
+`PAUSED` / `AWAITING_APPROVAL` means the Plan draft is complete, every material
+decision is closed, and its exact path, revision, and content hash were
+presented, but no contract-valid approval exists. It cannot claim success.
+`COMPLETE` means that exact Plan has a contract-valid recorded approval and
+Forge stops without implementation. A material unresolved decision is a blocked
+or upstream-return outcome, never a completed Plan. Label unavailable live or
+manual behaviour `UNMEASURED`.

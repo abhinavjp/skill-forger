@@ -44,6 +44,11 @@ METRIC_FIELDS = (
     "output_tokens", "references", "tool_calls", "duration_ms", "retries",
     "errors", "review_findings", "deviations",
 )
+METRIC_COLLECTION_ITEM_FIELDS = {
+    "errors": ["message"],
+    "review_findings": ["severity", "summary"],
+    "deviations": ["description"],
+}
 UNMEASURED = "UNMEASURED"
 
 
@@ -178,8 +183,18 @@ def _normalize_metrics(value: object) -> Tuple[Optional[Dict[str, Any]], List[st
     collection_fields = {"errors", "review_findings", "deviations"}
     for field in collection_fields:
         item = normalized[field]
-        if item != UNMEASURED and not isinstance(item, (list, dict, str)):
-            errors.append(f"metrics.{field} must be a JSON collection/string or {UNMEASURED}")
+        expected_keys = set(METRIC_COLLECTION_ITEM_FIELDS[field])
+        if item == UNMEASURED:
+            continue
+        if not isinstance(item, list):
+            errors.append(f"metrics.{field} must be an array or {UNMEASURED}")
+            continue
+        for index, record in enumerate(item):
+            if not isinstance(record, dict) or set(record) != expected_keys:
+                errors.append(f"metrics.{field}[{index}] must contain exactly {sorted(expected_keys)}")
+                continue
+            if not all(isinstance(value, str) and value.strip() for value in record.values()):
+                errors.append(f"metrics.{field}[{index}] values must be non-empty strings")
     return (normalized if not errors else None), errors
 
 
@@ -541,7 +556,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "static_only_cases": static_only,
         "fixture": str(args.fixture),
         "roles": list(commands),
-        "metrics_schema": {"version": METRICS_VERSION, "fields": list(METRIC_FIELDS)},
+        "metrics_schema": {"version": METRICS_VERSION, "fields": list(METRIC_FIELDS), "collection_item_schemas": METRIC_COLLECTION_ITEM_FIELDS},
         "results": results,
         "comparisons": comparisons,
         "failure_count": len(failures),
