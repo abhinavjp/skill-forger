@@ -1397,6 +1397,66 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         )
         self.assertEqual(1, report["metrics"]["metadata_error_count"])
 
+    def _run_inspector_on_openai_yaml(self, openai_yaml_content: Optional[str]) -> dict:
+        """Build a minimal disable-model-invocation Skill, run inspect_skill.py."""
+        inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
+        with tempfile.TemporaryDirectory() as directory:
+            skill_dir = Path(directory)
+            (skill_dir / "SKILL.md").write_text(
+                "---\n"
+                "name: fixture-skill\n"
+                "description: A fixture Skill for invocation-policy tests.\n"
+                "disable-model-invocation: true\n"
+                "---\n\nBody.\n",
+                encoding="utf-8",
+            )
+            if openai_yaml_content is not None:
+                agents_dir = skill_dir / "agents"
+                agents_dir.mkdir()
+                (agents_dir / "openai.yaml").write_text(openai_yaml_content, encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, str(inspector), str(skill_dir)],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, proc.returncode, proc.stderr)
+            return json.loads(proc.stdout)
+
+    def test_invocation_policy_check_is_structural_not_textual(self) -> None:
+        """Only a real policy.allow_implicit_invocation: false counts.
+
+        A raw substring search on openai.yaml text is fooled by a commented-out
+        key or a key nested under the wrong parent; both must be treated the
+        same as the key being absent, not as a match (PR #3 Codex P2 finding).
+        """
+        correct = self._run_inspector_on_openai_yaml(
+            "policy:\n  allow_implicit_invocation: false\n"
+        )
+        self.assertTrue(correct["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNone(correct["invocation_policy"]["mismatch"])
+
+        commented_out = self._run_inspector_on_openai_yaml(
+            "# policy:\n#   allow_implicit_invocation: false\n"
+        )
+        self.assertFalse(commented_out["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNotNone(commented_out["invocation_policy"]["mismatch"])
+
+        wrongly_nested = self._run_inspector_on_openai_yaml(
+            "allow_implicit_invocation: false\n"
+            "policy:\n"
+            "  something_else: true\n"
+        )
+        self.assertFalse(wrongly_nested["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNotNone(wrongly_nested["invocation_policy"]["mismatch"])
+
+    def test_invocation_policy_check_reports_malformed_yaml_as_a_finding(self) -> None:
+        """Malformed openai.yaml must surface as a finding, not crash or silently pass."""
+        report = self._run_inspector_on_openai_yaml(
+            "policy:\n  allow_implicit_invocation: false\n bad_indent: [1, 2\n"
+        )
+        self.assertFalse(report["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNotNone(report["invocation_policy"]["openai_yaml_error"])
+        self.assertIsNotNone(report["invocation_policy"]["mismatch"])
 
     def test_skill_count_claims_are_derived_from_discovery(self) -> None:
         """A stale whole-set count in any manifest or install doc must fail.

@@ -242,6 +242,58 @@ def _truthy(value):
     return False
 
 
+def _load_openai_policy(path):
+    """Parse agents/openai.yaml structurally. Return (allow_implicit, error).
+
+    `allow_implicit` is the value of `policy.allow_implicit_invocation`
+    (`None` if the key or its parent mapping is absent or the wrong shape).
+    `error` carries a parse failure so malformed YAML is a finding, not a
+    crash or a silent pass.
+    """
+    text = _read(path)
+    try:
+        import yaml
+    except ImportError:
+        yaml = None
+
+    if yaml is None:
+        # No PyYAML: only recognise the exact top-level-mapping shape,
+        # never a raw text search that a comment or wrong nesting can fool.
+        in_policy = False
+        for line in text.splitlines():
+            if re.match(r"^policy\s*:\s*$", line):
+                in_policy = True
+                continue
+            if in_policy:
+                if re.match(r"^\s", line):
+                    match = re.match(
+                        r"^\s+allow_implicit_invocation\s*:\s*(\S+)", line)
+                    if match:
+                        raw = match.group(1).strip("'\"").lower()
+                        if raw == "true":
+                            return True, None
+                        if raw == "false":
+                            return False, None
+                        return None, None
+                    continue
+                in_policy = False
+        return None, None
+
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        return None, str(exc)
+    if not isinstance(data, dict):
+        return None, None
+    policy = data.get("policy")
+    if not isinstance(policy, dict):
+        return None, None
+    value = policy.get("allow_implicit_invocation")
+    if not isinstance(value, bool):
+        return None, None
+    return value, None
+
+
 def check_invocation_policy(root, frontmatter):
     """Cross-check the one allowed host-only field against its Codex pair.
 
@@ -250,17 +302,21 @@ def check_invocation_policy(root, frontmatter):
     Cursor, and Factory honour it directly; Codex needs the matching
     `agents/openai.yaml` `policy.allow_implicit_invocation: false`. Either
     field present without the other is a finding, not a hard error: some
-    Skills only ship for one host family.
+    Skills only ship for one host family. The Codex side is judged from the
+    parsed YAML structure, not a raw text match, so a comment or a key
+    nested under the wrong parent can't fake a match.
     """
     disable_flag = _truthy(frontmatter.get("disable-model-invocation"))
     openai_yaml = os.path.join(root, "agents", "openai.yaml")
     openai_no_implicit = False
+    openai_yaml_error = None
     if os.path.isfile(openai_yaml):
-        content = _read(openai_yaml)
-        openai_no_implicit = bool(re.search(
-            r"allow_implicit_invocation\s*:\s*false", content))
+        allow_implicit, openai_yaml_error = _load_openai_policy(openai_yaml)
+        openai_no_implicit = allow_implicit is False
     mismatch = None
-    if disable_flag and not openai_no_implicit:
+    if openai_yaml_error:
+        mismatch = f"agents/openai.yaml could not be parsed: {openai_yaml_error}"
+    elif disable_flag and not openai_no_implicit:
         mismatch = ("disable-model-invocation is set but agents/openai.yaml "
                     "does not set policy.allow_implicit_invocation: false "
                     "(Codex keeps model-invoked)")
@@ -272,6 +328,7 @@ def check_invocation_policy(root, frontmatter):
     return {
         "disable_model_invocation": disable_flag,
         "openai_no_implicit_invocation": openai_no_implicit,
+        "openai_yaml_error": openai_yaml_error,
         "mismatch": mismatch,
         # Known, accepted deviation: this field is outside the Agent Skills
         # spec's allowed frontmatter (name, description, license,
