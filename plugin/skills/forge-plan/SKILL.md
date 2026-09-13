@@ -38,11 +38,15 @@ Recommend `compact` for small, low-risk, well-understood work; recommend
 `detailed` when one factor is severe or several are moderate together. Say
 why in one sentence, naming the decisive factor(s).
 
-If forge-implement is asking because no plan exists, suggest `compact` and
-confirm with the user. Always ask; never pick silently. If a risky item shows
-up after the user picks, say so and ask again.
+If the user called forge-plan directly, ask and wait for their confirmation
+here before continuing. If forge-implement (or another skill) backfilled
+forge-plan because no plan existed, do not ask separately: state the
+recommended mode and reason, and carry it into that skill's one combined
+stop (shared contract) instead of stopping twice. Either way, if a risky
+item shows up after the mode is set, say so and ask again.
 
-Done when: the user has confirmed a mode.
+Done when: you have a mode — confirmed by the user directly, or carried
+into the caller's combined stop for backfill.
 
 ## 3. Write the plan
 
@@ -73,7 +77,11 @@ dependency edges only (no invented ordering).
 
 ## 4. Stop
 
-Show the exact plan path. Ask "review or go?" and wait — a plan is
-default-safe to draft but never to run. Do not implement anything yet.
+If the user called forge-plan directly, show the exact plan path, ask
+"review or go?", and wait — a plan is default-safe to draft but never to
+run. If another skill backfilled forge-plan, do not stop here: hand back
+the plan path so that skill can show it as part of its own one combined
+stop. Either way, do not implement anything yet.
 
-Done when: the user has replied.
+Done when: the user has replied directly, or the plan path has been handed
+back for the caller's combined stop.

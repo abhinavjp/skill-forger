@@ -59,10 +59,24 @@
     "prompt": "forge-implement backfills a missing Goal, two open decisions, and a plan mode choice for BR-21861 before it can run anything.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["shows the Goal, decisions, and mode together in one message", "asks once, not three separate times"] }
+      "outcome": { "assertions": ["shows the Goal, decisions, mode, and the plan path together in one message", "asks once, not three or four separate times", "exactly one user stop occurs before any source file is edited"] }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if every backfilled item is shown in one combined stop rather than as separate sequential asks." }],
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if every backfilled item, including the resulting plan path, is shown in one combined stop rather than as separate sequential asks, and no source file is touched before that one stop is answered." }],
     "tags": ["backfill", "one-combined-stop"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-014",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "forge-implement is called for BR-21861. No .forge/BR-21861/ directory exists at all: no context.md, no decisions.md, no plan. This forces forge-implement to backfill forge-plan, which in turn backfills forge-discover (and forge-clarify if discovery finds open decisions).",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["runs the full backfill chain (discover, clarify if needed, plan) without editing any source file", "shows the Goal, any open decisions, the chosen mode, and the plan path together in exactly one message", "does not ask separately at each backfilled skill's own stop"] },
+      "process": { "forbidden": ["editing a source file before the single combined stop is answered", "asking more than once before the first source edit"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if, counting every user-facing stop from the start of this request through the first source-file edit, exactly one occurs, and it shows the Goal, decisions, mode, and plan path together." }],
+    "tags": ["backfill", "one-combined-stop", "no-goal-no-plan", "stop-count"]
   },
   {
     "version": 1,
