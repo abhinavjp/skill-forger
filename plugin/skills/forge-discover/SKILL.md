@@ -50,11 +50,23 @@ Below the Goal, record:
 
 Done when: `context.md` exists with Goal first and the evidence below it.
 
-## 3. Hand off
+## 3. Close open decisions
 
-If step 2 found open human decisions, say so and point to forge-clarify. If
-scope reduction or the Goal itself is materially unclear, say what is missing
-and stop. Otherwise report that discovery is done and Specification can
-proceed when the user calls forge-spec.
+If step 2 found open human decisions, run [forge-clarify](../forge-clarify/SKILL.md):
+read its `SKILL.md` and follow it. After each round it records answers in
+`decisions.md` and reports either the next ready round or "no unresolved
+human decisions." Run it again while any decision remains open — including
+one a prior answer only just unblocked — until it reports none left.
 
-Done when: the user knows whether to run forge-clarify or forge-spec next.
+If the Goal itself is materially unclear in a way no decision round can fix,
+say what is missing and stop instead of looping.
+
+Done when: forge-clarify reports no unresolved human decisions, or you have
+stopped and said why you could not get there.
+
+## 4. Hand off
+
+Report that discovery is done and Specification can proceed when the user
+calls forge-spec.
+
+Done when: the user knows forge-spec is next.
