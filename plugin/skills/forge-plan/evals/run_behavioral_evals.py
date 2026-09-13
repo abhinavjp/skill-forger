@@ -36,20 +36,66 @@ from fixture_schema import (  # noqa: E402
 
 EVIDENCE_KEYS = {"response", "artifacts", "trace", "mutations", "errors", "metrics"}
 JUDGE_KEYS = {"assertions", "metrics"}
-METRICS_VERSION = 1
-METRIC_FIELDS = (
-    "mode", "correctness", "material_omissions", "blocking_questions",
-    "rediscovery", "traceability_coverage", "acceptance_coverage",
-    "dependency_errors", "scope_errors", "input_tokens", "context_tokens",
-    "output_tokens", "references", "tool_calls", "duration_ms", "retries",
-    "errors", "review_findings", "deviations",
-)
-METRIC_COLLECTION_ITEM_FIELDS = {
-    "errors": ["message"],
-    "review_findings": ["severity", "summary"],
-    "deviations": ["description"],
+METRIC_SCHEMA = {
+    "version": 1,
+    "unmeasured": "UNMEASURED",
+    "fields": {
+        "mode": {"type": "enum", "values": ["compact", "detailed"]},
+        "correctness": {"type": "boolean"},
+        "material_omissions": {"type": "integer", "minimum": 0},
+        "blocking_questions": {"type": "integer", "minimum": 0},
+        "rediscovery": {"type": "integer", "minimum": 0},
+        "traceability_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "acceptance_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "dependency_errors": {"type": "integer", "minimum": 0},
+        "scope_errors": {"type": "integer", "minimum": 0},
+        "input_tokens": {"type": "integer", "minimum": 0},
+        "context_tokens": {"type": "integer", "minimum": 0},
+        "output_tokens": {"type": "integer", "minimum": 0},
+        "references": {"type": "integer", "minimum": 0},
+        "tool_calls": {"type": "integer", "minimum": 0},
+        "duration_ms": {"type": "integer", "minimum": 0},
+        "retries": {"type": "integer", "minimum": 0},
+        "errors": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["message"],
+                "additional_properties": False,
+                "properties": {"message": {"type": "string", "min_length": 1}},
+            },
+        },
+        "review_findings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["severity", "summary"],
+                "additional_properties": False,
+                "properties": {
+                    "severity": {"type": "string", "min_length": 1},
+                    "summary": {"type": "string", "min_length": 1},
+                },
+            },
+        },
+        "deviations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["description"],
+                "additional_properties": False,
+                "properties": {"description": {"type": "string", "min_length": 1}},
+            },
+        },
+    },
 }
-UNMEASURED = "UNMEASURED"
+METRICS_VERSION = METRIC_SCHEMA["version"]
+METRIC_FIELDS = tuple(METRIC_SCHEMA["fields"])
+METRIC_COLLECTION_ITEM_FIELDS = {
+    field: definition["items"]["required"]
+    for field, definition in METRIC_SCHEMA["fields"].items()
+    if definition["type"] == "array"
+}
+UNMEASURED = METRIC_SCHEMA["unmeasured"]
 
 
 class CorpusError(ValueError):
@@ -151,50 +197,45 @@ def _normalize_metrics(value: object) -> Tuple[Optional[Dict[str, Any]], List[st
     version = value.get("version", METRICS_VERSION)
     if isinstance(version, bool) or not isinstance(version, int) or version != METRICS_VERSION:
         errors.append(f"metrics.version must be {METRICS_VERSION}")
-    unknown = sorted(set(value) - ({"version"} | set(METRIC_FIELDS)))
+    fields = METRIC_SCHEMA["fields"]
+    unknown = sorted(set(value) - ({"version"} | set(fields)))
     if unknown:
         errors.append(f"unknown metric fields: {unknown}")
     normalized = {"version": METRICS_VERSION}
-    for field in METRIC_FIELDS:
+    for field in fields:
         normalized[field] = value.get(field, UNMEASURED)
-    enum_fields = {"mode": {"compact", "detailed", UNMEASURED}}
-    for field, allowed in enum_fields.items():
-        if not isinstance(normalized[field], str) or normalized[field] not in allowed:
-            errors.append(f"metrics.{field} must be one of {sorted(allowed)}")
-    boolean_fields = {"correctness"}
-    for field in boolean_fields:
+    for field, definition in fields.items():
         item = normalized[field]
-        if item != UNMEASURED and not isinstance(item, bool):
-            errors.append(f"metrics.{field} must be boolean or {UNMEASURED}")
-    count_fields = {
-        "material_omissions", "blocking_questions", "rediscovery", "dependency_errors",
-        "scope_errors", "input_tokens", "context_tokens", "output_tokens", "references",
-        "tool_calls", "duration_ms", "retries",
-    }
-    for field in count_fields:
-        item = normalized[field]
-        if item != UNMEASURED and (isinstance(item, bool) or not isinstance(item, int) or item < 0):
-            errors.append(f"metrics.{field} must be a nonnegative integer or {UNMEASURED}")
-    coverage_fields = {"traceability_coverage", "acceptance_coverage"}
-    for field in coverage_fields:
-        item = normalized[field]
-        if item != UNMEASURED and (isinstance(item, bool) or not isinstance(item, (int, float)) or not 0 <= item <= 1):
-            errors.append(f"metrics.{field} must be a number from 0 to 1 or {UNMEASURED}")
-    collection_fields = {"errors", "review_findings", "deviations"}
-    for field in collection_fields:
-        item = normalized[field]
-        expected_keys = set(METRIC_COLLECTION_ITEM_FIELDS[field])
         if item == UNMEASURED:
             continue
-        if not isinstance(item, list):
-            errors.append(f"metrics.{field} must be an array or {UNMEASURED}")
-            continue
-        for index, record in enumerate(item):
-            if not isinstance(record, dict) or set(record) != expected_keys:
-                errors.append(f"metrics.{field}[{index}] must contain exactly {sorted(expected_keys)}")
+        metric_type = definition["type"]
+        if metric_type == "enum":
+            if not isinstance(item, str) or item not in definition["values"]:
+                errors.append(f"metrics.{field} must be one of {sorted(definition['values'] + [UNMEASURED])}")
+        elif metric_type == "boolean":
+            if not isinstance(item, bool):
+                errors.append(f"metrics.{field} must be boolean or {UNMEASURED}")
+        elif metric_type == "integer":
+            if isinstance(item, bool) or not isinstance(item, int) or item < definition["minimum"]:
+                errors.append(f"metrics.{field} must be a nonnegative integer or {UNMEASURED}")
+        elif metric_type == "number":
+            if isinstance(item, bool) or not isinstance(item, (int, float)) or not definition["minimum"] <= item <= definition["maximum"]:
+                errors.append(f"metrics.{field} must be a number from 0 to 1 or {UNMEASURED}")
+        elif metric_type == "array":
+            if not isinstance(item, list):
+                errors.append(f"metrics.{field} must be an array or {UNMEASURED}")
                 continue
-            if not all(isinstance(value, str) and value.strip() for value in record.values()):
-                errors.append(f"metrics.{field}[{index}] values must be non-empty strings")
+            item_schema = definition["items"]
+            expected_keys = set(item_schema["required"])
+            for index, record in enumerate(item):
+                if not isinstance(record, dict) or set(record) != expected_keys:
+                    errors.append(f"metrics.{field}[{index}] must contain exactly {sorted(expected_keys)}")
+                    continue
+                properties = item_schema["properties"]
+                if not all(isinstance(record[key], str) and len(record[key].strip()) >= properties[key]["min_length"] for key in expected_keys):
+                    errors.append(f"metrics.{field}[{index}] values must be non-empty strings")
+        else:
+            errors.append(f"internal error: unknown metric schema type {metric_type!r} for {field}")
     return (normalized if not errors else None), errors
 
 
@@ -509,13 +550,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             "reason": "selected cases are repository-static; run run_static_evals.py",
             "static_only_cases": static_only,
             "case_count": 0,
+            "metrics_schema": METRIC_SCHEMA,
             "results": [],
         }
         print(json.dumps(report, indent=2) if args.json else "UNMEASURED: static-only cases")
         return 1 if args.strict else 0
     missing = [role for role, command in commands.items() if command is None]
     if missing:
-        report = {"status": "UNMEASURED", "reason": "missing trusted runner argv", "missing_roles": missing, "static_only_cases": static_only, "case_count": len(cases), "fixture": str(args.fixture), "results": []}
+        report = {"status": "UNMEASURED", "reason": "missing trusted runner argv", "missing_roles": missing, "static_only_cases": static_only, "case_count": len(cases), "fixture": str(args.fixture), "metrics_schema": METRIC_SCHEMA, "results": []}
         print(json.dumps(report, indent=2) if args.json else "UNMEASURED: " + ", ".join(missing))
         return 1 if args.strict else 0
 
@@ -556,7 +598,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "static_only_cases": static_only,
         "fixture": str(args.fixture),
         "roles": list(commands),
-        "metrics_schema": {"version": METRICS_VERSION, "fields": list(METRIC_FIELDS), "collection_item_schemas": METRIC_COLLECTION_ITEM_FIELDS},
+        "metrics_schema": METRIC_SCHEMA,
         "results": results,
         "comparisons": comparisons,
         "failure_count": len(failures),

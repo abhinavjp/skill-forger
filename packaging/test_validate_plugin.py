@@ -157,6 +157,18 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertEqual(workflow_state.content_hash((REPO_ROOT / "docs" / "specs" / "forge-plan-proportional-planning.md").read_text(encoding="utf-8")), artifacts["specification"]["hash"])
         self.assertEqual({"allowed": True, "code": "ALLOWED", "read_only": False}, workflow_state.can_enter_stage(record["state"], "planning", record["approval_policy"]))
 
+    def test_forge_plan_evidence_records_real_approval_provenance(self) -> None:
+        evidence = (REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-12-forge-plan-pr-2-review-fixes-evidence.md").read_text(encoding="utf-8")
+        approval = json.loads((REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-13-forge-plan-approval-record.json").read_text(encoding="utf-8"))
+        self.assertNotIn("approved these exact authority bytes with", evidence)
+        self.assertIn("was continuation and\n  delivery intent, not artifact approval", evidence)
+        self.assertIn("docs/superpowers/plans/2026-09-13-forge-plan-approval-record.json", evidence)
+        self.assertIn("Earlier implementation preceded valid artifact approval", evidence)
+        self.assertEqual("GATE_VIOLATION", approval["prior_gate_violation"]["status"])
+        self.assertEqual("artifact", approval["state"]["artifacts"]["specification"]["approval"]["intent"])
+        self.assertEqual("Commit and push and continue", approval["negative_proof"]["continuation_intent"])
+        self.assertIn("not an artifact approval", approval["negative_proof"]["result"])
+
     def test_repository_gate_requires_tracked_resolved_specification_authority(self) -> None:
         self.assertEqual([], validator.validate_implementation_plan_specs())
         with tempfile.TemporaryDirectory(prefix="spec-authority-") as directory:
@@ -595,10 +607,35 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertTrue(report["comparisons"][0]["incomplete_roles"])
 
     def test_behavioral_metrics_validate_types_ranges_and_partial_values(self) -> None:
+        schema = behavioral_evals.METRIC_SCHEMA
+        self.assertEqual(1, schema["version"])
+        self.assertEqual("UNMEASURED", schema["unmeasured"])
+        count_fields = {
+            "material_omissions", "blocking_questions", "rediscovery", "dependency_errors",
+            "scope_errors", "input_tokens", "context_tokens", "output_tokens", "references",
+            "tool_calls", "duration_ms", "retries",
+        }
+        self.assertEqual(
+            {
+                "mode", "correctness", *count_fields, "traceability_coverage",
+                "acceptance_coverage", "errors", "review_findings", "deviations",
+            },
+            set(schema["fields"]),
+        )
+        self.assertEqual({"type": "enum", "values": ["compact", "detailed"]}, schema["fields"]["mode"])
+        self.assertEqual({"type": "boolean"}, schema["fields"]["correctness"])
+        for field in count_fields:
+            self.assertEqual({"type": "integer", "minimum": 0}, schema["fields"][field])
+        for field in ("traceability_coverage", "acceptance_coverage"):
+            self.assertEqual({"type": "number", "minimum": 0, "maximum": 1}, schema["fields"][field])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["errors"]["items"]["properties"]["message"])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["review_findings"]["items"]["properties"]["severity"])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["review_findings"]["items"]["properties"]["summary"])
+        self.assertEqual({"type": "string", "min_length": 1}, schema["fields"]["deviations"]["items"]["properties"]["description"])
         valid, errors = behavioral_evals._normalize_metrics({"mode": "compact", "input_tokens": 0, "traceability_coverage": 1.0})
         self.assertEqual([], errors)
         self.assertEqual("UNMEASURED", valid["output_tokens"])
-        for field, value in (("mode", "banana"), ("mode", []), ("input_tokens", -1), ("retries", True), ("acceptance_coverage", 1.1), ("correctness", "yes")):
+        for field, value in (("mode", "banana"), ("mode", []), ("input_tokens", -1), ("retries", True), ("acceptance_coverage", 1.1), ("acceptance_coverage", -0.1), ("correctness", "yes"), ("unexpected", 1)):
             normalized, errors = behavioral_evals._normalize_metrics({field: value})
             self.assertIsNone(normalized, field)
             self.assertTrue(errors, field)
@@ -613,6 +650,14 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         })
         self.assertEqual([], errors)
         self.assertIsNotNone(valid_collections)
+        for field, value in (("errors", [{}]), ("errors", [{"message": "ok", "extra": "no"}]), ("errors", [{"message": " "}])):
+            normalized, errors = behavioral_evals._normalize_metrics({field: value})
+            self.assertIsNone(normalized, field)
+            self.assertTrue(errors, field)
+        harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
+        proc = subprocess.run([sys.executable, str(harness), "--json"], cwd=REPO_ROOT, capture_output=True, text=True)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertEqual(schema, json.loads(proc.stdout)["metrics_schema"])
 
     def test_behavioral_harness_reports_mixed_assertion_regression(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

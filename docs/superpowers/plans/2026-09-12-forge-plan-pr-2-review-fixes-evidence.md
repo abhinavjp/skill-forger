@@ -2,14 +2,20 @@
 
 ## Authority and scope
 
-- Intent: `intent.md`, revision 2, SHA-256
-  `07818EC538BC4E20062996DC12D98F431810CD5FA71DF8F96719B697B26A8961`.
+- Intent: `intent.md`, revision 2, canonical `workflow_state.content_hash`
+  `07818ec538bc4e20062996dc12d98f431810cd5fa71df8f96719b697b26a8961`.
 - Specification: `docs/specs/forge-plan-proportional-planning.md`, revision 1,
-  SHA-256
-  `BEA4402427E23B37BD0A3B74BC7EC2431120F039F61B2878DB83C5358F60EE0B`.
-- The user explicitly approved these exact authority bytes with
-  `Commit and push and continue` after the authority checkpoint.
-- The authority checkpoint commit is `c5540475a8d3be3ddfe875d69cbc235fddc0d04e`.
+  canonical `workflow_state.content_hash`
+  `c743e63c9da744997cade446b01e35371e9412e239e5933478c0ef31eb798619`.
+- Commit `c5540475a8d3be3ddfe875d69cbc235fddc0d04e` is the pre-approval
+  authority checkpoint. `Commit and push and continue` was continuation and
+  delivery intent, not artifact approval.
+- Earlier implementation preceded valid artifact approval and is recorded as
+  `GATE_VIOLATION`; later approval does not retroactively authorize it.
+- The independent artifact-specific approval is recorded in
+  `docs/superpowers/plans/2026-09-13-forge-plan-approval-record.json`.
+- Commit `82a705dc51459b7c0f29e5648e648257746d6a15` is the later normal
+  reaffirmation after the Planning gate opened.
 - Implementation plan: `docs/superpowers/plans/2026-09-12-forge-plan-pr-2-review-fixes.md`.
 - Scope excludes implementation, ticket/tracker publication, merge, deploy, and
   release. The untracked local design/spec files remain outside the change.
