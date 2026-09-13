@@ -1,107 +1,64 @@
 ---
 name: forge-implement
-description: Use when Forge already has approved Specification and Plan artifacts whose execution packets are closed, and those packets must now be executed against source code.
+description: Run a Forge work item's approved plan against the code, one task or phase at a time.
+disable-model-invocation: true
 ---
 
 # Forge Implement
 
-Execute approved `tasks.md` packets; do not plan them. The shared
-[workflow contract](../../shared/forge/references/workflow-contract.md) and
-`workflow_state.can_enter_stage` own approval, freshness, retry, blocking,
-resume, and check semantics. This Skill owns only implementation-stage
-orchestration and its evidence.
+The user calls this to run a plan. Follow the shared
+[workflow contract](../../shared/forge/references/workflow-contract.md) for
+approval, stops, `progress.md` format, checks, retry, and the phase gate.
 
-## Gate before every implementation mutation
+## 1. Find the plan
 
-Start read-only. Before a source-code or implementation-artifact write, obtain
-the current artifact contents and state, then require all of the following:
+Look for a compact `plan.md` or a detailed `phases/` tree in `.forge/<work-item>/`
+(or the repo's own convention). None found: run forge-plan (suggest
+compact), then ask "review or go?" and edit nothing before the user answers.
 
-- the exact current `spec.md` revision/hash has its required valid approval;
-- the exact current `plan.md` revision/hash has valid technical/Plan approval;
-- `tasks.md` records correspondence to that exact approved Plan revision/hash;
-- any adapter implementation approver policy is supplied to the shared gate
-  decision and is satisfied; and
-- neither approval nor a materially used input is stale.
+Done when: you have one plan to run, and the user said go.
 
-Call the shared implementation gate decision; do not recreate its rules. It
-rejects missing, stale, unauthorized, self, full-workflow, `implement`-intent,
-and post-hoc approvals. “Implement this using Agentic SDLC” and any other
-full-workflow request are continuation intent, never artifact approval. An
-adapter may narrow acceptable approvers; it cannot open or weaken a gate.
+## 2. Start the record
 
-If any condition is absent, mismatched, unproven, or denied, transition to
-`blocked-at-gate`, remain read-only for source and implementation artifacts,
-and report the exact missing or invalid evidence. Do not begin a packet, choose
-a workaround, or seek approval after mutation. A recorded prior mutation with
-later approval is `GATE_VIOLATION`, not retroactive success.
+Create or read `progress.md`. List any other person's uncommitted changes as
+"not mine" at the top; never touch them. If the branch is protected, suggest
+a name per the shared contract's git rules.
 
-When every condition holds, transition to `implementation-active`. Capture the
-pre-existing working-tree baseline before the first packet: paths, staged or
-unstaged state, untracked paths, and relevant hashes. Those paths are external
-scope. Never edit, stage, clean, claim, commit, or deliver them without
-separate authorization.
+Resume: the first checklist box that is not `[x]` is where you continue.
+Files under that task's `changed:` are yours; re-run its proof before
+trusting its state.
 
-## Establish execution controls once
+Done when: `progress.md` has a baseline and you know where to start.
 
-Select or confirm one configured commit mode before packet writes. If no mode
-is configured or authorized, ask for that choice while preserving the gate and
-working tree; do not silently choose. Apply
-[commit modes](references/commit-modes.md) exactly. A commit checkpoint is not
-delivery authorization: never automatically push, squash, open a pull request,
-or merge.
+## 3. Do each ready task
 
-For each recorded check use exactly `PASS`, `FAIL`, or `UNMEASURED` through the
-shared check record. `UNMEASURED` includes a reason and is never passing
-evidence. Record the baseline separately from failures caused by this work.
+A task is ready when everything in its `Depends on` is done. For each ready
+task: read only its packet, write a file under `changed:` before editing it,
+stay inside `Write scope`, leave `Must not change` alone, and run its `Proof`.
+Test first where the plan names a seam. Record `PASS`, `FAIL`, or
+`UNMEASURED` with a reason.
 
-## Execute closed packets
+If the code and plan disagree, a needed change falls outside `Write scope`,
+or checks still fail after retries: mark the task `[!]`, block its
+dependants, keep working other ready tasks, then stop and report. See
+[failure recovery](references/failure-recovery.md) for each case.
 
-1. Use the dependency graph and verified state to select a dependency-ready,
-   unblocked packet. Read only its `Read / Reference Context`, exact write
-   scope, frozen decisions, and verification. Expand context only when concrete
-   evidence contradicts a stated packet fact; record why and what expanded.
-2. Keep every edit inside the packet scope and preserve its `Must Not Change`
-   protections. Implement the frozen solution without research, architecture
-   selection, user interviews, or replanning.
-3. Run the packet's narrow verification and only the concern-specific guidance
-   in [quality routing](references/quality-routing.md). Record every run and
-   result. Do not invent a pass for an unrun or unavailable check.
-4. Mark a packet verified only when its required evidence is `PASS`; apply its
-   selected authorized checkpoint mode. Failed, blocked, or `UNMEASURED`
-   required work is excluded from every commit.
+Done when: every ready task is `[x]` or terminally `[!]`.
 
-If evidence shows that the Plan is contradictory or cannot meet a binding
-requirement, stop that packet and every transitive dependant using the shared
-blocking semantics. Record the contradiction and route the affected frontier
-to Planning, Specification, or Clarify as appropriate; do not replan in place.
-Continue only safe independent packets whose gates, dependencies, and scopes
-remain valid.
+## 4. Phase end (or end of a compact plan)
 
-If a required change lies outside the packet, stop the affected packet before
-that write and request explicit scope authorization. Treat a material change as
-an approved-Plan/SPEC revision and gate concern when it changes their approved
-meaning. Do not silently broaden the diff. Apply
-[failure recovery](references/failure-recovery.md) for failures, retries,
-unavailable checks, and resume.
+Run the shared [phase gate](../../shared/forge/references/workflow-contract.md):
+full checks, review against the Goal and plan, second reviewer for high
+risk (ask the human if none is available), at most two fix loops.
 
-## Integrate once, review once, report compactly
+Done when: checks pass and no blocking finding remains, or you have stopped
+to report one that does.
 
-After every packet is verified or terminally failed/blocked, run the approved
-integrated deterministic verification over the verified scoped result. Record
-each result exactly; separate pre-existing failures. Then perform exactly one
-final semantic review against the approved Specification, Plan, packets,
-scope, and shared contracts. This is distinct from per-packet deterministic
-verification and mechanical scope/evidence checking.
+## 5. Stop before commit
 
-If that one review finds defects, create a bounded remediation list containing
-only its findings. Remediate only that list, rerun affected checks and
-integration when the finding affects integration, and do not run another
-semantic review. Do not claim complete if required evidence remains `FAIL` or
-`UNMEASURED`.
+Show the summary and `progress.md`. On go: stage only this work's files,
+commit at the plan's `commit_granularity`, write the commit id into
+`progress.md`. Never push.
 
-Write compact `evidence.md`: artifact revisions/hashes and gate decision;
-adapter policy result; dirty baseline; selected commit mode and checkpoints;
-packet status, scoped paths, checks, retries, blocks, and scope decisions;
-integrated results; semantic-review count/result; remediation; pre-existing
-failures; `UNMEASURED` reasons; and delivery actions explicitly not performed.
-It is a handoff, not a replay of reasoning.
+Done when: the user said go and the commit is recorded, or they said no and
+you stopped.
