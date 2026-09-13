@@ -24,9 +24,19 @@ exactly one work item.
 
 ## 2. Choose compact or detailed
 
-Assess size, risk, and complexity together. Recommend `compact` for small,
-low-risk, well-understood work; recommend `detailed` when one factor is
-severe or several are moderate together. Say why in one sentence.
+Assess all seven factors together: size (affected systems, repos,
+deployables, contracts, change surface), effort (implementation,
+verification, coordination, recovery effort), complexity (dependency depth,
+concurrency, legacy ambiguity, integration count), impact (user,
+operational, data, security, privacy, compliance, failure blast radius),
+reversibility (migration, external side effects, rollback difficulty,
+mixed-version operation), execution model (multiple implementers or agents,
+handoffs, audit needs), and uncertainty (missing evidence, novel mechanisms,
+disputed behavior, unstable boundaries).
+
+Recommend `compact` for small, low-risk, well-understood work; recommend
+`detailed` when one factor is severe or several are moderate together. Say
+why in one sentence, naming the decisive factor(s).
 
 If forge-implement is asking because no plan exists, suggest `compact` and
 confirm with the user. Always ask; never pick silently. If a risky item shows

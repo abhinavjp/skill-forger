@@ -49,7 +49,117 @@
     ],
     "tags": [
       "detailed",
-      "single-severe"
+      "single-severe",
+      "impact-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-029",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, well-understood one-module change that performs an irreversible destructive data migration with no rollback path once applied.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe reversibility factor alone recommends detailed",
+          "small size and low complexity do not offset the irreversible migration",
+          "names reversibility as the decisive factor"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the irreversible, rollback-free migration alone drives the detailed recommendation, with size and complexity named as otherwise small, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "reversibility-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-030",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, low-impact, easily reversible one-module change that must be delivered by three separate implementers handing work to each other in sequence, each handoff requiring an audit trail.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe execution-model factor alone recommends detailed",
+          "small size, low impact, and easy reversibility do not offset the multi-implementer handoff and audit need",
+          "names execution model/coordination as the decisive factor"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the multi-implementer handoff and audit requirement alone drive the detailed recommendation, with the other factors named as otherwise small, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "execution-model-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-031",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, low-impact, easily reversible one-module change whose intended behavior is disputed between two credible readings of the evidence and rests on a mechanism nobody has proven in this codebase.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe uncertainty factor alone recommends detailed",
+          "small size, low impact, and easy reversibility do not offset the disputed, unproven behavior",
+          "names uncertainty as the decisive factor",
+          "does not guess the disputed behavior itself"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the disputed behavior and unproven mechanism alone drive the detailed recommendation, with the other factors named as otherwise small, the response does not silently pick a reading, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "uncertainty-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-032",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, low-impact, easily reversible, low-complexity one-module change whose verification and recovery demand extensive manual coordination across several environments the team does not routinely operate.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe effort factor alone recommends detailed",
+          "small size, low impact, low complexity, and easy reversibility do not offset the heavy verification and recovery effort",
+          "names effort as the decisive factor"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the heavy verification/recovery effort alone drives the detailed recommendation, with the other factors named as otherwise small, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "effort-alone"
     ]
   },
   {
