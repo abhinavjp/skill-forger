@@ -1,0 +1,50 @@
+{
+  "recorded_by": "independent-pr-2-approval-reviewer",
+  "recorded_at": 1789293207,
+  "authority": "Direct user mandate on 2026-09-13 explicitly required independent artifact-specific approval of Intent revision 2 and Specification revision 1 after exact-byte inspection.",
+  "prior_gate_violation": {
+    "stage": "implementation",
+    "at": 1789293205,
+    "status": "GATE_VIOLATION",
+    "reason": "Earlier implementation preceded valid artifact approval; this record does not retroactively validate it. Reaffirmation occurs only in a later normal commit after the planning gate opens."
+  },
+  "state": {
+    "current_actor": "codex-pr-2-remediator",
+    "requires_spec_approval": true,
+    "artifacts": {
+      "intent": {
+        "path": "intent.md",
+        "revision": 2,
+        "hash": "07818ec538bc4e20062996dc12d98f431810cd5fa71df8f96719b697b26a8961",
+        "author": "intent-author",
+        "approval": {
+          "artifact_hash": "07818ec538bc4e20062996dc12d98f431810cd5fa71df8f96719b697b26a8961",
+          "revision": 2,
+          "actor": "independent-pr-2-approval-reviewer",
+          "intent": "artifact",
+          "approved_at": 1789293206,
+          "provenance": "Independent approval-only audit of exact current UTF-8 bytes using workflow_state.content_hash; direct user artifact-specific mandate.",
+          "freshness": "Current observed revision and canonical hash matched at approval."
+        }
+      },
+      "specification": {
+        "path": "docs/specs/forge-plan-proportional-planning.md",
+        "revision": 1,
+        "hash": "c743e63c9da744997cade446b01e35371e9412e239e5933478c0ef31eb798619",
+        "author": "specification-author",
+        "approval": {
+          "artifact_hash": "c743e63c9da744997cade446b01e35371e9412e239e5933478c0ef31eb798619",
+          "revision": 1,
+          "actor": "independent-pr-2-approval-reviewer",
+          "intent": "artifact",
+          "approved_at": 1789293207,
+          "provenance": "Independent approval-only audit of exact current UTF-8 bytes using workflow_state.content_hash; direct user artifact-specific mandate.",
+          "freshness": "Current observed revision and canonical hash matched at approval."
+        }
+      }
+    },
+    "mutations": [{"stage": "implementation", "at": 1789293205}]
+  },
+  "approval_policy": {"planning": {"approvers": ["independent-pr-2-approval-reviewer"]}},
+  "negative_proof": {"continuation_intent": "Commit and push and continue", "result": "continuation intent, not an artifact approval; can_enter_stage remains closed when it replaces the Specification approval intent."}
+}
