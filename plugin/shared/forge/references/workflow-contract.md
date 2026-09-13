@@ -62,8 +62,10 @@ phase it records.
 
 - Commit to the current branch unless it is protected (the default branch,
   `main`, `master`, `develop`, `release/*`, or host-protected). If protected,
-  suggest a branch name. Follow the repo's existing branch-naming convention
-  if one exists.
+  create and switch to a suggested branch name, then verify the current
+  branch is actually the new one before any commit — a suggested name that
+  is never created or switched to is not protection, it is a label. Follow
+  the repo's existing branch-naming convention if one exists.
 - If the user gives a new naming convention, ask to save it (default:
   `docs/contributing/git.md`, with one pointer line in root `AGENTS.md` or
   `CLAUDE.md` if either exists) and say why: later agents and people use the
@@ -83,8 +85,16 @@ plan. Checklist per task:
   - check: <command> -> PASS | FAIL | UNMEASURED
   - changed: <files this task touched>
   - deviation: <what differed from the plan, or "none">
-  - commit: <commit id, once committed>
+  - commit: pending | committed
 ```
+
+`commit` never holds a commit id: `progress.md` is committed together with
+the phase (or task) it records, so the id does not exist yet when this file
+is written and a commit cannot contain its own hash. `pending` means the
+task is done but not yet committed; `committed` means this line and the
+task's changes are going into the same commit. Find the actual id
+afterward with `git log` against `progress.md` or the task's files, if
+needed.
 
 Resume: the first box that is not `[x]` is where work continues. Files listed
 under a task's `changed:` are that task's own files. Re-run that task's proof

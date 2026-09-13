@@ -48,6 +48,9 @@ or checks still fail after retries: mark the task `[!]`, block its
 dependants, keep working other ready tasks, then stop and report. See
 [failure recovery](references/failure-recovery.md) for each case.
 
+When the plan's `commit_granularity` is `task`, a passed task is its own
+commit checkpoint: run step 5 now, before starting the next ready task.
+
 Done when: every ready task is `[x]` or terminally `[!]`.
 
 ## 4. Phase end (or end of a compact plan)
@@ -59,11 +62,15 @@ risk (ask the human if none is available), at most two fix loops.
 Done when: checks pass and no blocking finding remains, or you have stopped
 to report one that does.
 
-## 5. Stop before commit
+## 5. Commit checkpoint
 
-Show the summary and `progress.md`. On go: stage only this work's files,
-commit at the plan's `commit_granularity`, write the commit id into
-`progress.md`. Never push.
+One checkpoint per task when `commit_granularity: task`; one at phase end
+(or at the end of a compact plan) otherwise. Show the summary and
+`progress.md`, and ask "go?" — never commit without asking. On go: stage
+only this checkpoint's files, commit at the plan's `commit_granularity`,
+then mark its task(s) `commit: committed` in `progress.md` (never the
+commit's own id — see the shared contract's `progress.md` format for why).
+Never push.
 
-Done when: the user said go and the commit is recorded, or they said no and
-you stopped.
+Done when: the user said go and the checkpoint is recorded, or they said no
+and you stopped.

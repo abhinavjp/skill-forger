@@ -152,10 +152,51 @@
     "prompt": "BR-21861 is ready to commit on `main`, which is this repo's protected default branch. `docs/contributing/git.md` already defines a `feature/<slug>` naming convention.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["suggests a branch name following the existing feature/<slug> convention", "does not commit directly to main"] }
+      "outcome": { "assertions": ["suggests a branch name following the existing feature/<slug> convention", "creates and switches to that branch, then verifies the current branch is the new one", "does not commit directly to main"] }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if a protected-branch commit is redirected to a suggested name that follows the repo's own documented convention." }],
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if a protected-branch commit is redirected to a suggested name that follows the repo's own documented convention, the branch is actually created and switched to, the switch is verified before committing, and main never receives the commit." }],
     "tags": ["protected-branch", "git-convention"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-015",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "BR-21861's plan freezes commit_granularity: task. Two ready tasks with no dependency between them are both about to run.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["stops and asks \"go?\" once after the first task's proof passes, before touching the second task", "on go, commits only the first task's files before starting the second task", "repeats the same stop-then-commit checkpoint for the second task"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if task-granularity commit policy produces one user stop and one commit per completed task, in order, rather than batching both tasks into a single later commit." }],
+    "tags": ["task-granularity", "commit-policy", "stop-count"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-016",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "BR-21861 is ready to commit on the protected default branch. The suggested branch name is created, but the attempt to switch to it fails (e.g. a dirty-tree or naming conflict error from the version control tool).",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["does not proceed to stage or commit anything", "reports the failed switch instead of assuming it succeeded", "the working tree remains on the original protected branch"] },
+      "process": { "forbidden": ["committing to the protected branch as a fallback", "treating branch creation alone as equivalent to a verified switch"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if a failed branch switch blocks all commit work and is reported honestly, with no silent fallback to committing on the still-current protected branch and no assumption that creating a branch means the switch also succeeded." }],
+    "tags": ["protected-branch", "verified-switch", "failure-injection"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-017",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "A task's proof passes and the user says go at its commit checkpoint. Record the result in progress.md and make the commit.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["progress.md's commit field for this task reads pending before the commit and committed after it, never a commit id", "progress.md's update and the task's changes land in the same commit"] },
+      "process": { "forbidden": ["writing a commit hash into progress.md before the commit exists", "committing the code separately from the progress.md update that marks it done"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if progress.md never records a commit's own id, uses pending/committed instead, and the progress.md edit lands in the same commit as the task it records rather than a follow-up commit." }],
+    "tags": ["progress-md", "commit-recording", "no-self-reference"]
   },
   {
     "version": 1,
