@@ -640,6 +640,167 @@
   },
   {
     "version": 1,
+    "id": "FP-EX-033",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. It states outcome, scope, exclusions, the phase graph, executable frontier, integration points, cross-phase proof, and final acceptance, but assigns no stable ID to any requirement or invariant the phases cover.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing stable requirement/invariant IDs as a control-plane gap",
+          "does not mark the plan ready",
+          "does not invent IDs to fill the gap silently"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing stable requirement/invariant IDs as a control-plane shape defect, refuses to mark the plan ready until they exist, and does not silently invent them."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "stable-ids"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-034",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. Every requirement and invariant has a stable ID, and outcome, scope, phase graph, frontier, integration points, cross-phase proof, and final acceptance are all present, but no requirement or invariant ID says which phase or task actually satisfies it.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing requirement/invariant traceability as a control-plane gap",
+          "does not mark the plan ready",
+          "does not guess which phase or task satisfies each ID"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing requirement/invariant-to-phase traceability as a control-plane shape defect, refuses to mark the plan ready until it exists, and does not guess the mapping."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "traceability"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-035",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. It has stable IDs, full traceability, the phase graph, frontier, cross-phase proof, and final acceptance, but never states where or how phase 2 hands its output to phase 3, or what phase 3 assumes it will receive.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing integration point between phase 2 and phase 3 as a control-plane gap",
+          "does not mark the plan ready",
+          "does not assume a compatible handoff without stating it"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing inter-phase integration point as a control-plane shape defect, refuses to mark the plan ready until it is named, and does not silently assume the handoff is compatible."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "integration-points"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-036",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. Each phase's own proof only checks that phase in isolation; nothing in plan.md states how correctness is confirmed once phase 1 and phase 2's outputs interact end to end. Every other control-plane field is present.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing cross-phase proof as a control-plane gap",
+          "does not mark the plan ready",
+          "does not accept per-phase proof alone as sufficient for an end-to-end interaction"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing cross-phase proof as a control-plane shape defect, refuses to mark the plan ready until it exists, and does not treat isolated per-phase checks as sufficient for cross-phase correctness."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "cross-phase-proof"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-037",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. Every phase has its own local acceptance check, but plan.md never states the observable criteria that close the plan as a whole once every phase is done. Every other control-plane field is present.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing final acceptance criteria as a control-plane gap",
+          "does not mark the plan ready",
+          "does not treat the last phase's local acceptance as the plan's final acceptance"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing final-acceptance criteria as a control-plane shape defect, refuses to mark the plan ready until they exist, and does not conflate the final phase's local acceptance with whole-plan acceptance."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "final-acceptance"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-038",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a change to a payment-processing background worker whose correctness under production load cannot be confirmed by any automated test; the only way to know it behaves correctly is to watch its live metrics and logs after deploy.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "an observability control is included because this risk is real",
+          "the control names what live signal is watched and what it must show",
+          "automated checks alone are not claimed as sufficient"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the plan adds an observability control naming the live signal and its expected post-deploy state, and does not claim automated checks alone prove correctness for behavior that can only be confirmed live."
+      }
+    ],
+    "tags": ["detailed", "risk-controls", "observability"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-039",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Produce the detailed plan for a permission-boundary change that grants a support role read access to another tenant's records under a narrow, audited exception.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "a security control is included because this risk is real",
+          "the control names the boundary being changed and the audit evidence required",
+          "independent review is required for this phase"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the plan adds a security control naming the permission boundary and the audit evidence it requires, and routes the phase to independent review rather than same-agent review."
+      }
+    ],
+    "tags": ["detailed", "risk-controls", "security"]
+  },
+  {
+    "version": 1,
     "id": "FP-E-001",
     "kind": "execution",
     "category": "positive",

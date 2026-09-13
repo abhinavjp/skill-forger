@@ -13,9 +13,24 @@ Use after the user confirms `detailed`. Produce this tree:
 
 ## Control plane
 
-`plan.md` owns the facts every phase shares: outcome, scope, exclusions, the
-phase graph and executable frontier, and the default commit policy
-(`commit_granularity: phase`, `history_style: separate`).
+`plan.md` owns the facts every phase shares. Concise pointers are fine; do
+not duplicate a fact a phase or task file already owns.
+
+- Outcome, scope, exclusions, and the approved source basis.
+- Stable, canonical IDs for every requirement and invariant in scope, with
+  traceability to the phase or task that satisfies each one.
+- The phase dependency graph and executable frontier.
+- Integration points: where phases connect and what each hands the next.
+- Change policy and the default commit policy (`commit_granularity: phase`,
+  `history_style: separate`).
+- Cross-phase proof: evidence that spans phase boundaries and cannot be
+  proven inside any single phase.
+- Final acceptance: the observable criteria that close the whole plan, once
+  every phase is done.
+- Conditional controls, only where their risk exists (see Risk below):
+  rollback, idempotency, observability, compatibility
+  (expand-migrate-contract), security, and manual/live proof. Point to the
+  phase or task that carries each one; do not restate its detail here.
 
 ## Phases and tasks
 
