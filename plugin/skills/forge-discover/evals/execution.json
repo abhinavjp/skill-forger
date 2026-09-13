@@ -208,5 +208,25 @@
       { "type": "llm-judge", "rubric": "Pass only if forge-discover keeps re-running forge-clarify across rounds, including for a decision unblocked by an earlier answer, until forge-clarify reports nothing left unresolved." }
     ],
     "tags": ["clarify-loop", "decision-frontier", "closure"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-014",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "The user's Goal says: \"Guest checkout is failing for logged-out users on mobile; it should work the same as on desktop. Done when a guest can complete checkout on mobile.\" Desktop enforces a 20-item cart cap for signed-in users only; there is no existing guest-cart cap policy anywhere in the repo or product docs.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": [
+        "lists the guest cart-item-cap choice as an open decision",
+        "does not treat 'work the same as on desktop' as having settled the cap for guests",
+        "does not pick or default to a cap value in context.md"
+      ] },
+      "process": { "forbidden": ["resolving the cap choice by inference from the Goal's general parity language"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if a decision the Goal does not literally settle is flagged as open rather than resolved by generous reading of 'same as desktop'; fail if the response invents or assumes a cap." }
+    ],
+    "tags": ["decision-classification", "under-flagging", "goal-does-not-settle"]
   }
 ]

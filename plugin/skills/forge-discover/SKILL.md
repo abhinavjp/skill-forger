@@ -46,9 +46,19 @@ Below the Goal, record:
 - current repository/product behaviour relevant to the Goal;
 - evidence used, with enough locator to revisit it;
 - anything unavailable or unreadable, and its effect;
-- open human decisions, if any — do not resolve them here.
+- open human decisions.
 
-Done when: `context.md` exists with Goal first and the evidence below it.
+A decision is open unless the Goal's own words settle it. It stays open even
+if it seems implied, a sensible default exists, or the Goal covers something
+related but not this exact point. "Done when a guest can complete checkout
+on mobile" does not by itself settle a cart-cap, error-copy, or rate-limit
+choice for guests — each of those is still open. If closing something
+required you to infer, assume, or pick "the obvious answer," it was open:
+list it, do not resolve it here. When unsure, list it as open.
+
+Done when: `context.md` exists with Goal first and the evidence below it, and
+every choice you had to infer rather than read directly from the Goal is
+listed as an open decision, not silently assumed.
 
 ## 3. Close open decisions
 
