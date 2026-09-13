@@ -7,13 +7,13 @@
     "prompt": "Specify BR-21861. Approved context.md records current signed-in checkout, an unauthenticated cart route, and a payment integration. Approved decisions.md permits guest checkout and fixes session timeout at 30 minutes. Produce the plan-ready behavioural contract.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["produces spec.md with stable requirement identities", "defines guest checkout as changed behaviour and signed-in checkout as preserved behaviour", "preserves the approved 30-minute session timeout", "covers actors, state/data semantics, payment-contract behaviour, acceptance scenarios, success criteria, and traceability", "sets the created revision to awaiting-approval"] },
-      "process": { "required": ["uses approved context.md and decisions.md as inputs", "stops at the artifact-specific Specification approval gate"], "forbidden": ["reopening the settled timeout decision", "choosing an architecture, file path, class, or function"] }
+      "outcome": { "assertions": ["produces spec.md with stable requirement identities", "defines guest checkout as changed behaviour and signed-in checkout as preserved behaviour", "preserves the approved 30-minute session timeout", "covers actors, state/data semantics, payment-contract behaviour, acceptance scenarios, success criteria, and traceability", "reports spec.md as ready for forge-plan"] },
+      "process": { "required": ["uses approved context.md and decisions.md as inputs", "shows the ready spec.md and waits for the user's own go/approve words"], "forbidden": ["reopening the settled timeout decision", "choosing an architecture, file path, class, or function"] }
     },
     "graders": [
-      { "type": "llm-judge", "rubric": "Pass only if the response produces or precisely specifies an implementation-independent spec.md with stable requirement IDs, changed and unchanged checkout behaviour, the approved timeout, material actors/state/integration behaviour, testable acceptance scenarios and success criteria, and traceability to Discovery evidence and decisions. The new revision must be awaiting approval; it may not treat its creation or a workflow request as approval." }
+      { "type": "llm-judge", "rubric": "Pass only if the response produces or precisely specifies an implementation-independent spec.md with stable requirement IDs, changed and unchanged checkout behaviour, the approved timeout, material actors/state/integration behaviour, testable acceptance scenarios and success criteria, and traceability to Discovery evidence and decisions. It must present spec.md as ready for forge-plan and wait for the user's own words; it may not invent a revision-status field or approval-gate mechanism, and may not treat its own creation or a workflow request as approval." }
     ],
-    "tags": ["behavioural-completeness", "stable-ids", "approval-gate"]
+    "tags": ["behavioural-completeness", "stable-ids", "ready-for-plan"]
   },
   {
     "version": 1,
