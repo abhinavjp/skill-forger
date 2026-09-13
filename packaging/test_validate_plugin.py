@@ -1361,7 +1361,17 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 if PERSONAL_PATH_RE.search(finding["match"])
             ]
             self.assertEqual([], personal_paths, skill_id)
-            self.assertEqual([], report["platform_extensions"], skill_id)
+            # disable-model-invocation is the one accepted host-only-field
+            # exception (R22): user-invoked Skills pair it with an
+            # agents/openai.yaml policy, checked by invocation_policy below.
+            unexpected_extensions = [
+                extension for extension in report["platform_extensions"]
+                if extension.get("key") != "disable-model-invocation"
+            ]
+            self.assertEqual([], unexpected_extensions, skill_id)
+            if any(extension.get("key") == "disable-model-invocation"
+                   for extension in report["platform_extensions"]):
+                self.assertIsNone(report["invocation_policy"]["mismatch"], skill_id)
 
         self.assertEqual(sorted(EXPECTED_SKILL_IDS), sorted(names))
         self.assertEqual(len(names), len(set(names)))
