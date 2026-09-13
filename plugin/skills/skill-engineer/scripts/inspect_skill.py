@@ -234,6 +234,53 @@ def find_hardcoded_paths(root, files):
     return hits
 
 
+def _truthy(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return False
+
+
+def check_invocation_policy(root, frontmatter):
+    """Cross-check the one allowed host-only field against its Codex pair.
+
+    `disable-model-invocation: true` is the sole portable-frontmatter
+    exception (user-invoked Skills, Matt Pocock pattern). Claude Code,
+    Cursor, and Factory honour it directly; Codex needs the matching
+    `agents/openai.yaml` `policy.allow_implicit_invocation: false`. Either
+    field present without the other is a finding, not a hard error: some
+    Skills only ship for one host family.
+    """
+    disable_flag = _truthy(frontmatter.get("disable-model-invocation"))
+    openai_yaml = os.path.join(root, "agents", "openai.yaml")
+    openai_no_implicit = False
+    if os.path.isfile(openai_yaml):
+        content = _read(openai_yaml)
+        openai_no_implicit = bool(re.search(
+            r"allow_implicit_invocation\s*:\s*false", content))
+    mismatch = None
+    if disable_flag and not openai_no_implicit:
+        mismatch = ("disable-model-invocation is set but agents/openai.yaml "
+                    "does not set policy.allow_implicit_invocation: false "
+                    "(Codex keeps model-invoked)")
+    elif openai_no_implicit and not disable_flag:
+        mismatch = ("agents/openai.yaml sets policy.allow_implicit_invocation: "
+                    "false but SKILL.md frontmatter has no "
+                    "disable-model-invocation: true (Claude Code/Cursor/"
+                    "Factory keep model-invoked)")
+    return {
+        "disable_model_invocation": disable_flag,
+        "openai_no_implicit_invocation": openai_no_implicit,
+        "mismatch": mismatch,
+        # Known, accepted deviation: this field is outside the Agent Skills
+        # spec's allowed frontmatter (name, description, license,
+        # compatibility, metadata, allowed-tools), so a Skill using it fails
+        # `skills-ref validate`. Informational only; not a finding.
+        "fails_skills_ref_validate": disable_flag,
+    }
+
+
 def inspect(root):
     skill_md = os.path.join(root, "SKILL.md")
     if not os.path.isfile(skill_md):
@@ -302,6 +349,7 @@ def inspect(root):
         "reference_docs": [f for f in files
                            if f["path"].startswith("references/")],
         "platform_extensions": platform_extensions,
+        "invocation_policy": check_invocation_policy(root, frontmatter),
         "hardcoded_paths": hardcoded,
         "exact_duplicates": find_duplicate_blocks(root, files),
         "metrics": {
