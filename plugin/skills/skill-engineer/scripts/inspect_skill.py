@@ -242,6 +242,78 @@ def _truthy(value):
     return False
 
 
+_SIMPLE_KEY = r"[A-Za-z_][A-Za-z0-9_-]*"
+
+
+def _parse_simple_scalar(raw):
+    """Plain, single- or double-quoted scalar; flow collections rejected."""
+    if raw[:1] in ("'", '"'):
+        quote = raw[0]
+        end = raw.find(quote, 1)
+        if end == -1:
+            raise ValueError("unterminated quoted scalar")
+        rest = raw[end + 1:].strip()
+        if rest and not rest.startswith("#"):
+            raise ValueError("unexpected content after quoted scalar")
+        return raw[1:end]
+    value = re.split(r"\s+#", raw, maxsplit=1)[0].strip()
+    if not value or value[0] in "[]{}&*!|>%@`,":
+        raise ValueError("unsupported scalar: %r" % raw)
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return value
+
+
+def _parse_simple_yaml(text):
+    """Parse top-level keys holding scalars or one level of scalar mappings.
+
+    Return (data, error). Every line must fit the subset; the first line
+    that does not makes the whole document an error.
+    """
+    data = {}
+    parent = None
+    child_indent = None
+    for number, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "\t" in line[:len(line) - len(line.lstrip())]:
+            return None, "line %d: tab indentation" % number
+        indent = len(line) - len(line.lstrip(" "))
+        match = re.match(r"^(%s)\s*:(?:\s+(.*))?$" % _SIMPLE_KEY, stripped)
+        if not match:
+            return None, "line %d: not a supported key: value line" % number
+        key, raw = match.group(1), (match.group(2) or "").strip()
+        if raw.startswith("#"):
+            raw = ""
+        try:
+            if indent == 0:
+                if key in data:
+                    return None, "line %d: duplicate key %r" % (number, key)
+                if raw:
+                    data[key] = _parse_simple_scalar(raw)
+                    parent = None
+                else:
+                    data[key] = {}
+                    parent, child_indent = key, None
+                continue
+            if parent is None:
+                return None, "line %d: unexpected indentation" % number
+            if child_indent is None:
+                child_indent = indent
+            if indent != child_indent or not raw:
+                return None, "line %d: inconsistent or nested indentation" % number
+            if key in data[parent]:
+                return None, "line %d: duplicate key %r" % (number, key)
+            data[parent][key] = _parse_simple_scalar(raw)
+        except ValueError as exc:
+            return None, "line %d: %s" % (number, exc)
+    return data, None
+
+
 def _load_openai_policy(path):
     """Parse agents/openai.yaml structurally. Return (allow_implicit, error).
 
@@ -257,32 +329,17 @@ def _load_openai_policy(path):
         yaml = None
 
     if yaml is None:
-        # No PyYAML: only recognise the exact top-level-mapping shape,
-        # never a raw text search that a comment or wrong nesting can fool.
-        in_policy = False
-        for line in text.splitlines():
-            if re.match(r"^policy\s*:\s*$", line):
-                in_policy = True
-                continue
-            if in_policy:
-                if re.match(r"^\s", line):
-                    match = re.match(
-                        r"^\s+allow_implicit_invocation\s*:\s*(\S+)", line)
-                    if match:
-                        raw = match.group(1).strip("'\"").lower()
-                        if raw == "true":
-                            return True, None
-                        if raw == "false":
-                            return False, None
-                        return None, None
-                    continue
-                in_policy = False
-        return None, None
-
-    try:
-        data = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
-        return None, str(exc)
+        # No PyYAML: validate the whole document against a strict
+        # two-level-mapping subset before reading any value. Anything outside
+        # the subset is an error (fail closed), never an early-return match.
+        data, error = _parse_simple_yaml(text)
+        if error:
+            return None, error
+    else:
+        try:
+            data = yaml.safe_load(text)
+        except yaml.YAMLError as exc:
+            return None, str(exc)
     if not isinstance(data, dict):
         return None, None
     policy = data.get("policy")

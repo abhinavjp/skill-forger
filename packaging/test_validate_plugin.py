@@ -1397,7 +1397,9 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         )
         self.assertEqual(1, report["metrics"]["metadata_error_count"])
 
-    def _run_inspector_on_openai_yaml(self, openai_yaml_content: Optional[str]) -> dict:
+    def _run_inspector_on_openai_yaml(
+        self, openai_yaml_content: Optional[str], block_yaml: bool = False
+    ) -> dict:
         """Build a minimal disable-model-invocation Skill, run inspect_skill.py."""
         inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
         with tempfile.TemporaryDirectory() as directory:
@@ -1414,8 +1416,20 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 agents_dir = skill_dir / "agents"
                 agents_dir.mkdir()
                 (agents_dir / "openai.yaml").write_text(openai_yaml_content, encoding="utf-8")
+            if block_yaml:
+                # A `yaml` stub that raises ImportError hides any installed PyYAML.
+                stub_dir = skill_dir / "_no_yaml"
+                stub_dir.mkdir()
+                (stub_dir / "yaml.py").write_text("raise ImportError('blocked')\n", encoding="utf-8")
+                command = [sys.executable, "-c",
+                           "import runpy, sys; sys.path.insert(0, sys.argv[1]); "
+                           "sys.argv = sys.argv[2:]; "
+                           "runpy.run_path(sys.argv[0], run_name='__main__')",
+                           str(stub_dir), str(inspector), str(skill_dir)]
+            else:
+                command = [sys.executable, str(inspector), str(skill_dir)]
             proc = subprocess.run(
-                [sys.executable, str(inspector), str(skill_dir)],
+                command,
                 capture_output=True,
                 text=True,
             )
@@ -1457,6 +1471,29 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         self.assertFalse(report["invocation_policy"]["openai_no_implicit_invocation"])
         self.assertIsNotNone(report["invocation_policy"]["openai_yaml_error"])
         self.assertIsNotNone(report["invocation_policy"]["mismatch"])
+
+    def test_invocation_policy_check_without_pyyaml(self) -> None:
+        """The no-PyYAML fallback validates the whole file and fails closed."""
+        cases = {
+            "policy:\n  allow_implicit_invocation: false\n": True,
+            "# policy:\n#   allow_implicit_invocation: false\n": False,
+            "allow_implicit_invocation: false\npolicy:\n  x: true\n": False,
+            "policy:\n  allow_implicit_invocation: false\n bad_indent: [1, 2\n": False,
+            "bad: [1, 2\npolicy:\n  allow_implicit_invocation: false\n": False,
+            "policy:\n  allow_implicit_invocation: 'false'\n": False,
+        }
+        for content, expected in cases.items():
+            with self.subTest(content=content):
+                report = self._run_inspector_on_openai_yaml(content, block_yaml=True)
+                policy = report["invocation_policy"]
+                self.assertEqual(expected, policy["openai_no_implicit_invocation"])
+                if not expected:
+                    self.assertIsNotNone(policy["mismatch"])
+        malformed = self._run_inspector_on_openai_yaml(
+            "policy:\n  allow_implicit_invocation: false\n bad_indent: [1, 2\n",
+            block_yaml=True,
+        )
+        self.assertIsNotNone(malformed["invocation_policy"]["openai_yaml_error"])
 
     def test_skill_count_claims_are_derived_from_discovery(self) -> None:
         """A stale whole-set count in any manifest or install doc must fail.
