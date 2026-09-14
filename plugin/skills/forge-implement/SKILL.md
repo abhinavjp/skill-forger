@@ -14,12 +14,14 @@ approval, stops, `progress.md` format, checks, retry, and the phase gate.
 
 Look for a compact `plan.md` or a detailed `phases/` tree in `.forge/<work-item>/`
 (or the repo's own convention). None found: backfill it by running
-forge-plan (suggest compact mode) — and whatever forge-plan itself needs to
-backfill first (discover always; clarify only for open decisions). Collect
-the Goal, any open decisions with suggested answers, the mode, and the plan
-path, then show all of it in one message and ask "review or go?" once, per
-the shared contract's one combined stop. Edit nothing before that answer.
-Re-show the stop only if the answer changes the plan.
+forge-plan — and whatever forge-plan itself needs to backfill first
+(discover always; clarify only for open decisions). Let forge-plan's own
+seven-factor assessment choose compact or detailed; do not preset or
+suggest a mode. Collect the Goal, any open decisions with suggested
+answers, the chosen mode with forge-plan's reason, and the plan path, then
+show all of it in one message and ask "review or go?" once, per the shared
+contract's one combined stop. Edit nothing before that answer. Re-show the
+stop only if the answer changes the plan.
 
 Done when: you have one plan to run, and the user said go.
 

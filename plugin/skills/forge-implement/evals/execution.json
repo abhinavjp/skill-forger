@@ -33,10 +33,11 @@
     "prompt": "forge-implement is called for BR-21861 and no plan exists yet in .forge/BR-21861/.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["runs forge-plan (compact) first", "asks \"review or go?\"", "edits nothing before the user answers"] }
+      "outcome": { "assertions": ["backfills forge-plan without presetting or suggesting a mode", "carries forge-plan's seven-factor mode recommendation and its reason into the combined stop", "asks \"review or go?\"", "edits nothing before the user answers"] },
+      "process": { "forbidden": ["suggesting compact mode before forge-plan's seven-factor assessment runs"] }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if a missing plan is backfilled by running forge-plan and no file is touched before the user says go." }],
-    "tags": ["no-plan", "backfill"]
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if a missing plan is backfilled by running forge-plan without forge-implement presetting a mode, forge-plan's own seven-factor recommendation and its reason are shown in the combined stop, and no file is touched before the user says go." }],
+    "tags": ["no-plan", "backfill", "seven-factor"]
   },
   {
     "version": 1,
@@ -269,5 +270,19 @@
     },
     "graders": [{ "type": "deterministic", "check": { "kind": "validator", "validator": "declares-unmeasured-without-runner" } }],
     "tags": ["unmeasured", "honest-reporting"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-020",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "forge-implement is called for BR-21861 and no plan exists yet. The work touches only two files total, but one change performs an irreversible data migration with no rollback path.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["backfills forge-plan without presetting or suggesting compact mode", "forge-plan's seven-factor assessment recommends detailed because of the severe, irreversible migration, despite the small file count", "the detailed recommendation and its reason are carried into forge-implement's one combined stop"] },
+      "process": { "forbidden": ["recommending or defaulting to compact mode from the small file count alone", "skipping the seven-factor assessment because the change looks small"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the small file count does not by itself select compact mode; the severe reversibility factor (an irreversible migration with no rollback) drives a detailed recommendation with its reason stated, and compact is never preset or recommended for this case." }],
+    "tags": ["backfill", "seven-factor", "mode-selection"]
   }
 ]
