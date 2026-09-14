@@ -38,9 +38,19 @@ nothing.
 
 Resume: the first checklist box that is not `[x]` is where you continue.
 Files under that task's `changed:` are yours; re-run its proof before
-trusting its state.
+trusting its state. Then reconcile every `[x]` task's `commit:` field
+against git, not only the first non-`[x]` box:
 
-Done when: `progress.md` has a baseline and you know where to start.
+- `[x]` with `commit: pending` means a session stopped before its
+  checkpoint. Return to step 5's commit checkpoint for it, with a fresh
+  "go?", instead of silently moving on to the next task.
+- `[x]` with `commit: committed`: verify that some commit actually
+  contains that exact `progress.md` state. If none does (a crash between
+  marking and committing), report the mismatch and stop — do not re-run
+  the checkpoint or otherwise auto-fix it.
+
+Done when: `progress.md` has a baseline, every `[x]` task's `commit:`
+field is reconciled against git, and you know where to start.
 
 ## 3. Do each ready task
 

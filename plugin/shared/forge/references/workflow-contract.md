@@ -113,6 +113,13 @@ Resume: the first box that is not `[x]` is where work continues. Files listed
 under a task's `changed:` are that task's own files. Re-run that task's proof
 on resume before trusting its state.
 
+Also reconcile every `[x]` task's `commit:` field against git, not only the
+first non-`[x]` box. `[x]` with `commit: pending` means a session stopped
+before its checkpoint: return to the commit checkpoint for it, with a fresh
+"go?", instead of skipping it. `[x]` with `commit: committed`: verify a
+commit actually contains that exact `progress.md` state; if none does,
+report the mismatch and stop rather than auto-fixing it.
+
 List other people's uncommitted changes at the top of `progress.md` as
 "not mine". Never edit, stage, or commit them.
 
