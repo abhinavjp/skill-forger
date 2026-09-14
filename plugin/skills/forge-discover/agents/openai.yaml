@@ -1,0 +1,5 @@
+# Codex invocation policy for forge-discover.
+# Paired with `disable-model-invocation: true` in SKILL.md: the user calls
+# this Skill by name; Codex must not infer it from context.
+policy:
+  allow_implicit_invocation: false

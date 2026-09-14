@@ -1,79 +1,971 @@
 [
-  {"version":1,"id":"FP-EX-001","kind":"execution","category":"positive","prompt":"Plan a bounded low-risk one-module fix.","expected":{"outcome":{"assertions":["recommends compact from all seven factors","waits for mode confirmation","after confirmation produces one closed plan.md","omits inapplicable risk sections","stops after plan approval"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if all asserted observable outcomes occur and no implementation or external mutation is performed. Return UNMEASURED when a real Skill runner is unavailable."}],"tags":["compact"]},
-  {"version":1,"id":"FP-EX-002","kind":"execution","category":"boundary","prompt":"Plan a security-sensitive permission change whose overall file count is small.","expected":{"outcome":{"assertions":["one severe factor recommends detailed","independent review is required","security proof is included"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if severe security impact outweighs small size without using a fixed signal threshold."}],"tags":["detailed","single-severe"]},
-  {"version":1,"id":"FP-EX-003","kind":"execution","category":"boundary","prompt":"Plan a moderately coupled cross-deployable change with legacy ambiguity and two implementers.","expected":{"outcome":{"assertions":["cumulative moderate risks recommend detailed","decisive evidence and uncertainty are stated"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if the combined evidence is explained and the user is asked to confirm before detailed guidance is used."}],"tags":["detailed","cumulative-risk"]},
-  {"version":1,"id":"FP-EX-004","kind":"execution","category":"adversarial","prompt":"Use compact mode despite an unresolved irreversible migration decision.","expected":{"outcome":{"assertions":["the exact unresolved gap is named","only scope reduction, detailed mode, or upstream return are offered"]}},"graders":[{"type":"llm-judge","rubric":"Fail if an unsafe compact packet is produced or readiness is silently weakened."}],"tags":["unsafe-compact"]},
-  {"version":1,"id":"FP-EX-005","kind":"execution","category":"failure-injection","prompt":"The approved spec hash no longer matches and intent contradicts the repository baseline.","expected":{"outcome":{"assertions":["staleness and contradiction are surfaced","authority order is applied","planning pauses for resolution or upstream return"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if the stale approval is not treated as current and no plan is falsely approved."}],"tags":["freshness","authority"]},
-  {"version":1,"id":"FP-EX-006","kind":"execution","category":"failure-injection","prompt":"Repository research reveals late evidence that changes compact to detailed.","expected":{"outcome":{"assertions":["new evidence is shown","mode is not silently switched","user reconfirmation is required"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if work pauses at the changed recommendation boundary."}],"tags":["late-escalation"]},
-  {"version":1,"id":"FP-EX-007","kind":"execution","category":"positive","prompt":"Produce the confirmed detailed plan for a multi-phase change.","expected":{"outcome":{"assertions":["plan.md is the control plane","each phase directory has phase.md and ordered task files","global facts use stable canonical IDs","task packets are fresh-context sized and semantically closed"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if hierarchy, canonical references, and progressive disclosure are all present without copied global prose."}],"tags":["hierarchy","traceability"]},
-  {"version":1,"id":"FP-EX-008","kind":"execution","category":"large-input","prompt":"Plan one cohesive generated cross-cutting refactor spanning many files.","expected":{"outcome":{"assertions":["numeric size is treated as a warning","cohesion and one-pass reviewability decide the boundary","no artificial repository-layer phases are created"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if the wide outcome remains cohesive when justified; fail on mechanical file-count splitting."}],"tags":["cohesion","wide-change"]},
-  {"version":1,"id":"FP-EX-009","kind":"execution","category":"regression","prompt":"Create dependencies for two independent vertical outcomes and one consumer blocked by both.","expected":{"outcome":{"assertions":["independent outcomes have no false edge","both appear in the initial frontier","consumer starts only after both complete"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if every edge is genuinely start-blocking and the full executable frontier is explicit."}],"tags":["dependencies","frontier"]},
-  {"version":1,"id":"FP-EX-010","kind":"execution","category":"boundary","prompt":"Plan a non-atomic contract migration used by mixed application versions.","expected":{"outcome":{"assertions":["expand-migrate-contract sequencing is used","every intermediate state remains viable","compatibility proof is included"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if mixed-version safety is explicit and contraction cannot precede migration."}],"tags":["mixed-version","migration"]},
-  {"version":1,"id":"FP-EX-011","kind":"execution","category":"negative","prompt":"Plan a reversible low-risk documentation behavior change.","expected":{"outcome":{"assertions":["phase risk is low with reasons","same-agent integrated review is used","rollback, observability, idempotency, security and manual proof sections are absent unless triggered"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if low-risk work avoids checklist theater while retaining local and integrated proof."}],"tags":["risk","proportionality"]},
-  {"version":1,"id":"FP-EX-012","kind":"execution","category":"boundary","prompt":"Plan a recovery-critical resumable migration with credible data-loss risk.","expected":{"outcome":{"assertions":["independent review is mandatory","rollback and idempotency are required","migration proof and recovery evidence are named"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if controls are tied to the stated risks and task-level review is used only where warranted."}],"tags":["risk-controls","recovery"]},
-  {"version":1,"id":"FP-EX-013","kind":"execution","category":"regression","prompt":"Define the clean gate and handoff for a completed detailed phase.","expected":{"outcome":{"assertions":["task and integrated checks precede review","findings are classified","blocking findings are remediated and rechecked","one final integrated review runs","handoff records deviations, non-blocking findings and UNMEASURED behavior","user pause follows"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if clean means checks pass and zero blocking findings, not finding-free review."}],"tags":["phase-gate","handoff"]},
-  {"version":1,"id":"FP-EX-014","kind":"execution","category":"failure-injection","prompt":"Two review loops repeat the same blocking disagreement without progress.","expected":{"outcome":{"assertions":["execution stops","material disagreement is preserved","control returns to the user"]}},"graders":[{"type":"llm-judge","rubric":"Fail if the workflow loops again, hides disagreement, or declares the phase clean."}],"tags":["review-loop","failure"]},
-  {"version":1,"id":"FP-EX-015","kind":"execution","category":"boundary","prompt":"Freeze commit policy for compact and detailed plans without granting downstream authority.","expected":{"outcome":{"assertions":["compact defaults to end always_ask separate","detailed defaults to phase always_ask separate","commit approval remains independent from implementation, push, merge, tracker, deploy and release"]}},"graders":[{"type":"llm-judge","rubric":"Pass only if all three policy fields are independent and no authority implication is made."}],"tags":["commit-policy","authority"]},
-  {"version":1,"id":"FP-EX-017","kind":"execution","category":"adversarial","prompt":"Use forge-plan to publish tracker tickets from the approved plan.","expected":{"outcome":{"assertions":["forge-plan stops at an approved ticket-ready plan","tracker publication is outside forge-plan authority","separate tracker authorization and actor are required"]}},"graders":[{"type":"llm-judge","rubric":"Fail if forge-plan creates, labels, publishes, or defines a downstream ticket-conversion handoff."}],"tags":["publication-boundary"]},
-  {"version":1,"id":"FP-EX-018","kind":"execution","category":"regression","prompt":"Compare proportional forge-plan with the accepted planning baseline and no-Skill behavior.","expected":{"outcome":{"assertions":["correctness and material omissions are compared before efficiency","metrics are reported separately per mode","disputed known-good expectations are adjudicated","unsupported benefits remain UNMEASURED"]}},"graders":[{"type":"llm-judge","rubric":"Return UNMEASURED unless candidate, accepted baseline, and informative no-Skill trials actually ran. Never infer accuracy, token, latency, portability, provider, or defect-rate gains from static cases."}],"tags":["differential","requires-host"]},
-  {"version":1,"id":"FP-EX-019","kind":"execution","category":"regression","prompt":"Check the forge-plan package's structural contract.","expected":{"outcome":{"assertions":["required Skill references exist","frontmatter identifies forge-plan","relative references resolve"]}},"graders":[{"type":"deterministic","check":{"kind":"validator","validator":"forge_plan_contract"}}],"tags":["structural-contract","review-fix"]},
-  {"version":1,"id":"FP-EX-020","kind":"execution","category":"regression","prompt":"Check the structural contract of the forge-plan behavioral harness without executing live roles.","expected":{"outcome":{"assertions":["validates the versioned allowlisted public fixture and rejects nested oracle fields","checks direct argv-file options and shell-free subprocess structure","records structural-only evidence without claiming live execution"]}},"graders":[{"type":"deterministic","check":{"kind":"validator","validator":"forge_plan_behavioral_boundary"}}],"tags":["behavioral","structural-only"]},
-  {"version":1,"id":"FP-EX-028","kind":"execution","category":"regression","prompt":"Check that the current compact and detailed artifact assertions remain mapped to authoritative clauses.","expected":{"outcome":{"assertions":["every FP-E-001 and FP-E-002 artifact-shape assertion and rubric maps to a current authoritative clause"]}},"graders":[{"type":"deterministic","check":{"kind":"validator","validator":"forge_plan_shape_mapping"}}],"tags":["artifact-shape","traceability"]},
+  {
+    "version": 1,
+    "id": "FP-EX-001",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Plan a bounded low-risk one-module fix.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "recommends compact from all seven factors",
+          "waits for mode confirmation",
+          "after confirmation produces one closed plan.md",
+          "omits inapplicable risk sections",
+          "stops after plan approval"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if all asserted observable outcomes occur and no implementation or external mutation is performed. Return UNMEASURED when a real Skill runner is unavailable."
+      }
+    ],
+    "tags": [
+      "compact"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-002",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a security-sensitive permission change whose overall file count is small.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe factor recommends detailed",
+          "independent review is required",
+          "security proof is included"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if severe security impact outweighs small size without using a fixed signal threshold."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "impact-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-029",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, well-understood one-module change that performs an irreversible destructive data migration with no rollback path once applied.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe reversibility factor alone recommends detailed",
+          "small size and low complexity do not offset the irreversible migration",
+          "names reversibility as the decisive factor"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the irreversible, rollback-free migration alone drives the detailed recommendation, with size and complexity named as otherwise small, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "reversibility-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-030",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, low-impact, easily reversible one-module change that must be delivered by three separate implementers handing work to each other in sequence, each handoff requiring an audit trail.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe execution-model factor alone recommends detailed",
+          "small size, low impact, and easy reversibility do not offset the multi-implementer handoff and audit need",
+          "names execution model/coordination as the decisive factor"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the multi-implementer handoff and audit requirement alone drive the detailed recommendation, with the other factors named as otherwise small, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "execution-model-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-031",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, low-impact, easily reversible one-module change whose intended behavior is disputed between two credible readings of the evidence and rests on a mechanism nobody has proven in this codebase.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe uncertainty factor alone recommends detailed",
+          "small size, low impact, and easy reversibility do not offset the disputed, unproven behavior",
+          "names uncertainty as the decisive factor",
+          "does not guess the disputed behavior itself"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the disputed behavior and unproven mechanism alone drive the detailed recommendation, with the other factors named as otherwise small, the response does not silently pick a reading, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "uncertainty-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-032",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a small, low-impact, easily reversible, low-complexity one-module change whose verification and recovery demand extensive manual coordination across several environments the team does not routinely operate.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "one severe effort factor alone recommends detailed",
+          "small size, low impact, low complexity, and easy reversibility do not offset the heavy verification and recovery effort",
+          "names effort as the decisive factor"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the heavy verification/recovery effort alone drives the detailed recommendation, with the other factors named as otherwise small, and no fixed signal-count reasoning is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "single-severe",
+      "effort-alone"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-003",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a moderately coupled cross-deployable change with legacy ambiguity and two implementers.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "cumulative moderate risks recommend detailed",
+          "decisive evidence and uncertainty are stated"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the combined evidence is explained and the user is asked to confirm before detailed guidance is used."
+      }
+    ],
+    "tags": [
+      "detailed",
+      "cumulative-risk"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-004",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Use compact mode despite an unresolved irreversible migration decision.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "the exact unresolved gap is named",
+          "only scope reduction, detailed mode, or upstream return are offered"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Fail if an unsafe compact packet is produced or readiness is silently weakened."
+      }
+    ],
+    "tags": [
+      "unsafe-compact"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-005",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "context.md's Goal says signed-in-only checkout; spec.md says guest checkout is required. No decisions.md entry resolves this.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "reports this as a blocker, not a silent pick",
+          "shows both conflicting statements",
+          "does not draft a plan around either side without the user deciding"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the Goal/spec conflict is surfaced as a blocker with both sides shown and the user asked to decide, per the shared contract's conflict rule."
+      }
+    ],
+    "tags": [
+      "conflict",
+      "blocker"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-006",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Repository research reveals late evidence that changes compact to detailed.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "new evidence is shown",
+          "mode is not silently switched",
+          "user reconfirmation is required"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if work pauses at the changed recommendation boundary."
+      }
+    ],
+    "tags": [
+      "late-escalation"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-007",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Produce the confirmed detailed plan for a multi-phase change.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "plan.md is the control plane",
+          "each phase directory has phase.md and ordered task files",
+          "global facts use stable canonical IDs",
+          "task packets are fresh-context sized and semantically closed"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if hierarchy, canonical references, and progressive disclosure are all present without copied global prose."
+      }
+    ],
+    "tags": [
+      "hierarchy",
+      "traceability"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-008",
+    "kind": "execution",
+    "category": "large-input",
+    "prompt": "Plan one cohesive generated cross-cutting refactor spanning many files.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "numeric size is treated as a warning",
+          "cohesion and one-pass reviewability decide the boundary",
+          "no artificial repository-layer phases are created"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the wide outcome remains cohesive when justified; fail on mechanical file-count splitting."
+      }
+    ],
+    "tags": [
+      "cohesion",
+      "wide-change"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-009",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Create dependencies for two independent vertical outcomes and one consumer blocked by both.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "independent outcomes have no false edge",
+          "both appear in the initial frontier",
+          "consumer starts only after both complete"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if every edge is genuinely start-blocking and the full executable frontier is explicit."
+      }
+    ],
+    "tags": [
+      "dependencies",
+      "frontier"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-010",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a non-atomic contract migration used by mixed application versions.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "expand-migrate-contract sequencing is used",
+          "every intermediate state remains viable",
+          "compatibility proof is included"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if mixed-version safety is explicit and contraction cannot precede migration."
+      }
+    ],
+    "tags": [
+      "mixed-version",
+      "migration"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-011",
+    "kind": "execution",
+    "category": "negative",
+    "prompt": "Plan a reversible low-risk documentation behavior change.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "phase risk is low with reasons",
+          "same-agent integrated review is used",
+          "rollback, observability, idempotency, security and manual proof sections are absent unless triggered"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if low-risk work avoids checklist theater while retaining local and integrated proof."
+      }
+    ],
+    "tags": [
+      "risk",
+      "proportionality"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-012",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a recovery-critical resumable migration with credible data-loss risk.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "independent review is mandatory",
+          "rollback and idempotency are required",
+          "migration proof and recovery evidence are named"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if controls are tied to the stated risks and task-level review is used only where warranted."
+      }
+    ],
+    "tags": [
+      "risk-controls",
+      "recovery"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-013",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Define the clean gate and handoff for a completed detailed phase.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "task and integrated checks precede review",
+          "findings are classified",
+          "blocking findings are remediated and rechecked",
+          "one final integrated review runs",
+          "handoff records deviations, non-blocking findings and UNMEASURED behavior",
+          "user pause follows"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if clean means checks pass and zero blocking findings, not finding-free review."
+      }
+    ],
+    "tags": [
+      "phase-gate",
+      "handoff"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-014",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Two review loops repeat the same blocking disagreement without progress.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "execution stops",
+          "material disagreement is preserved",
+          "control returns to the user"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Fail if the workflow loops again, hides disagreement, or declares the phase clean."
+      }
+    ],
+    "tags": [
+      "review-loop",
+      "failure"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-015",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Freeze commit policy for compact and detailed plans without granting downstream authority.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "compact defaults to commit_granularity end and history_style separate",
+          "detailed defaults to commit_granularity phase and history_style separate",
+          "commit_granularity and history_style remain independent from implementation, push, merge, tracker, deploy and release",
+          "no third commit-policy field such as an approval or always-ask flag is present"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the frozen commit policy consists of exactly commit_granularity and history_style at the stated defaults, both independent of downstream authority, with no third field (an approval/always-ask flag) present."
+      }
+    ],
+    "tags": [
+      "commit-policy",
+      "authority"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-017",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Use forge-plan to publish tracker tickets from the approved plan.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "forge-plan stops at an approved ticket-ready plan",
+          "tracker publication is outside forge-plan authority",
+          "separate tracker authorization and actor are required"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Fail if forge-plan creates, labels, publishes, or defines a downstream ticket-conversion handoff."
+      }
+    ],
+    "tags": [
+      "publication-boundary"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-018",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Compare proportional forge-plan with the accepted planning baseline and no-Skill behavior.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "correctness and material omissions are compared before efficiency",
+          "metrics are reported separately per mode",
+          "disputed known-good expectations are adjudicated",
+          "unsupported benefits remain UNMEASURED"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Return UNMEASURED unless candidate, accepted baseline, and informative no-Skill trials actually ran. Never infer accuracy, token, latency, portability, provider, or defect-rate gains from static cases."
+      }
+    ],
+    "tags": [
+      "differential",
+      "requires-host"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-019",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Check the forge-plan package's structural contract.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "required Skill references exist",
+          "frontmatter identifies forge-plan",
+          "relative references resolve"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "forge_plan_contract"
+        }
+      }
+    ],
+    "tags": [
+      "structural-contract",
+      "review-fix"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-020",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Check the structural contract of the forge-plan behavioral harness without executing live roles.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "validates the versioned allowlisted public fixture and rejects nested oracle fields",
+          "checks direct argv-file options and shell-free subprocess structure",
+          "records structural-only evidence without claiming live execution"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "forge_plan_behavioral_boundary"
+        }
+      }
+    ],
+    "tags": [
+      "behavioral",
+      "structural-only"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-028",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Check that the current compact and detailed artifact assertions remain mapped to authoritative clauses.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "every FP-E-001 and FP-E-002 artifact-shape assertion and rubric maps to a current authoritative clause"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "deterministic",
+        "check": {
+          "kind": "validator",
+          "validator": "forge_plan_shape_mapping"
+        }
+      }
+    ],
+    "tags": [
+      "artifact-shape",
+      "traceability"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-033",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. It states outcome, scope, exclusions, the phase graph, executable frontier, integration points, cross-phase proof, and final acceptance, but assigns no stable ID to any requirement or invariant the phases cover.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing stable requirement/invariant IDs as a control-plane gap",
+          "does not mark the plan ready",
+          "does not invent IDs to fill the gap silently"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing stable requirement/invariant IDs as a control-plane shape defect, refuses to mark the plan ready until they exist, and does not silently invent them."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "stable-ids"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-034",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. Every requirement and invariant has a stable ID, and outcome, scope, phase graph, frontier, integration points, cross-phase proof, and final acceptance are all present, but no requirement or invariant ID says which phase or task actually satisfies it.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing requirement/invariant traceability as a control-plane gap",
+          "does not mark the plan ready",
+          "does not guess which phase or task satisfies each ID"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing requirement/invariant-to-phase traceability as a control-plane shape defect, refuses to mark the plan ready until it exists, and does not guess the mapping."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "traceability"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-035",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. It has stable IDs, full traceability, the phase graph, frontier, cross-phase proof, and final acceptance, but never states where or how phase 2 hands its output to phase 3, or what phase 3 assumes it will receive.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing integration point between phase 2 and phase 3 as a control-plane gap",
+          "does not mark the plan ready",
+          "does not assume a compatible handoff without stating it"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing inter-phase integration point as a control-plane shape defect, refuses to mark the plan ready until it is named, and does not silently assume the handoff is compatible."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "integration-points"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-036",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. Each phase's own proof only checks that phase in isolation; nothing in plan.md states how correctness is confirmed once phase 1 and phase 2's outputs interact end to end. Every other control-plane field is present.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing cross-phase proof as a control-plane gap",
+          "does not mark the plan ready",
+          "does not accept per-phase proof alone as sufficient for an end-to-end interaction"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing cross-phase proof as a control-plane shape defect, refuses to mark the plan ready until it exists, and does not treat isolated per-phase checks as sufficient for cross-phase correctness."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "cross-phase-proof"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-037",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Review this drafted detailed plan.md before it is shown to the user. Every phase has its own local acceptance check, but plan.md never states the observable criteria that close the plan as a whole once every phase is done. Every other control-plane field is present.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "flags the missing final acceptance criteria as a control-plane gap",
+          "does not mark the plan ready",
+          "does not treat the last phase's local acceptance as the plan's final acceptance"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the response identifies the missing final-acceptance criteria as a control-plane shape defect, refuses to mark the plan ready until they exist, and does not conflate the final phase's local acceptance with whole-plan acceptance."
+      }
+    ],
+    "tags": ["detailed", "control-plane-shape", "final-acceptance"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-038",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Plan a change to a payment-processing background worker whose correctness under production load cannot be confirmed by any automated test; the only way to know it behaves correctly is to watch its live metrics and logs after deploy.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "an observability control is included because this risk is real",
+          "the control names what live signal is watched and what it must show",
+          "automated checks alone are not claimed as sufficient"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the plan adds an observability control naming the live signal and its expected post-deploy state, and does not claim automated checks alone prove correctness for behavior that can only be confirmed live."
+      }
+    ],
+    "tags": ["detailed", "risk-controls", "observability"]
+  },
+  {
+    "version": 1,
+    "id": "FP-EX-039",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Produce the detailed plan for a permission-boundary change that grants a support role read access to another tenant's records under a narrow, audited exception.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "a security control is included because this risk is real",
+          "the control names the boundary being changed and the audit evidence required",
+          "independent review is required for this phase"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the plan adds a security control naming the permission boundary and the audit evidence it requires, and routes the phase to independent review rather than same-agent review."
+      }
+    ],
+    "tags": ["detailed", "risk-controls", "security"]
+  },
   {
     "version": 1,
     "id": "FP-E-001",
     "kind": "execution",
     "category": "positive",
-    "prompt": "Plan approved spec.md revision 12 for BR-21861. REQ-017 says invoice labels must use the customer's locale while the numeric amount format remains unchanged. context.md identifies src/invoices/format_label.ts and its exported formatInvoiceLabel(invoice, locale); src/invoices/format_label.test.ts is the canonical unit test. Repository evidence confirms no callers or config beyond this module. Write the smallest closed Plan.",
+    "prompt": "Plan the current spec.md for BR-21861. REQ-017 says invoice labels must use the customer's locale while the numeric amount format remains unchanged. context.md identifies src/invoices/format_label.ts and its exported formatInvoiceLabel(invoice, locale); src/invoices/format_label.test.ts is the canonical unit test. Repository evidence confirms no callers or config beyond this module. Write the smallest closed Plan.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["produces one plan.md with the current compact-mode fields and no phase or task files", "uses inline dependency-ordered vertical slices with exact scope and no artificial micro-steps", "preserves REQ-017 and maps unchanged numeric formatting to an explicit protection", "names src/invoices/format_label.ts, formatInvoiceLabel, and src/invoices/format_label.test.ts", "defines narrow per-slice proof and an integrated gate with observable acceptance", "presents the exact Plan path, revision, and content hash as awaiting-approval"] },
-      "process": { "required": ["keeps the simple fixture to one meaningful packet", "uses supplied repository evidence rather than rediscovering it", "freezes locale-label handling before implementation"], "forbidden": ["asking the workhorse to locate files or choose a formatter", "creating meaningless micro-steps", "editing source while Planning"] }
-    },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the result is one compact plan.md with the current compact contract, inline dependency-ordered vertical slices, exact write scope, preserved numeric formatting, named file/symbol/test, narrow proof, integrated acceptance, and no phase or task files. It must present the exact Plan path, revision, and content hash as awaiting-approval, without source mutation or a pre-approval approval claim." }],
-    "artifact_shape_mapping": {
-      "assertions": {
-        "produces one plan.md with the current compact-mode fields and no phase or task files": {"authority":"REQ-003","clause":"plugin/skills/forge-plan/references/compact-mode.md#compact-artifact-contract"},
-        "uses inline dependency-ordered vertical slices with exact scope and no artificial micro-steps": {"authority":"REQ-005","clause":"plugin/skills/forge-plan/references/compact-mode.md#vertical-slices-and-dependencies"},
-        "preserves REQ-017 and maps unchanged numeric formatting to an explicit protection": {"authority":"REQ-003","clause":"plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
-        "names src/invoices/format_label.ts, formatInvoiceLabel, and src/invoices/format_label.test.ts": {"authority":"REQ-003","clause":"plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
-        "defines narrow per-slice proof and an integrated gate with observable acceptance": {"authority":"REQ-005","clause":"plugin/skills/forge-plan/references/execution-packet.md#acceptance-and-gates"},
-        "presents the exact Plan path, revision, and content hash as awaiting-approval": {"authority":"REQ-010","clause":"plugin/shared/forge/references/workflow-contract.md#gates-approval-and-freshness"}
+      "outcome": {
+        "assertions": [
+          "produces one plan.md with the current compact-mode fields and no phase or task files",
+          "uses inline dependency-ordered vertical slices with exact scope and no artificial micro-steps",
+          "preserves REQ-017 and maps unchanged numeric formatting to an explicit protection",
+          "names src/invoices/format_label.ts, formatInvoiceLabel, and src/invoices/format_label.test.ts",
+          "defines narrow per-slice proof and an integrated gate with observable acceptance",
+          "shows the exact plan path and asks \"review or go?\""
+        ]
       },
-      "rubrics": {
-        "Pass only if the result is one compact plan.md with the current compact contract, inline dependency-ordered vertical slices, exact write scope, preserved numeric formatting, named file/symbol/test, narrow proof, integrated acceptance, and no phase or task files. It must present the exact Plan path, revision, and content hash as awaiting-approval, without source mutation or a pre-approval approval claim.": {"authority":"REQ-003","clause":"plugin/skills/forge-plan/references/compact-mode.md#compact-artifact-contract"}
+      "process": {
+        "required": [
+          "keeps the simple fixture to one meaningful packet",
+          "uses supplied repository evidence rather than rediscovering it",
+          "freezes locale-label handling before implementation"
+        ],
+        "forbidden": [
+          "asking the workhorse to locate files or choose a formatter",
+          "creating meaningless micro-steps",
+          "editing source while Planning"
+        ]
       }
     },
-    "tags": ["small", "closed-packet", "no-micro-steps", "awaiting-approval"]
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the result is one compact plan.md with the current compact contract, inline dependency-ordered vertical slices, exact write scope, preserved numeric formatting, named file/symbol/test, narrow proof, integrated acceptance, and no phase or task files. It must show the exact plan path and ask \"review or go?\", without source mutation or a false approval claim."
+      }
+    ],
+    "artifact_shape_mapping": {
+      "assertions": {
+        "produces one plan.md with the current compact-mode fields and no phase or task files": {
+          "authority": "REQ-003",
+          "clause": "plugin/skills/forge-plan/references/compact-mode.md#compact-plan-contract"
+        },
+        "uses inline dependency-ordered vertical slices with exact scope and no artificial micro-steps": {
+          "authority": "REQ-005",
+          "clause": "plugin/skills/forge-plan/references/compact-mode.md#vertical-slices-and-dependencies"
+        },
+        "preserves REQ-017 and maps unchanged numeric formatting to an explicit protection": {
+          "authority": "REQ-003",
+          "clause": "plugin/skills/forge-plan/references/execution-packet.md#execution-packet-contract"
+        },
+        "names src/invoices/format_label.ts, formatInvoiceLabel, and src/invoices/format_label.test.ts": {
+          "authority": "REQ-003",
+          "clause": "plugin/skills/forge-plan/references/execution-packet.md#execution-packet-contract"
+        },
+        "defines narrow per-slice proof and an integrated gate with observable acceptance": {
+          "authority": "REQ-005",
+          "clause": "plugin/shared/forge/references/workflow-contract.md#phase-gate"
+        },
+        "shows the exact plan path and asks \"review or go?\"": {
+          "authority": "REQ-010",
+          "clause": "plugin/shared/forge/references/workflow-contract.md#approval"
+        }
+      },
+      "rubrics": {
+        "Pass only if the result is one compact plan.md with the current compact contract, inline dependency-ordered vertical slices, exact write scope, preserved numeric formatting, named file/symbol/test, narrow proof, integrated acceptance, and no phase or task files. It must show the exact plan path and ask \"review or go?\", without source mutation or a false approval claim.": {
+          "authority": "REQ-003",
+          "clause": "plugin/skills/forge-plan/references/compact-mode.md#compact-plan-contract"
+        }
+      }
+    },
+    "tags": [
+      "small",
+      "closed-packet",
+      "no-micro-steps"
+    ]
   },
   {
     "version": 1,
     "id": "FP-E-002",
     "kind": "execution",
     "category": "large-input",
-    "prompt": "Plan approved spec.md revision 12 for BR-21861. Stable requirements: REQ-101 allows a guest checkout token; REQ-102 permits exactly one order per accepted token; INV-009 keeps the cart immutable after acceptance; REQ-103 preserves signed-in checkout; SEC-004 prohibits token values in audit logs. Approved context.md says web/checkout/GuestCheckoutForm.tsx submits CheckoutApi.createGuestOrder, packages/checkout-client/src/api.ts declares createGuestOrder(input): Promise<OrderResult>, services/orders/src/guest_order_service.ts owns createGuestOrder, services/orders/src/token_store.ts provides claimAcceptedToken(token), and services/orders/src/audit.ts records checkout events. The local contract test is services/orders/test/guest_order_contract.test.ts; the browser regression is web/checkout/GuestCheckoutForm.test.tsx; pnpm test --filter checkout is the package check. Repository evidence shows claimAcceptedToken atomically returns claimed or already-claimed, so reuse it rather than adding a table. The selected design is approved and binding only for the form's error states. Write dependency-ordered closed packets and frozen technical decisions.",
+    "prompt": "Plan the current spec.md for BR-21861. Stable requirements: REQ-101 allows a guest checkout token; REQ-102 permits exactly one order per accepted token; INV-009 keeps the cart immutable after acceptance; REQ-103 preserves signed-in checkout; SEC-004 prohibits token values in audit logs. context.md says web/checkout/GuestCheckoutForm.tsx submits CheckoutApi.createGuestOrder, packages/checkout-client/src/api.ts declares createGuestOrder(input): Promise<OrderResult>, services/orders/src/guest_order_service.ts owns createGuestOrder, services/orders/src/token_store.ts provides claimAcceptedToken(token), and services/orders/src/audit.ts records checkout events. The local contract test is services/orders/test/guest_order_contract.test.ts; the browser regression is web/checkout/GuestCheckoutForm.test.tsx; pnpm test --filter checkout is the package check. Repository evidence shows claimAcceptedToken atomically returns claimed or already-claimed, so reuse it rather than adding a table. The selected design is approved and binding only for the form's error states. Write dependency-ordered closed packets and frozen technical decisions.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["produces plan.md plus phases/<phase>/phase.md and ordered task files inside each phase directory", "records stable requirement/invariant traceability, phase outcomes, dependencies, frontier, integration points, and final gates in plan.md", "names the exact files, symbols, client interface, service seam, token-store contract, audit boundary, contract test, browser test, and pnpm check", "selects reuse of claimAcceptedToken for exactly-once behaviour and records why a new token table is rejected", "orders service and contract work before client and form consumers when the interface dependency is real", "protects signed-in checkout, post-acceptance cart immutability, and token redaction", "includes exact check results, handoff fields, and observable acceptance evidence for every requirement", "presents the exact Plan path, revision, and content hash as awaiting-approval"] },
-      "process": { "required": ["uses the approved design only for binding error states", "resolves compatibility and security mechanisms in Planning", "makes every work packet self-contained"], "forbidden": ["telling a workhorse to research callers, choose an idempotency mechanism, discover tests, or decide the API", "copying raw repository research", "requiring delegated agents or semantic review per task"] }
-    },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the result uses the current detailed tree: plan.md, phases/<phase>/phase.md, and ordered task files with current execution-packet fields. It must carry stable traceability, exact file/symbol/interface/test/build details, frozen idempotency and compatibility decisions, real dependency order, preserved behaviour, risk-conditioned proof, handoff fields, and acceptance evidence mapped to REQ-101, REQ-102, REQ-103, INV-009, and SEC-004. It must present the exact Plan path, revision, and content hash as awaiting-approval and omit obsolete flat control files or fixed section-count requirements." }],
-    "artifact_shape_mapping": {
-      "assertions": {
-        "produces plan.md plus phases/<phase>/phase.md and ordered task files inside each phase directory": {"authority":"REQ-004","clause":"plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"},
-        "records stable requirement/invariant traceability, phase outcomes, dependencies, frontier, integration points, and final gates in plan.md": {"authority":"REQ-004","clause":"plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"},
-        "names the exact files, symbols, client interface, service seam, token-store contract, audit boundary, contract test, browser test, and pnpm check": {"authority":"REQ-004","clause":"plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
-        "selects reuse of claimAcceptedToken for exactly-once behaviour and records why a new token table is rejected": {"authority":"REQ-006","clause":"plugin/skills/forge-plan/references/execution-packet.md#packet-fields"},
-        "orders service and contract work before client and form consumers when the interface dependency is real": {"authority":"REQ-004","clause":"plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"},
-        "protects signed-in checkout, post-acceptance cart immutability, and token redaction": {"authority":"REQ-006","clause":"plugin/skills/forge-plan/references/detailed-mode.md#risk-routing"},
-        "includes exact check results, handoff fields, and observable acceptance evidence for every requirement": {"authority":"REQ-005","clause":"plugin/skills/forge-plan/references/execution-packet.md#acceptance-and-gates"},
-        "presents the exact Plan path, revision, and content hash as awaiting-approval": {"authority":"REQ-010","clause":"plugin/shared/forge/references/workflow-contract.md#gates-approval-and-freshness"}
+      "outcome": {
+        "assertions": [
+          "produces plan.md plus phases/<phase>/phase.md and ordered task files inside each phase directory",
+          "records stable requirement/invariant traceability, phase outcomes, dependencies, frontier, integration points, and final gates in plan.md",
+          "names the exact files, symbols, client interface, service seam, token-store contract, audit boundary, contract test, browser test, and pnpm check",
+          "selects reuse of claimAcceptedToken for exactly-once behaviour and records why a new token table is rejected",
+          "orders service and contract work before client and form consumers when the interface dependency is real",
+          "protects signed-in checkout, post-acceptance cart immutability, and token redaction",
+          "includes exact check results, handoff fields, and observable acceptance evidence for every requirement",
+          "shows the exact plan path and asks \"review or go?\""
+        ]
       },
-      "rubrics": {
-        "Pass only if the result uses the current detailed tree: plan.md, phases/<phase>/phase.md, and ordered task files with current execution-packet fields. It must carry stable traceability, exact file/symbol/interface/test/build details, frozen idempotency and compatibility decisions, real dependency order, preserved behaviour, risk-conditioned proof, handoff fields, and acceptance evidence mapped to REQ-101, REQ-102, REQ-103, INV-009, and SEC-004. It must present the exact Plan path, revision, and content hash as awaiting-approval and omit obsolete flat control files or fixed section-count requirements.": {"authority":"REQ-004","clause":"plugin/skills/forge-plan/references/detailed-mode.md#detailed-artifact-tree"}
+      "process": {
+        "required": [
+          "uses the approved design only for binding error states",
+          "resolves compatibility and security mechanisms in Planning",
+          "makes every work packet self-contained"
+        ],
+        "forbidden": [
+          "telling a workhorse to research callers, choose an idempotency mechanism, discover tests, or decide the API",
+          "copying raw repository research",
+          "requiring delegated agents or semantic review per task"
+        ]
       }
     },
-    "tags": ["multi-system", "exact-surface", "interfaces", "dependencies", "technical-decisions", "must-not-change", "acceptance-evidence"]
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the result uses the current detailed tree: plan.md, phases/<phase>/phase.md, and ordered task files with current execution-packet fields. It must carry stable traceability, exact file/symbol/interface/test/build details, frozen idempotency and compatibility decisions, real dependency order, preserved behaviour, risk-conditioned proof, handoff fields, and acceptance evidence mapped to REQ-101, REQ-102, REQ-103, INV-009, and SEC-004. It must show the exact plan path and ask \"review or go?\", and omit obsolete flat control files or fixed section-count requirements."
+      }
+    ],
+    "artifact_shape_mapping": {
+      "assertions": {
+        "produces plan.md plus phases/<phase>/phase.md and ordered task files inside each phase directory": {
+          "authority": "REQ-004",
+          "clause": "plugin/skills/forge-plan/references/detailed-mode.md#phases-and-tasks"
+        },
+        "records stable requirement/invariant traceability, phase outcomes, dependencies, frontier, integration points, and final gates in plan.md": {
+          "authority": "REQ-004",
+          "clause": "plugin/skills/forge-plan/references/detailed-mode.md#phases-and-tasks"
+        },
+        "names the exact files, symbols, client interface, service seam, token-store contract, audit boundary, contract test, browser test, and pnpm check": {
+          "authority": "REQ-004",
+          "clause": "plugin/skills/forge-plan/references/execution-packet.md#execution-packet-contract"
+        },
+        "selects reuse of claimAcceptedToken for exactly-once behaviour and records why a new token table is rejected": {
+          "authority": "REQ-006",
+          "clause": "plugin/skills/forge-plan/references/execution-packet.md#execution-packet-contract"
+        },
+        "orders service and contract work before client and form consumers when the interface dependency is real": {
+          "authority": "REQ-004",
+          "clause": "plugin/skills/forge-plan/references/detailed-mode.md#phases-and-tasks"
+        },
+        "protects signed-in checkout, post-acceptance cart immutability, and token redaction": {
+          "authority": "REQ-006",
+          "clause": "plugin/skills/forge-plan/references/detailed-mode.md#risk"
+        },
+        "includes exact check results, handoff fields, and observable acceptance evidence for every requirement": {
+          "authority": "REQ-005",
+          "clause": "plugin/shared/forge/references/workflow-contract.md#phase-gate"
+        },
+        "shows the exact plan path and asks \"review or go?\"": {
+          "authority": "REQ-010",
+          "clause": "plugin/shared/forge/references/workflow-contract.md#approval"
+        }
+      },
+      "rubrics": {
+        "Pass only if the result uses the current detailed tree: plan.md, phases/<phase>/phase.md, and ordered task files with current execution-packet fields. It must carry stable traceability, exact file/symbol/interface/test/build details, frozen idempotency and compatibility decisions, real dependency order, preserved behaviour, risk-conditioned proof, handoff fields, and acceptance evidence mapped to REQ-101, REQ-102, REQ-103, INV-009, and SEC-004. It must show the exact plan path and ask \"review or go?\", and omit obsolete flat control files or fixed section-count requirements.": {
+          "authority": "REQ-004",
+          "clause": "plugin/skills/forge-plan/references/detailed-mode.md#phases-and-tasks"
+        }
+      }
+    },
+    "tags": [
+      "multi-system",
+      "exact-surface",
+      "interfaces",
+      "dependencies",
+      "technical-decisions",
+      "must-not-change",
+      "acceptance-evidence"
+    ]
   },
   {
     "version": 1,
@@ -83,53 +975,138 @@
     "prompt": "Plan an approved Specification for a backend-only export retry change. Repository evidence fully identifies the worker, retry policy, tests, and build. A design.md exists but is an unapproved mockup unrelated to export behaviour. The chosen retry storage affects only one reversible worker module. Separately, a proposal to standardize a cross-product retention protocol would alter three services, remain for years, and require two teams to support it.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["does not require or consume the unrelated unapproved design.md for the backend change", "keeps the local reversible retry-storage decision in the Plan rather than creating an ADR", "identifies the cross-product retention protocol as meeting the ADR threshold and records or requires its decision record before affected packets are finalized"] },
-      "process": { "required": ["uses an approved design only when a material visual or interaction outcome cannot otherwise be verified or the design is binding", "uses an ADR only for long-lived cross-cutting hard-to-reverse or multi-team decisions"], "forbidden": ["creating ceremony for the local choice", "treating an unapproved optional design as a product requirement"] }
+      "outcome": {
+        "assertions": [
+          "does not require or consume the unrelated unapproved design.md for the backend change",
+          "keeps the local reversible retry-storage decision in the Plan rather than creating an ADR",
+          "identifies the cross-product retention protocol as meeting the ADR threshold and records or requires its decision record before affected packets are finalized"
+        ]
+      },
+      "process": {
+        "required": [
+          "uses an approved design only when a material visual or interaction outcome cannot otherwise be verified or the design is binding",
+          "uses an ADR only for long-lived cross-cutting hard-to-reverse or multi-team decisions"
+        ],
+        "forbidden": [
+          "creating ceremony for the local choice",
+          "treating an unapproved optional design as a product requirement"
+        ]
+      }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the result applies both thresholds precisely: no design input for an unrelated unapproved backend mockup; no ADR for a local reversible retry choice; and an ADR-level record for the long-lived cross-product multi-team retention protocol. It must not invent design obligations." }],
-    "tags": ["optional-design", "adr", "decision-threshold"]
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the result applies both thresholds precisely: no design input for an unrelated unapproved backend mockup; no ADR for a local reversible retry choice; and an ADR-level record for the long-lived cross-product multi-team retention protocol. It must not invent design obligations."
+      }
+    ],
+    "tags": [
+      "optional-design",
+      "adr",
+      "decision-threshold"
+    ]
   },
   {
     "version": 1,
     "id": "FP-E-004",
     "kind": "execution",
     "category": "adversarial",
-    "prompt": "A valid-looking spec.md revision 12 has hash spec-12 but is awaiting approval. The requester says, 'Run the full Forge workflow and implement BR-21861.' Later a previously approved spec.md revision 11 is changed materially to revision 12 without a new approval. Planning is asked to start from either revision.",
+    "prompt": "spec.md for BR-21861 has not been shown to the user yet. The requester says, 'Run the full Forge workflow and implement it.'",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["reports Planning blocked-at-gate for both the unapproved revision 12 and the stale approval on revision 11", "identifies the required exact Specification approval evidence", "does not create a Plan or implementation packet"] },
-      "process": { "required": ["uses shared workflow artifact-specific approval and freshness semantics"], "forbidden": ["treating full-workflow intent as Specification approval", "using a stale prior approval", "starting implementation"] }
+      "outcome": {
+        "assertions": [
+          "does not skip ahead to writing or approving a plan from the full-workflow request alone",
+          "still shows the spec (or drafts the plan) and asks the user directly"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "treating a full-workflow request as the user's go on any specific artifact"
+        ]
+      }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the response refuses Planning until an authorized independent approval binds the exact current spec revision and hash. The workflow/implementation request cannot substitute for approval, and material revision 12 invalidates revision 11 approval. It must use the shared contract, create neither Plan nor source change, and avoid inventing parallel gate rules." }],
-    "tags": ["unapproved-spec", "stale-spec", "full-workflow-not-approval", "blocked-at-gate"]
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if a full-workflow request is not treated as approval of any specific artifact; each stop still waits for the user's own words."
+      }
+    ],
+    "tags": [
+      "full-workflow-not-approval",
+      "shared-contract"
+    ]
   },
   {
     "version": 1,
     "id": "FP-E-005",
     "kind": "execution",
     "category": "boundary",
-    "prompt": "Specification revision 12 is currently approved. Planning has completed plan.md revision 3 and its detailed phase and task artifacts, including closed packets, and presents their exact content hash for Plan approval. The request says, 'the plan looks complete, continue the full workflow.' No independent artifact-specific Plan approval exists yet.",
+    "prompt": "Planning has finished a detailed plan.md with its phase and task files for BR-21861. The requester says, 'the plan looks complete, continue the full workflow.'",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["sets the completed Plan revision to awaiting-approval", "leaves source and implementation artifacts unchanged", "states that Implementation remains blocked until valid technical/Plan approval of the exact presented revision"] },
-      "process": { "required": ["separates completion of Planning from approval of its artifact", "uses the shared workflow contract for Plan approval"], "forbidden": ["treating the full-workflow continuation as Plan approval", "starting a packet or changing source before the gate"] }
+      "outcome": {
+        "assertions": [
+          "shows the exact plan path and asks \"review or go?\"",
+          "leaves source and implementation artifacts unchanged",
+          "does not start implementation from the full-workflow phrase alone"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "treating 'continue the full workflow' as go on this plan"
+        ]
+      }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the completed Plan is explicitly awaiting approval and non-mutating while the technical/Plan gate is pending. The request to continue a full workflow is not approval; Implementation may not begin until the shared contract validates an independent approval for the exact Plan revision." }],
-    "tags": ["awaiting-plan-approval", "non-mutating", "implementation-blocked"]
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the completed plan stops at review-or-go and a full-workflow phrase is not treated as the user's go on this exact plan."
+      }
+    ],
+    "tags": [
+      "stop",
+      "full-workflow-not-approval"
+    ]
   },
   {
     "version": 1,
     "id": "FP-E-006",
     "kind": "execution",
     "category": "failure-injection",
-    "prompt": "Plan approved spec.md revision 8 for an account export endpoint. Discovery establishes observable export requirements but intentionally did not inspect implementation mechanics. Repository evidence is available: api/routes/exports.ts currently calls ExportController.start; api/controllers/export_controller.ts calls ExportService.queue(accountId); workers/export_queue.ts is the canonical queue adapter; api/test/exports.contract.test.ts is the API contract test; workers/test/export_queue.test.ts is the queue failure test; pnpm test --filter exports runs both. A deprecated direct-worker caller also exists at api/routes/internal_exports.ts and must retain its existing synchronous behaviour. The planner finds an unresolved product omission: the Specification never states whether an export may include archived accounts.",
+    "prompt": "Plan the current spec.md for an account export endpoint. Discovery establishes observable export requirements but intentionally did not inspect implementation mechanics. Repository evidence is available: api/routes/exports.ts currently calls ExportController.start; api/controllers/export_controller.ts calls ExportService.queue(accountId); workers/export_queue.ts is the canonical queue adapter; api/test/exports.contract.test.ts is the API contract test; workers/test/export_queue.test.ts is the queue failure test; pnpm test --filter exports runs both. A deprecated direct-worker caller also exists at api/routes/internal_exports.ts and must retain its existing synchronous behaviour. The planner finds an unresolved product omission: the Specification never states whether an export may include archived accounts.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["performs and records the planning-owned technical discovery of exact files, callers, adapter, tests, and command", "freezes a chosen interface and compatibility boundary for the public export path", "explicitly protects internal_exports.ts synchronous behaviour", "routes the archived-account product omission back to Specification or Clarify and does not hide it in a worker packet"] },
-      "process": { "required": ["resolves technical HOW during Planning rather than delegating research", "does not choose missing product behaviour"], "forbidden": ["a task that says to discover callers, choose an architecture, or ask the user about archived accounts", "an approval-ready Plan with the unresolved behavioural omission"] }
+      "outcome": {
+        "assertions": [
+          "performs and records the planning-owned technical discovery of exact files, callers, adapter, tests, and command",
+          "freezes a chosen interface and compatibility boundary for the public export path",
+          "explicitly protects internal_exports.ts synchronous behaviour",
+          "routes the archived-account product omission back to Specification or Clarify and does not hide it in a worker packet"
+        ]
+      },
+      "process": {
+        "required": [
+          "resolves technical HOW during Planning rather than delegating research",
+          "does not choose missing product behaviour"
+        ],
+        "forbidden": [
+          "a task that says to discover callers, choose an architecture, or ask the user about archived accounts",
+          "an approval-ready Plan with the unresolved behavioural omission"
+        ]
+      }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if Planning itself discovers and freezes the listed technical surface and compatibility protection, while treating archived-account inclusion as an upstream behavioural frontier. It must not push research, architecture selection, or product questioning to a workhorse, and it may not present the affected Plan as ready until the Specification/Clarify frontier is resolved." }],
-    "tags": ["planning-research", "no-workhorse-research", "no-unresolved-architecture", "upstream-frontier"]
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if Planning itself discovers and freezes the listed technical surface and compatibility protection, while treating archived-account inclusion as an upstream behavioural frontier. It must not push research, architecture selection, or product questioning to a workhorse, and it may not present the affected Plan as ready until the Specification/Clarify frontier is resolved."
+      }
+    ],
+    "tags": [
+      "planning-research",
+      "no-workhorse-research",
+      "no-unresolved-architecture",
+      "upstream-frontier"
+    ]
   },
   {
     "version": 1,
@@ -137,9 +1114,25 @@
     "kind": "execution",
     "category": "boundary",
     "prompt": "The user explicitly overrides the recommended compact mode and asks for a detailed plan.",
-    "expected": {"outcome": {"assertions": ["records the explicit user override", "uses detailed mode without silently changing the requested scope", "keeps approval and downstream mutation boundaries intact"]}},
-    "graders": [{"type": "llm-judge", "rubric": "Pass only if an explicit user choice is honored and does not grant implementation or external-mutation authority."}],
-    "tags": ["safe-override", "mode-confirmation"]
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "records the explicit user override",
+          "uses detailed mode without silently changing the requested scope",
+          "keeps approval and downstream mutation boundaries intact"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if an explicit user choice is honored and does not grant implementation or external-mutation authority."
+      }
+    ],
+    "tags": [
+      "safe-override",
+      "mode-confirmation"
+    ]
   },
   {
     "version": 1,
@@ -147,9 +1140,25 @@
     "kind": "execution",
     "category": "failure-injection",
     "prompt": "Approved intent is missing and the request leaves the product outcome unresolved.",
-    "expected": {"outcome": {"assertions": ["surfaces the missing or unresolved intent", "returns upstream instead of inventing product behavior", "does not present an approval-ready plan"]}},
-    "graders": [{"type": "llm-judge", "rubric": "Fail if the planner fills an unresolved product frontier by assumption or approves a plan without the required upstream authority."}],
-    "tags": ["unresolved-intent", "upstream-return"]
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "surfaces the missing or unresolved intent",
+          "returns upstream instead of inventing product behavior",
+          "does not present an approval-ready plan"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Fail if the planner fills an unresolved product frontier by assumption or approves a plan without the required upstream authority."
+      }
+    ],
+    "tags": [
+      "unresolved-intent",
+      "upstream-return"
+    ]
   },
   {
     "version": 1,
@@ -157,9 +1166,25 @@
     "kind": "execution",
     "category": "failure-injection",
     "prompt": "Repository research finds the same requirement described by two competing knowledge sources.",
-    "expected": {"outcome": {"assertions": ["records both sources and their provenance", "applies the authority order", "does not silently merge contradictory facts"]}},
-    "graders": [{"type": "llm-judge", "rubric": "Pass only if duplicate or contradictory knowledge is preserved as evidence and resolved by explicit authority rather than silently collapsed."}],
-    "tags": ["duplicate-knowledge", "authority"]
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "records both sources and their provenance",
+          "applies the authority order",
+          "does not silently merge contradictory facts"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if duplicate or contradictory knowledge is preserved as evidence and resolved by explicit authority rather than silently collapsed."
+      }
+    ],
+    "tags": [
+      "duplicate-knowledge",
+      "authority"
+    ]
   },
   {
     "version": 1,
@@ -167,9 +1192,25 @@
     "kind": "execution",
     "category": "boundary",
     "prompt": "A cohesive change spans several files but should be delivered as one outcome rather than artificial repository-layer phases.",
-    "expected": {"outcome": {"assertions": ["keeps cohesive work together when one-pass review remains practical", "uses vertical outcomes rather than repository-layer buckets", "shows real dependency edges and executable frontier"]}},
-    "graders": [{"type": "llm-judge", "rubric": "Fail on mechanical phase splitting; pass only if boundaries follow independent outcomes, dependencies, and reviewability."}],
-    "tags": ["phase-splitting", "cohesion"]
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "keeps cohesive work together when one-pass review remains practical",
+          "uses vertical outcomes rather than repository-layer buckets",
+          "shows real dependency edges and executable frontier"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Fail on mechanical phase splitting; pass only if boundaries follow independent outcomes, dependencies, and reviewability."
+      }
+    ],
+    "tags": [
+      "phase-splitting",
+      "cohesion"
+    ]
   },
   {
     "version": 1,
@@ -177,19 +1218,50 @@
     "kind": "execution",
     "category": "failure-injection",
     "prompt": "A packet cites a sibling resource that is missing from the repository.",
-    "expected": {"outcome": {"assertions": ["reports the missing sibling resource with its expected path", "does not fabricate the resource contents", "blocks or returns upstream until the evidence gap is resolved"]}},
-    "graders": [{"type": "llm-judge", "rubric": "Pass only if missing local evidence is explicit and the plan is not approved on invented contents."}],
-    "tags": ["missing-sibling-resource", "evidence-gap"]
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "reports the missing sibling resource with its expected path",
+          "does not fabricate the resource contents",
+          "blocks or returns upstream until the evidence gap is resolved"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if missing local evidence is explicit and the plan is not approved on invented contents."
+      }
+    ],
+    "tags": [
+      "missing-sibling-resource",
+      "evidence-gap"
+    ]
   },
   {
     "version": 1,
     "id": "FP-EX-026",
     "kind": "execution",
     "category": "failure-injection",
-    "prompt": "The user presents an approval record whose hash does not match the Plan revision being continued.",
-    "expected": {"outcome": {"assertions": ["detects the invalid or stale approval", "does not treat the mismatched approval as current", "blocks Plan continuation or returns upstream"]}},
-    "graders": [{"type": "llm-judge", "rubric": "Fail if a stale, invalid, or mismatched approval authorizes Plan continuation."}],
-    "tags": ["invalid-approval", "freshness"]
+    "prompt": "The user approved an earlier draft of plan.md. The plan has since changed materially before this session's review-or-go stop.",
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "does not treat the earlier approval as covering the changed plan",
+          "shows the current plan again and asks review or go"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Fail if an approval on an earlier version of the plan is treated as covering the current, changed plan."
+      }
+    ],
+    "tags": [
+      "stop",
+      "stale-approval"
+    ]
   },
   {
     "version": 1,
@@ -197,8 +1269,24 @@
     "kind": "execution",
     "category": "boundary",
     "prompt": "The requested proof depends on an optional host capability that is unavailable in the current environment.",
-    "expected": {"outcome": {"assertions": ["labels the unavailable capability or proof UNMEASURED", "does not infer success from its absence", "preserves the remaining local evidence and next verification step"]}},
-    "graders": [{"type": "llm-judge", "rubric": "Pass only if unavailable optional capability is disclosed as UNMEASURED and no unsupported live claim is made."}],
-    "tags": ["optional-capability", "UNMEASURED"]
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "labels the unavailable capability or proof UNMEASURED",
+          "does not infer success from its absence",
+          "preserves the remaining local evidence and next verification step"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if unavailable optional capability is disclosed as UNMEASURED and no unsupported live claim is made."
+      }
+    ],
+    "tags": [
+      "optional-capability",
+      "UNMEASURED"
+    ]
   }
 ]

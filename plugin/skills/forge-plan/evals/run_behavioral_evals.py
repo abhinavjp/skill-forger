@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 HERE = Path(__file__).resolve().parent
 SKILL_ROOT = HERE.parent
-DEFAULT_FIXTURE = HERE / "fixtures" / "approved-planning-context.json"
+DEFAULT_FIXTURE = HERE / "fixtures" / "ready-planning-context.json"
 PRIVATE_BASELINE_FIXTURE = HERE / "fixtures" / "brain-plan-scenarios.json"
 SCRIPTS = SKILL_ROOT.parent / "skill-engineer" / "scripts"
 if str(SCRIPTS) not in sys.path:

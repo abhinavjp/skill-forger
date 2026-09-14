@@ -19,7 +19,6 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from plugin.shared.forge.evals import run_static_evals
-from plugin.shared.forge.scripts import workflow_state
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -141,21 +140,12 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
     def test_forge_plan_delegates_workflow_and_source_semantics_to_shared_contracts(self) -> None:
         skill = (PLUGIN_SKILLS / "forge-plan" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("../../shared/forge/references/workflow-contract.md", skill)
-        self.assertIn("../../shared/forge/references/issue-source-contract.md", skill)
-        self.assertIn("../../shared/forge/references/knowledge-provider-contract.md", skill)
-        self.assertIn("can_enter_stage", skill)
-        self.assertIn("awaiting-approval", skill)
-        self.assertIn("content hash", skill)
+        self.assertIn("review or go", skill)
+        self.assertNotIn("can_enter_stage", skill)
+        self.assertNotIn("awaiting-approval", skill)
+        self.assertNotIn("content hash", skill)
         self.assertNotIn("Present the artifact paths and approval hash", skill)
         self.assertNotIn("to-tickets", skill.lower())
-
-    def test_recorded_independent_intent_and_specification_approvals_open_planning(self) -> None:
-        record_path = REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-13-forge-plan-approval-record.json"
-        record = json.loads(record_path.read_text(encoding="utf-8"))
-        artifacts = record["state"]["artifacts"]
-        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "intent.md").read_text(encoding="utf-8")), artifacts["intent"]["hash"])
-        self.assertEqual(workflow_state.content_hash((REPO_ROOT / "docs" / "specs" / "forge-plan-proportional-planning.md").read_text(encoding="utf-8")), artifacts["specification"]["hash"])
-        self.assertEqual({"allowed": True, "code": "ALLOWED", "read_only": False}, workflow_state.can_enter_stage(record["state"], "planning", record["approval_policy"]))
 
     def test_forge_plan_evidence_records_real_approval_provenance(self) -> None:
         evidence = (REPO_ROOT / "docs" / "superpowers" / "plans" / "2026-09-12-forge-plan-pr-2-review-fixes-evidence.md").read_text(encoding="utf-8")
@@ -256,7 +246,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
 
     def test_behavioral_structural_mutations_fail_even_when_names_and_options_remain(self) -> None:
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
-        fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "ready-planning-context.json"
         baseline = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "brain-plan-scenarios.json"
         with tempfile.TemporaryDirectory(prefix="behavioral-structure-") as directory:
             root = Path(directory)
@@ -495,7 +485,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
 
     def test_behavioral_harness_rejects_nested_public_oracles_before_spawning(self) -> None:
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
-        source_fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        source_fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "ready-planning-context.json"
         with tempfile.TemporaryDirectory(prefix="nested-fixture-") as directory:
             temporary = Path(directory)
             fixture = json.loads(source_fixture.read_text(encoding="utf-8"))
@@ -993,61 +983,13 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         report = run_static_evals.run_eval_roots(
             [PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"], capabilities=set()
         )
-        self.assertGreaterEqual(report["summary"]["passed"], 5)
+        self.assertGreaterEqual(report["summary"]["passed"], 1)
         self.assertEqual(0, report["summary"]["failed"])
         self.assertGreater(report["summary"]["skipped"], 0)
         self.assertEqual([], report["results"]["unmeasured"])
         skipped_ids = {result["id"] for result in report["results"]["skipped"]}
-        forge_ex_ids = {"FORGE-EX-{:03d}".format(n) for n in range(1, 14)}
+        forge_ex_ids = {"FORGE-EX-{:03d}".format(n) for n in range(1, 7)}
         self.assertTrue(forge_ex_ids <= skipped_ids)
-
-    def test_cross_stage_gates_keep_implementation_read_only_until_both_approvals(self) -> None:
-        """A shared static transition check proves both prospective approval gates."""
-        def state(spec_approval, plan_approval):
-            return {
-                "artifacts": {
-                    "specification": {"hash": "spec", "revision": "1", **({"approval": spec_approval} if spec_approval else {})},
-                    "plan": {"hash": "plan", "revision": "1", **({"approval": plan_approval} if plan_approval else {})},
-                }
-            }
-
-        spec = {"artifact_hash": "spec", "revision": "1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}
-        plan = {"artifact_hash": "plan", "revision": "1", "actor": "technical-owner", "intent": "artifact", "approved_at": 2}
-        cases = [
-            {"id": "spec-pending", "static": {"kind": "workflow-transition", "state": state(None, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
-            {"id": "plan-pending", "static": {"kind": "workflow-transition", "state": state(spec, None), "target": "implementation", "expected_allowed": False, "expected_code": "GATE_REQUIRED", "require_read_only": True, "result": {"status": "passed"}}},
-            {"id": "both-approved", "static": {"kind": "workflow-transition", "state": state(spec, plan), "target": "implementation", "expected_allowed": True, "result": {"status": "passed"}}},
-        ]
-        report = run_static_evals.evaluate_cases(
-            cases, PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
-        )
-        self.assertEqual(3, report["summary"]["passed"])
-
-    def test_brain_adapter_fixture_enforces_designated_approver_policy(self) -> None:
-        """Brain supplies approvers; Forge still owns the resulting gate decision."""
-        state = {
-            "current_actor": "forge-agent",
-            "requires_spec_approval": True,
-            "artifacts": {
-                "specification": {"hash": "spec-r1", "revision": "spec-r1", "approval": {"artifact_hash": "spec-r1", "revision": "spec-r1", "actor": "functional-owner", "intent": "artifact", "approved_at": 1}},
-                "plan": {"hash": "plan-r1", "revision": "plan-r1", "approval": {"artifact_hash": "plan-r1", "revision": "plan-r1", "actor": "unapproved-actor", "intent": "artifact", "approved_at": 2}},
-            },
-        }
-        case = {
-            "id": "brain-policy",
-            "static": {
-                "kind": "adapter-parity",
-                "fixture": "fixtures/brain-adapter",
-                "approval_state": state,
-                "target": "implementation",
-                "expected_allowed": False,
-                "result": {"status": "passed"},
-            },
-        }
-        report = run_static_evals.evaluate_cases(
-            [case], PLUGIN_SKILLS.parent / "shared" / "forge" / "evals"
-        )
-        self.assertEqual(1, report["summary"]["passed"])
 
     def test_each_canonical_corpus_failure_is_independently_gated(self) -> None:
         """Catches a package gate that stops after the first Skill or ignores empty/error reports."""
@@ -1418,7 +1360,17 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 if PERSONAL_PATH_RE.search(finding["match"])
             ]
             self.assertEqual([], personal_paths, skill_id)
-            self.assertEqual([], report["platform_extensions"], skill_id)
+            # disable-model-invocation is the one accepted host-only-field
+            # exception (R22): user-invoked Skills pair it with an
+            # agents/openai.yaml policy, checked by invocation_policy below.
+            unexpected_extensions = [
+                extension for extension in report["platform_extensions"]
+                if extension.get("key") != "disable-model-invocation"
+            ]
+            self.assertEqual([], unexpected_extensions, skill_id)
+            if any(extension.get("key") == "disable-model-invocation"
+                   for extension in report["platform_extensions"]):
+                self.assertIsNone(report["invocation_policy"]["mismatch"], skill_id)
 
         self.assertEqual(sorted(EXPECTED_SKILL_IDS), sorted(names))
         self.assertEqual(len(names), len(set(names)))
@@ -1445,6 +1397,103 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         )
         self.assertEqual(1, report["metrics"]["metadata_error_count"])
 
+    def _run_inspector_on_openai_yaml(
+        self, openai_yaml_content: Optional[str], block_yaml: bool = False
+    ) -> dict:
+        """Build a minimal disable-model-invocation Skill, run inspect_skill.py."""
+        inspector = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "inspect_skill.py"
+        with tempfile.TemporaryDirectory() as directory:
+            skill_dir = Path(directory)
+            (skill_dir / "SKILL.md").write_text(
+                "---\n"
+                "name: fixture-skill\n"
+                "description: A fixture Skill for invocation-policy tests.\n"
+                "disable-model-invocation: true\n"
+                "---\n\nBody.\n",
+                encoding="utf-8",
+            )
+            if openai_yaml_content is not None:
+                agents_dir = skill_dir / "agents"
+                agents_dir.mkdir()
+                (agents_dir / "openai.yaml").write_text(openai_yaml_content, encoding="utf-8")
+            if block_yaml:
+                # A `yaml` stub that raises ImportError hides any installed PyYAML.
+                stub_dir = skill_dir / "_no_yaml"
+                stub_dir.mkdir()
+                (stub_dir / "yaml.py").write_text("raise ImportError('blocked')\n", encoding="utf-8")
+                command = [sys.executable, "-c",
+                           "import runpy, sys; sys.path.insert(0, sys.argv[1]); "
+                           "sys.argv = sys.argv[2:]; "
+                           "runpy.run_path(sys.argv[0], run_name='__main__')",
+                           str(stub_dir), str(inspector), str(skill_dir)]
+            else:
+                command = [sys.executable, str(inspector), str(skill_dir)]
+            proc = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, proc.returncode, proc.stderr)
+            return json.loads(proc.stdout)
+
+    def test_invocation_policy_check_is_structural_not_textual(self) -> None:
+        """Only a real policy.allow_implicit_invocation: false counts.
+
+        A raw substring search on openai.yaml text is fooled by a commented-out
+        key or a key nested under the wrong parent; both must be treated the
+        same as the key being absent, not as a match (PR #3 Codex P2 finding).
+        """
+        correct = self._run_inspector_on_openai_yaml(
+            "policy:\n  allow_implicit_invocation: false\n"
+        )
+        self.assertTrue(correct["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNone(correct["invocation_policy"]["mismatch"])
+
+        commented_out = self._run_inspector_on_openai_yaml(
+            "# policy:\n#   allow_implicit_invocation: false\n"
+        )
+        self.assertFalse(commented_out["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNotNone(commented_out["invocation_policy"]["mismatch"])
+
+        wrongly_nested = self._run_inspector_on_openai_yaml(
+            "allow_implicit_invocation: false\n"
+            "policy:\n"
+            "  something_else: true\n"
+        )
+        self.assertFalse(wrongly_nested["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNotNone(wrongly_nested["invocation_policy"]["mismatch"])
+
+    def test_invocation_policy_check_reports_malformed_yaml_as_a_finding(self) -> None:
+        """Malformed openai.yaml must surface as a finding, not crash or silently pass."""
+        report = self._run_inspector_on_openai_yaml(
+            "policy:\n  allow_implicit_invocation: false\n bad_indent: [1, 2\n"
+        )
+        self.assertFalse(report["invocation_policy"]["openai_no_implicit_invocation"])
+        self.assertIsNotNone(report["invocation_policy"]["openai_yaml_error"])
+        self.assertIsNotNone(report["invocation_policy"]["mismatch"])
+
+    def test_invocation_policy_check_without_pyyaml(self) -> None:
+        """The no-PyYAML fallback validates the whole file and fails closed."""
+        cases = {
+            "policy:\n  allow_implicit_invocation: false\n": True,
+            "# policy:\n#   allow_implicit_invocation: false\n": False,
+            "allow_implicit_invocation: false\npolicy:\n  x: true\n": False,
+            "policy:\n  allow_implicit_invocation: false\n bad_indent: [1, 2\n": False,
+            "bad: [1, 2\npolicy:\n  allow_implicit_invocation: false\n": False,
+            "policy:\n  allow_implicit_invocation: 'false'\n": False,
+        }
+        for content, expected in cases.items():
+            with self.subTest(content=content):
+                report = self._run_inspector_on_openai_yaml(content, block_yaml=True)
+                policy = report["invocation_policy"]
+                self.assertEqual(expected, policy["openai_no_implicit_invocation"])
+                if not expected:
+                    self.assertIsNotNone(policy["mismatch"])
+        malformed = self._run_inspector_on_openai_yaml(
+            "policy:\n  allow_implicit_invocation: false\n bad_indent: [1, 2\n",
+            block_yaml=True,
+        )
+        self.assertIsNotNone(malformed["invocation_policy"]["openai_yaml_error"])
 
     def test_skill_count_claims_are_derived_from_discovery(self) -> None:
         """A stale whole-set count in any manifest or install doc must fail.

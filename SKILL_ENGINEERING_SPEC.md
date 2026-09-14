@@ -1110,7 +1110,12 @@ Potential features:
 * subagents;
 * `skill-creator`.
 
-Claude-specific metadata such as `disable-model-invocation` must remain platform-specific.
+Claude-specific metadata generally must remain platform-specific. The one
+exception is `disable-model-invocation: true`, accepted for user-invoked
+Skills (see R22's exception in `rules-portability.md`) even though it fails
+`skills-ref validate`. Pair it with Codex's `agents/openai.yaml`
+`policy.allow_implicit_invocation: false`; Antigravity has no equivalent
+switch and is disclosed as not enforceable there.
 
 Evidence: [Claude Code Skills](https://docs.anthropic.com/en/docs/claude-code/skills)
 
@@ -1157,7 +1162,26 @@ Potential features:
 * subagents;
 * permission controls.
 
+Antigravity has no user-invoked-only switch for Skills — the base Agent
+Skills spec defines none. A narrow, human-facing description is the only
+lever; treat "user-invoked" as disclosed, not enforced, on this host.
+
 Evidence: [Antigravity Skills](https://antigravity.google/docs/skills)
+
+---
+
+## Factory
+
+Potential features:
+
+* Skills;
+* Droids;
+* explicit Skill invocation.
+
+Factory honours `disable-model-invocation: true` in `SKILL.md` frontmatter,
+the same as Claude Code and Cursor.
+
+Evidence: [Factory Skills](https://docs.factory.ai)
 
 ---
 

@@ -234,6 +234,167 @@ def find_hardcoded_paths(root, files):
     return hits
 
 
+def _truthy(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return False
+
+
+_SIMPLE_KEY = r"[A-Za-z_][A-Za-z0-9_-]*"
+
+
+def _parse_simple_scalar(raw):
+    """Plain, single- or double-quoted scalar; flow collections rejected."""
+    if raw[:1] in ("'", '"'):
+        quote = raw[0]
+        end = raw.find(quote, 1)
+        if end == -1:
+            raise ValueError("unterminated quoted scalar")
+        rest = raw[end + 1:].strip()
+        if rest and not rest.startswith("#"):
+            raise ValueError("unexpected content after quoted scalar")
+        return raw[1:end]
+    value = re.split(r"\s+#", raw, maxsplit=1)[0].strip()
+    if not value or value[0] in "[]{}&*!|>%@`,":
+        raise ValueError("unsupported scalar: %r" % raw)
+    lowered = value.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return value
+
+
+def _parse_simple_yaml(text):
+    """Parse top-level keys holding scalars or one level of scalar mappings.
+
+    Return (data, error). Every line must fit the subset; the first line
+    that does not makes the whole document an error.
+    """
+    data = {}
+    parent = None
+    child_indent = None
+    for number, line in enumerate(text.splitlines(), 1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "\t" in line[:len(line) - len(line.lstrip())]:
+            return None, "line %d: tab indentation" % number
+        indent = len(line) - len(line.lstrip(" "))
+        match = re.match(r"^(%s)\s*:(?:\s+(.*))?$" % _SIMPLE_KEY, stripped)
+        if not match:
+            return None, "line %d: not a supported key: value line" % number
+        key, raw = match.group(1), (match.group(2) or "").strip()
+        if raw.startswith("#"):
+            raw = ""
+        try:
+            if indent == 0:
+                if key in data:
+                    return None, "line %d: duplicate key %r" % (number, key)
+                if raw:
+                    data[key] = _parse_simple_scalar(raw)
+                    parent = None
+                else:
+                    data[key] = {}
+                    parent, child_indent = key, None
+                continue
+            if parent is None:
+                return None, "line %d: unexpected indentation" % number
+            if child_indent is None:
+                child_indent = indent
+            if indent != child_indent or not raw:
+                return None, "line %d: inconsistent or nested indentation" % number
+            if key in data[parent]:
+                return None, "line %d: duplicate key %r" % (number, key)
+            data[parent][key] = _parse_simple_scalar(raw)
+        except ValueError as exc:
+            return None, "line %d: %s" % (number, exc)
+    return data, None
+
+
+def _load_openai_policy(path):
+    """Parse agents/openai.yaml structurally. Return (allow_implicit, error).
+
+    `allow_implicit` is the value of `policy.allow_implicit_invocation`
+    (`None` if the key or its parent mapping is absent or the wrong shape).
+    `error` carries a parse failure so malformed YAML is a finding, not a
+    crash or a silent pass.
+    """
+    text = _read(path)
+    try:
+        import yaml
+    except ImportError:
+        yaml = None
+
+    if yaml is None:
+        # No PyYAML: validate the whole document against a strict
+        # two-level-mapping subset before reading any value. Anything outside
+        # the subset is an error (fail closed), never an early-return match.
+        data, error = _parse_simple_yaml(text)
+        if error:
+            return None, error
+    else:
+        try:
+            data = yaml.safe_load(text)
+        except yaml.YAMLError as exc:
+            return None, str(exc)
+    if not isinstance(data, dict):
+        return None, None
+    policy = data.get("policy")
+    if not isinstance(policy, dict):
+        return None, None
+    value = policy.get("allow_implicit_invocation")
+    if not isinstance(value, bool):
+        return None, None
+    return value, None
+
+
+def check_invocation_policy(root, frontmatter):
+    """Cross-check the one allowed host-only field against its Codex pair.
+
+    `disable-model-invocation: true` is the sole portable-frontmatter
+    exception (user-invoked Skills, Matt Pocock pattern). Claude Code,
+    Cursor, and Factory honour it directly; Codex needs the matching
+    `agents/openai.yaml` `policy.allow_implicit_invocation: false`. Either
+    field present without the other is a finding, not a hard error: some
+    Skills only ship for one host family. The Codex side is judged from the
+    parsed YAML structure, not a raw text match, so a comment or a key
+    nested under the wrong parent can't fake a match.
+    """
+    disable_flag = _truthy(frontmatter.get("disable-model-invocation"))
+    openai_yaml = os.path.join(root, "agents", "openai.yaml")
+    openai_no_implicit = False
+    openai_yaml_error = None
+    if os.path.isfile(openai_yaml):
+        allow_implicit, openai_yaml_error = _load_openai_policy(openai_yaml)
+        openai_no_implicit = allow_implicit is False
+    mismatch = None
+    if openai_yaml_error:
+        mismatch = f"agents/openai.yaml could not be parsed: {openai_yaml_error}"
+    elif disable_flag and not openai_no_implicit:
+        mismatch = ("disable-model-invocation is set but agents/openai.yaml "
+                    "does not set policy.allow_implicit_invocation: false "
+                    "(Codex keeps model-invoked)")
+    elif openai_no_implicit and not disable_flag:
+        mismatch = ("agents/openai.yaml sets policy.allow_implicit_invocation: "
+                    "false but SKILL.md frontmatter has no "
+                    "disable-model-invocation: true (Claude Code/Cursor/"
+                    "Factory keep model-invoked)")
+    return {
+        "disable_model_invocation": disable_flag,
+        "openai_no_implicit_invocation": openai_no_implicit,
+        "openai_yaml_error": openai_yaml_error,
+        "mismatch": mismatch,
+        # Known, accepted deviation: this field is outside the Agent Skills
+        # spec's allowed frontmatter (name, description, license,
+        # compatibility, metadata, allowed-tools), so a Skill using it fails
+        # `skills-ref validate`. Informational only; not a finding.
+        "fails_skills_ref_validate": disable_flag,
+    }
+
+
 def inspect(root):
     skill_md = os.path.join(root, "SKILL.md")
     if not os.path.isfile(skill_md):
@@ -302,6 +463,7 @@ def inspect(root):
         "reference_docs": [f for f in files
                            if f["path"].startswith("references/")],
         "platform_extensions": platform_extensions,
+        "invocation_policy": check_invocation_policy(root, frontmatter),
         "hardcoded_paths": hardcoded,
         "exact_duplicates": find_duplicate_blocks(root, files),
         "metrics": {

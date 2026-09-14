@@ -1,107 +1,136 @@
 ---
 name: forge-implement
-description: Use when Forge already has approved Specification and Plan artifacts whose execution packets are closed, and those packets must now be executed against source code.
+description: Run a Forge work item's approved plan against the code, one task or phase at a time.
+disable-model-invocation: true
 ---
 
 # Forge Implement
 
-Execute approved `tasks.md` packets; do not plan them. The shared
-[workflow contract](../../shared/forge/references/workflow-contract.md) and
-`workflow_state.can_enter_stage` own approval, freshness, retry, blocking,
-resume, and check semantics. This Skill owns only implementation-stage
-orchestration and its evidence.
+The user calls this to run a plan. Follow the shared
+[workflow contract](../../shared/forge/references/workflow-contract.md) for
+approval, stops, `progress.md` format, checks, retry, and the phase gate.
 
-## Gate before every implementation mutation
+## 1. Find the plan
 
-Start read-only. Before a source-code or implementation-artifact write, obtain
-the current artifact contents and state, then require all of the following:
+Look for a compact `plan.md` or a detailed `phases/` tree in `.forge/<work-item>/`
+(or the repo's own convention). None found: backfill it by running
+forge-plan — and whatever forge-plan itself needs to backfill first
+(discover always; clarify only for open decisions). Let forge-plan's own
+seven-factor assessment choose compact or detailed; do not preset or
+suggest a mode. Collect the Goal, any open decisions with suggested
+answers, the chosen mode with forge-plan's reason, and the plan path, then
+show all of it in one message and ask "review or go?" once, per the shared
+contract's one combined stop. Edit nothing before that answer. Re-show the
+stop only if the answer changes the plan.
 
-- the exact current `spec.md` revision/hash has its required valid approval;
-- the exact current `plan.md` revision/hash has valid technical/Plan approval;
-- `tasks.md` records correspondence to that exact approved Plan revision/hash;
-- any adapter implementation approver policy is supplied to the shared gate
-  decision and is satisfied; and
-- neither approval nor a materially used input is stale.
+Done when: you have one plan to run, and the user said go.
 
-Call the shared implementation gate decision; do not recreate its rules. It
-rejects missing, stale, unauthorized, self, full-workflow, `implement`-intent,
-and post-hoc approvals. “Implement this using Agentic SDLC” and any other
-full-workflow request are continuation intent, never artifact approval. An
-adapter may narrow acceptable approvers; it cannot open or weaken a gate.
+## 2. Start the record
 
-If any condition is absent, mismatched, unproven, or denied, transition to
-`blocked-at-gate`, remain read-only for source and implementation artifacts,
-and report the exact missing or invalid evidence. Do not begin a packet, choose
-a workaround, or seek approval after mutation. A recorded prior mutation with
-later approval is `GATE_VIOLATION`, not retroactive success.
+Create or read `progress.md`. List any other person's uncommitted changes as
+"not mine" at the top; never touch them. If the branch is protected (per the
+shared contract's git rules): create the suggested branch, switch to it,
+and verify the current branch is now that branch — before any file is
+touched. This happens automatically as part of starting the record, not as
+a separate "go?" stop. On any failure to create, switch to, or verify the
+branch, stop and report the exact failure; touch nothing and commit
+nothing.
 
-When every condition holds, transition to `implementation-active`. Capture the
-pre-existing working-tree baseline before the first packet: paths, staged or
-unstaged state, untracked paths, and relevant hashes. Those paths are external
-scope. Never edit, stage, clean, claim, commit, or deliver them without
-separate authorization.
+Resume: the first checklist box that is not `[x]` is where you continue.
+Files under that task's `changed:` are yours; re-run its proof before
+trusting its state. Then reconcile every `[x]` task's `commit:` field
+against git, not only the first non-`[x]` box:
 
-## Establish execution controls once
+- `[x]` with `commit: pending` means a session stopped before its
+  checkpoint. Return to step 5's commit checkpoint for it, with a fresh
+  "go?", instead of silently moving on to the next task.
+- `[x]` with `commit: committed`: verify that some commit actually
+  contains that exact `progress.md` state. If none does (a crash between
+  marking and committing), report the mismatch and stop — do not re-run
+  the checkpoint or otherwise auto-fix it.
 
-Select or confirm one configured commit mode before packet writes. If no mode
-is configured or authorized, ask for that choice while preserving the gate and
-working tree; do not silently choose. Apply
-[commit modes](references/commit-modes.md) exactly. A commit checkpoint is not
-delivery authorization: never automatically push, squash, open a pull request,
-or merge.
+Done when: `progress.md` has a baseline, every `[x]` task's `commit:`
+field is reconciled against git, and you know where to start.
 
-For each recorded check use exactly `PASS`, `FAIL`, or `UNMEASURED` through the
-shared check record. `UNMEASURED` includes a reason and is never passing
-evidence. Record the baseline separately from failures caused by this work.
+## 3. Do each ready task
 
-## Execute closed packets
+A task is ready when everything in its `Depends on` is done. For each ready
+task: read its packet plus the `phase.md`/`plan.md` facts it points to (its
+own phase's control-plane invariants and scope — leave unrelated phases
+unloaded), write a file under `changed:` before editing it, stay inside
+`Write scope`, leave `Must not change` alone, and run its `Proof`. Test
+first where the plan names a seam. Record `PASS`, `FAIL`, or `UNMEASURED`
+with a reason.
 
-1. Use the dependency graph and verified state to select a dependency-ready,
-   unblocked packet. Read only its `Read / Reference Context`, exact write
-   scope, frozen decisions, and verification. Expand context only when concrete
-   evidence contradicts a stated packet fact; record why and what expanded.
-2. Keep every edit inside the packet scope and preserve its `Must Not Change`
-   protections. Implement the frozen solution without research, architecture
-   selection, user interviews, or replanning.
-3. Run the packet's narrow verification and only the concern-specific guidance
-   in [quality routing](references/quality-routing.md). Record every run and
-   result. Do not invent a pass for an unrun or unavailable check.
-4. Mark a packet verified only when its required evidence is `PASS`; apply its
-   selected authorized checkpoint mode. Failed, blocked, or `UNMEASURED`
-   required work is excluded from every commit.
+If the code and plan disagree, a needed change falls outside `Write scope`,
+or checks still fail after retries: mark the task `[!]`, block its
+dependants, keep working other ready tasks, then stop and report. See
+[failure recovery](references/failure-recovery.md) for each case.
 
-If evidence shows that the Plan is contradictory or cannot meet a binding
-requirement, stop that packet and every transitive dependant using the shared
-blocking semantics. Record the contradiction and route the affected frontier
-to Planning, Specification, or Clarify as appropriate; do not replan in place.
-Continue only safe independent packets whose gates, dependencies, and scopes
-remain valid.
+When the plan's `commit_granularity` is `task`, a passed task is its own
+commit checkpoint: run step 5 now, before starting the next ready task.
 
-If a required change lies outside the packet, stop the affected packet before
-that write and request explicit scope authorization. Treat a material change as
-an approved-Plan/SPEC revision and gate concern when it changes their approved
-meaning. Do not silently broaden the diff. Apply
-[failure recovery](references/failure-recovery.md) for failures, retries,
-unavailable checks, and resume.
+Done when: every ready task is `[x]` or terminally `[!]`.
 
-## Integrate once, review once, report compactly
+## 4. Phase end (or end of a compact plan)
 
-After every packet is verified or terminally failed/blocked, run the approved
-integrated deterministic verification over the verified scoped result. Record
-each result exactly; separate pre-existing failures. Then perform exactly one
-final semantic review against the approved Specification, Plan, packets,
-scope, and shared contracts. This is distinct from per-packet deterministic
-verification and mechanical scope/evidence checking.
+Run the shared [phase gate](../../shared/forge/references/workflow-contract.md):
+full checks, review against the Goal and plan, second reviewer for high
+risk (ask the human if none is available), at most two fix loops.
 
-If that one review finds defects, create a bounded remediation list containing
-only its findings. Remediate only that list, rerun affected checks and
-integration when the finding affects integration, and do not run another
-semantic review. Do not claim complete if required evidence remains `FAIL` or
-`UNMEASURED`.
+Done when: checks pass and no blocking finding remains, or you have stopped
+to report one that does.
 
-Write compact `evidence.md`: artifact revisions/hashes and gate decision;
-adapter policy result; dirty baseline; selected commit mode and checkpoints;
-packet status, scoped paths, checks, retries, blocks, and scope decisions;
-integrated results; semantic-review count/result; remediation; pre-existing
-failures; `UNMEASURED` reasons; and delivery actions explicitly not performed.
-It is a handoff, not a replay of reasoning.
+If `commit_granularity` is `task` and a fix loop changed any file, that
+change has no task of its own to ride on — checkpoint it separately before
+calling the phase done. Record it in `progress.md` as its own `GATE-FIX`
+entry (see the shared contract's `progress.md` format) and run step 5 for
+exactly those files: show the summary, ask "go?", and commit only on a
+fresh yes. Never fold a gate fix into an earlier task's commit and never
+amend it in. Under `commit_granularity: phase` (or a compact plan), no
+separate step is needed — the single end-of-phase checkpoint in step 5
+already covers any fix-loop changes together with everything else.
+
+## 5. Commit checkpoint
+
+One checkpoint per task when `commit_granularity: task` (plus one more per
+`GATE-FIX` entry from step 4); one at phase end (or at the end of a compact
+plan) otherwise. Show the summary and
+`progress.md`, and ask "go?" — never commit without asking. On go:
+
+1. Mark this checkpoint's task(s) `commit: pending` -> `commit: committed`
+   in `progress.md`, and stage this checkpoint's files together with that
+   updated `progress.md`.
+2. Create the commit.
+
+**Before the commit exists:** if updating `progress.md`, staging, or the
+commit command itself fails, restore `commit: pending` in `progress.md`.
+Report the staged `committed` copy as evidence — the worktree and the
+index must not quietly disagree — and report the exact failure. Claim
+zero commits. Do not retry automatically: a fresh "go?" restarts the
+transaction from step 1 and re-stages it.
+
+**After the commit exists:** capture its SHA immediately. Verify against
+that exact SHA, never an assumed `HEAD`: the commit's changed-path set is
+exactly `progress.md` plus this checkpoint's files, with no unrelated
+file added or missing; and the committed `progress.md` blob marks
+exactly this checkpoint's task(s) `commit: committed` (never the
+commit's own id — see the shared contract's `progress.md` format for why
+the field holds `committed`, not a hash).
+
+**If that SHA-bound verification fails:** the commit already exists, and
+preserving it is not optional. Keep the commit and the working tree
+exactly as they are — no `reset`, `amend`, `revert`, recommit, or other
+rewrite of `progress.md` or history. Report the SHA, the expected
+files/status, the observed files/status, and the exact mismatch, then
+stop and wait for explicit recovery direction. A plain "go?" does not
+authorize touching a commit that already exists.
+
+Report the checkpoint as recorded only once both SHA-bound checks pass.
+Never push.
+
+Done when one of three distinct end states holds: the checkpoint is
+recorded with both SHA-bound checks verified; no commit exists and
+`progress.md` still reads `pending`; or a commit exists, unverified,
+preserved untouched, and you have stopped for the user's recovery
+direction.

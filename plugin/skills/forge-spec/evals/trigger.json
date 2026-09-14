@@ -10,7 +10,7 @@
     "graders": [
       { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }
     ],
-    "tags": ["explicit-stage", "specification"]
+    "tags": ["explicit-stage", "specification", "explicit-invocation"]
   },
   {
     "version": 1,
@@ -19,11 +19,13 @@
     "category": "paraphrase",
     "prompt": "The discovery record is approved and decisions are settled. Define the observable requirements, unchanged behaviour, acceptance scenarios, and traceability before any plan is written.",
     "trials": 3,
-    "expected": { "trigger": true },
+    "expected": { "trigger": false },
+    "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
     "graders": [
-      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": true } }
+      { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": false } }
     ],
-    "tags": ["behavioural-contract", "paraphrase"]
+    "notes": "forge-spec is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs its own agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.",
+    "tags": ["behavioural-contract", "paraphrase", "implicit-suppression"]
   },
   {
     "version": 1,

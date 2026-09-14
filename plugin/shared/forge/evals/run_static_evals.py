@@ -20,7 +20,7 @@ expected result must declare one of the stable classifications below.  Fixtures
 are relative to the case file and cannot leave the selected eval root.  The
 wrapper deliberately has no command, program, import, or callable field.
 
-Only the five named validators in ``VALIDATOR_KINDS`` are implemented.  This
+Only the two named validators in ``VALIDATOR_KINDS`` are implemented.  This
 is a small regression runner, not a general evaluation framework.  It never
 spawns a process or executes corpus-provided content.
 """
@@ -28,7 +28,6 @@ spawns a process or executes corpus-provided content.
 from __future__ import annotations
 
 import argparse
-import copy
 import importlib.util
 import json
 import sys
@@ -43,14 +42,10 @@ FORGE_ROOT = HERE.parent
 # future genuinely-distinct candidate can be added without changing callers.
 VALIDATOR_PATH = FORGE_ROOT.parents[1] / "skills" / "skill-engineer" / "scripts" / "validate_evals.py"
 VALIDATOR_PATHS = (VALIDATOR_PATH,)
-WORKFLOW_STATE_PATH = FORGE_ROOT / "scripts" / "workflow_state.py"
 
 VALIDATOR_KINDS = {
     "file-exists",
     "artifact-shape",
-    "workflow-transition",
-    "normalization",
-    "adapter-parity",
 }
 RESULT_STATUSES = {"passed", "failed", "skipped", "unmeasured"}
 FAILURE_CLASSIFICATIONS = {"assertion", "capability", "corpus", "fixture", "security"}
@@ -86,24 +81,6 @@ def _load_v1_validator():
     spec.loader.exec_module(module)
     _V1_VALIDATOR_MODULE = module
     return _V1_VALIDATOR_MODULE
-
-
-_WORKFLOW_STATE_MODULE = None
-
-
-def _load_workflow_state():
-    global _WORKFLOW_STATE_MODULE
-    if _WORKFLOW_STATE_MODULE is not None:
-        return _WORKFLOW_STATE_MODULE
-    if not WORKFLOW_STATE_PATH.is_file():
-        raise CorpusError("shared workflow state module cannot be loaded")
-    spec = importlib.util.spec_from_file_location("forge_workflow_state", WORKFLOW_STATE_PATH)
-    if spec is None or spec.loader is None:
-        raise CorpusError("shared workflow state module cannot be loaded")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    _WORKFLOW_STATE_MODULE = module
-    return module
 
 
 def _contains_command(value):
@@ -222,107 +199,9 @@ def _check_artifact_shape(check, root, base):
     return True, ""
 
 
-def _check_workflow_transition(check, _root, _base):
-    state = check.get("state")
-    target = check.get("target")
-    expected_allowed = check.get("expected_allowed")
-    if not isinstance(state, dict) or not isinstance(target, str) or not isinstance(expected_allowed, bool):
-        raise CorpusError("workflow-transition requires state, target, and expected_allowed")
-    before = copy.deepcopy(state)
-    decision = _load_workflow_state().can_enter_stage(
-        state, target, check.get("approval_policy")
-    )
-    if state != before:
-        return False, "workflow transition mutated its input state"
-    if not isinstance(decision, dict) or not isinstance(decision.get("allowed"), bool):
-        raise CorpusError("workflow-transition returned a malformed decision")
-    if decision["allowed"] != expected_allowed:
-        return False, "allowed was {}, expected {}".format(decision["allowed"], expected_allowed)
-    expected_code = check.get("expected_code")
-    if expected_code is not None and decision.get("code") != expected_code:
-        return False, "code was {!r}, expected {!r}".format(decision.get("code"), expected_code)
-    if check.get("require_read_only") is True and decision.get("read_only") is not True:
-        return False, "blocked transition was not read-only"
-    return True, ""
-
-
-def _check_normalization(check, _root, _base):
-    source = check.get("source")
-    normalized = check.get("normalized")
-    if not isinstance(source, str) or not isinstance(normalized, str):
-        raise CorpusError("normalization requires string source and normalized values")
-    actual = _load_workflow_state().normalize_markdown(source)
-    return actual == normalized, "normalization did not match expected value"
-
-
-def _policy_lists(policy):
-    if not isinstance(policy, dict):
-        return None
-    result = {}
-    for stage in ("planning", "implementation"):
-        configured = policy.get(stage)
-        allowed = configured.get("approvers") if isinstance(configured, dict) else configured
-        if not isinstance(allowed, list) or not allowed or not all(isinstance(actor, str) for actor in allowed):
-            return None
-        result[stage] = allowed
-    return result
-
-
-def _check_adapter_parity(check, root, base):
-    fixture = _safe_path(root, base, check.get("fixture"))
-    if not fixture.is_dir():
-        raise CorpusError("adapter-parity fixture must be a directory")
-    _validate_fixture_directory(root, fixture)
-    input_data = _load_fixture_json(root, fixture, "input.json")
-    expected = _load_fixture_json(root, fixture, "expected.json")
-    if not isinstance(input_data, dict) or not isinstance(expected, dict):
-        raise CorpusError("adapter-parity fixture files must be JSON objects")
-    locations = input_data.get("artifact_location_conventions")
-    expected_locations = expected.get("adapter_handling", {}).get("preserve_artifact_locations")
-    if locations != expected_locations:
-        return False, "artifact location conventions were not preserved"
-    delivery = input_data.get("request", {}).get("delivery_operation")
-    refused = expected.get("adapter_handling", {}).get("refused_delivery_operation")
-    if delivery != refused or delivery in input_data.get("authorized_delivery_operations", []):
-        return False, "unauthorized delivery operation was not refused"
-    tree = input_data.get("okf_provider", {}).get("tree", [])
-    leaves = {entry.get("path") for entry in tree if isinstance(entry, dict) and entry.get("leaf") is True}
-    requested = input_data.get("okf_provider", {}).get("requested_references", [])
-    selected = expected.get("knowledge_handling", {}).get("selected_leaf_paths")
-    if not isinstance(requested, list) or selected != requested or not set(requested) <= leaves:
-        return False, "selected knowledge is not the requested leaf set"
-    unavailable = input_data.get("okf_provider", {}).get("unavailable_knowledge", [])
-    expected_unavailable = expected.get("knowledge_handling", {}).get("unavailable_knowledge", [])
-    for item in unavailable:
-        if not isinstance(item, dict) or not any(
-            isinstance(other, dict)
-            and other.get("path") == item.get("path")
-            and other.get("reason") == item.get("reason")
-            and other.get("status") == "UNMEASURED"
-            for other in expected_unavailable
-        ):
-            return False, "unavailable knowledge was not reported as UNMEASURED"
-    policy = _policy_lists(input_data.get("approval_policy"))
-    if policy is None:
-        return False, "adapter lacks designated approver policy"
-    approval_state = check.get("approval_state")
-    if approval_state is not None:
-        target = check.get("target")
-        expected_allowed = check.get("expected_allowed")
-        if not isinstance(target, str) or not isinstance(expected_allowed, bool):
-            raise CorpusError("adapter approval_state requires target and expected_allowed")
-        decision = _load_workflow_state().can_enter_stage(approval_state, target, policy)
-        if decision.get("allowed") != expected_allowed:
-            return False, "adapter approver policy did not enforce the expected gate"
-    return True, ""
-
-
 CHECKS = {
     "file-exists": _check_file_exists,
     "artifact-shape": _check_artifact_shape,
-    "workflow-transition": _check_workflow_transition,
-    "normalization": _check_normalization,
-    "adapter-parity": _check_adapter_parity,
 }
 
 

@@ -1,48 +1,52 @@
 # Execution packet contract
 
-## Packet fields
+A packet (a compact slice or a detailed task) is a closed record forge-plan
+writes and forge-implement executes, not a place to defer decisions. Use
+these six headings, in this order, so forge-implement can find each one by
+name:
 
-Each packet is a closed execution record, not a place to defer product or
-architecture choices. It is owned by its compact plan or detailed phase and
-uses the current artifact tree selected by the mode reference.
+```markdown
+## Outcome
+One observable working result, in plain language.
 
-## Vertical work and dependencies
+## Write scope
+Exact files/paths this packet may change.
 
-Each slice or task delivers one observable working outcome across every relevant
-layer. Avoid repository-layer buckets. Record `blocked_by` only when unfinished
-work truly prevents the dependent work from starting. The executable frontier
-is every incomplete task whose dependencies are complete; show the whole set.
+## Must not change
+Files or behaviour this packet must leave alone.
 
-Each packet states the closed product, architecture, scope, and material
-alternative decisions needed for implementation. A packet with an unresolved
-material decision is blocked and returns upstream; it is not approvable.
+## Changes
+Ordered steps. No pasted code; describe what changes.
 
-Each packet states:
+## Proof
+The narrow command(s) that prove this packet works, and the expected result.
 
-- stable ID, title, observable outcome, and referenced canonical IDs;
-- exact write scope, relevant symbols, preserved behavior, and must-not-change
-  constraints;
-- ordered implementation changes without copied working code;
-- narrow automated proof, command where stable, and expected result;
-- conditional manual/live proof and why automation is insufficient;
-- handoff status, evidence, deviations, findings, and `UNMEASURED` behavior.
+## Depends on
+Other packet IDs that must be done first, or "none".
+```
 
-## Acceptance and gates
+## Vertical work, not layers
 
-Acceptance describes observable behavior. Every task carries local proof; every
-phase or compact plan carries an integrated gate and final semantic review.
-Required checks precede any approval or next-action menu.
+Each packet delivers one observable outcome across every layer it touches.
+Avoid "backend changes" / "frontend changes" as separate packets when they
+serve one outcome. List a dependency only when the dependent work truly
+cannot start first.
 
-## Authority
+## Risk
 
-Freeze these independently:
+Every packet or phase carries `risk: low | medium | high` (see root
+`CONTEXT.md`). High risk needs a second reviewer per the shared
+[workflow contract](../../../shared/forge/references/workflow-contract.md)'s
+Phase gate section.
+
+## Commit policy
+
+Frozen once per plan, in `plan.md`:
 
 ```yaml
-commit_granularity: task | phase | end | none
-commit_approval: always_ask | preapproved
+commit_granularity: task | phase | end
 history_style: separate | fixup_then_squash | squash
 ```
 
-`preapproved` permits commits only after the selected clean gate. Commit authority
-does not imply implementation, tracker, push, merge, deployment, or release
-authority. Record every separately authorized action; otherwise pause.
+The shared contract always asks before a commit — there is no "preapproved"
+setting. Commit authority never implies push, merge, or delivery authority.

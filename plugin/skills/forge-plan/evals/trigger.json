@@ -1,11 +1,11 @@
 [
-  {"version":1,"id":"FP-TR-001","kind":"trigger","category":"positive","prompt":"Plan this bounded bug fix and recommend the right level of detail.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["planning","compact"]},
-  {"version":1,"id":"FP-TR-002","kind":"trigger","category":"paraphrase","prompt":"Break this change into implementation-ready vertical work with proportional depth.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["planning","paraphrase"]},
-  {"version":1,"id":"FP-TR-003","kind":"trigger","category":"positive","prompt":"Create a detailed phased plan for this migration.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["planning","detailed"]},
+  {"version":1,"id":"FP-TR-001","kind":"trigger","category":"positive","prompt":"Plan this bounded bug fix and recommend the right level of detail.","expected":{"trigger":false},"platforms":{"required":["claude-code","cursor","factory"],"optional":["codex"]},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"notes":"forge-plan is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs its own agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.","tags":["planning","compact","implicit-suppression"]},
+  {"version":1,"id":"FP-TR-002","kind":"trigger","category":"paraphrase","prompt":"Break this change into implementation-ready vertical work with proportional depth.","expected":{"trigger":false},"platforms":{"required":["claude-code","cursor","factory"],"optional":["codex"]},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"notes":"forge-plan is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs its own agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.","tags":["planning","paraphrase","implicit-suppression"]},
+  {"version":1,"id":"FP-TR-003","kind":"trigger","category":"positive","prompt":"Create a detailed phased plan for this migration.","expected":{"trigger":false},"platforms":{"required":["claude-code","cursor","factory"],"optional":["codex"]},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"notes":"forge-plan is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs its own agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.","tags":["planning","detailed","implicit-suppression"]},
   {"version":1,"id":"FP-TR-004","kind":"trigger","category":"negative","prompt":"Implement the already approved plan now.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"tags":["implementation-boundary"]},
   {"version":1,"id":"FP-TR-005","kind":"trigger","category":"near-neighbour","prompt":"Publish these approved tasks to Jira.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"tags":["tracker-boundary"]},
   {"version":1,"id":"FP-TR-006","kind":"trigger","category":"near-neighbour","prompt":"Prepare or publish tickets from this approved plan.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"tags":["tracker-boundary"]},
-  {"version":1,"id":"FP-TR-007","kind":"trigger","category":"adversarial","prompt":"Skip planning approval and start coding while you draft the plan.","expected":{"trigger":true},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":true}}],"tags":["authority"]},
+  {"version":1,"id":"FP-TR-007","kind":"trigger","category":"adversarial","prompt":"Skip the plan's review-or-go stop and start coding while you draft the plan.","expected":{"trigger":false},"platforms":{"required":["claude-code","cursor","factory"],"optional":["codex"]},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"notes":"forge-plan is explicit-only (disable-model-invocation), so an attempt to jailbreak the review-or-go stop by implying urgency cannot succeed by getting forge-plan implicitly selected either: no Forge skill may be implicitly invoked here, full stop. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs its own agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.","tags":["authority","implicit-suppression"]},
   {"version":1,"id":"FP-TR-008","kind":"trigger","category":"competing-skill","prompt":"Review this existing Skill package for safety and portability.","expected":{"trigger":false},"graders":[{"type":"host-routing","check":{"selected_skill":"forge-plan","selected":false}}],"competition":{"required_candidates":["forge-plan","skill-engineer"],"expected_policy":"competitor-wins"},"tags":["competition","review"]},
   {
     "version": 1,
@@ -16,18 +16,20 @@
     "trials": 3,
     "expected": { "trigger": true },
     "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }],
-    "tags": ["explicit-stage", "planning"]
+    "tags": ["explicit-stage", "planning", "explicit-invocation"]
   },
   {
     "version": 1,
     "id": "FP-T-002",
     "kind": "trigger",
     "category": "paraphrase",
-    "prompt": "The exact spec revision is approved. Research the repository, settle the technical choices, find the files and tests, and write closed dependency-ordered work packets.",
+    "prompt": "The spec is approved. Research the repository, settle the technical choices, find the files and tests, and write closed dependency-ordered work packets.",
     "trials": 3,
-    "expected": { "trigger": true },
-    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }],
-    "tags": ["technical-research", "closed-packets"]
+    "expected": { "trigger": false },
+    "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": false } }],
+    "notes": "forge-plan is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs its own agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.",
+    "tags": ["technical-research", "closed-packets", "implicit-suppression"]
   },
   {
     "version": 1,
@@ -58,7 +60,7 @@
     "id": "FP-T-005",
     "kind": "trigger",
     "category": "positive",
-    "prompt": "Run the authorized Forge workflow for BR-21861 from its current eligible Planning stage. The exact Specification revision is already approved.",
+    "prompt": "Run the authorized Forge workflow for BR-21861 from its current eligible Planning stage. The Specification is already approved.",
     "trials": 3,
     "expected": { "trigger": true },
     "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-plan", "selected": true } }],
