@@ -195,7 +195,7 @@ def inspect_behavioral_harness(
 ) -> Tuple[bool, List[str]]:
     """Check only structural harness claims; never execute a runner or judge."""
     harness_path = harness_path or HERE / "run_behavioral_evals.py"
-    fixture_path = fixture_path or HERE / "fixtures" / "approved-planning-context.json"
+    fixture_path = fixture_path or HERE / "fixtures" / "ready-planning-context.json"
     baseline_path = baseline_path or HERE / "fixtures" / "brain-plan-scenarios.json"
     execution_path = execution_path or HERE / "execution.json"
     errors: List[str] = []

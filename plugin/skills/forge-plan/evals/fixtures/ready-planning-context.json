@@ -3,14 +3,10 @@
   "authority": [
     {
       "path": "intent.md",
-      "revision": 2,
-      "status": "approved",
       "fresh": true
     },
     {
       "path": "docs/specs/forge-plan-proportional-planning.md",
-      "revision": 1,
-      "status": "approved",
       "fresh": true
     }
   ],
@@ -19,8 +15,6 @@
     "changed_paths": ["plugin/skills/forge-plan/SKILL.md", "plugin/skills/forge-plan/evals/execution.json"]
   },
   "plan": {
-    "revision": 1,
-    "status": "awaiting-approval",
     "ticket_ready": true
   }
 }

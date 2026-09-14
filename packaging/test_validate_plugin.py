@@ -246,7 +246,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
 
     def test_behavioral_structural_mutations_fail_even_when_names_and_options_remain(self) -> None:
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
-        fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "ready-planning-context.json"
         baseline = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "brain-plan-scenarios.json"
         with tempfile.TemporaryDirectory(prefix="behavioral-structure-") as directory:
             root = Path(directory)
@@ -485,7 +485,7 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
 
     def test_behavioral_harness_rejects_nested_public_oracles_before_spawning(self) -> None:
         harness = PLUGIN_SKILLS / "forge-plan" / "evals" / "run_behavioral_evals.py"
-        source_fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "approved-planning-context.json"
+        source_fixture = PLUGIN_SKILLS / "forge-plan" / "evals" / "fixtures" / "ready-planning-context.json"
         with tempfile.TemporaryDirectory(prefix="nested-fixture-") as directory:
             temporary = Path(directory)
             fixture = json.loads(source_fixture.read_text(encoding="utf-8"))

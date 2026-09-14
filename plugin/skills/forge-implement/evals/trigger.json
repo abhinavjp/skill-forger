@@ -15,7 +15,7 @@
     "id": "FI-T-002",
     "kind": "trigger",
     "category": "paraphrase",
-    "prompt": "The exact Specification and technical Plan revisions are approved. Apply only their dependency-ready work packets, run each relevant narrow check, handle Git checkpoints safely, then provide integrated evidence.",
+    "prompt": "The Specification and technical Plan are approved. Apply only their dependency-ready work packets, run each relevant narrow check, handle Git checkpoints safely, then provide integrated evidence.",
     "trials": 3,
     "expected": { "trigger": false },
     "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
