@@ -28,8 +28,13 @@ Done when: you have one plan to run, and the user said go.
 ## 2. Start the record
 
 Create or read `progress.md`. List any other person's uncommitted changes as
-"not mine" at the top; never touch them. If the branch is protected, suggest
-a name per the shared contract's git rules.
+"not mine" at the top; never touch them. If the branch is protected (per the
+shared contract's git rules): create the suggested branch, switch to it,
+and verify the current branch is now that branch — before any file is
+touched. This happens automatically as part of starting the record, not as
+a separate "go?" stop. On any failure to create, switch to, or verify the
+branch, stop and report the exact failure; touch nothing and commit
+nothing.
 
 Resume: the first checklist box that is not `[x]` is where you continue.
 Files under that task's `changed:` are yours; re-run its proof before

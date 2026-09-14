@@ -63,9 +63,13 @@ phase it records.
 - Commit to the current branch unless it is protected (the default branch,
   `main`, `master`, `develop`, `release/*`, or host-protected). If protected,
   create and switch to a suggested branch name, then verify the current
-  branch is actually the new one before any commit — a suggested name that
-  is never created or switched to is not protection, it is a label. Follow
-  the repo's existing branch-naming convention if one exists.
+  branch is actually the new one — a suggested name that is never created or
+  switched to is not protection, it is a label. Do this before any file is
+  touched, not only before the first commit. It happens automatically; it is
+  not one of the listed [Stops](#stops). On failure to create, switch to, or
+  verify the branch, stop and report the exact failure without touching any
+  file or committing. Follow the repo's existing branch-naming convention if
+  one exists.
 - If the user gives a new naming convention, ask to save it (default:
   `docs/contributing/git.md`, with one pointer line in root `AGENTS.md` or
   `CLAUDE.md` if either exists) and say why: later agents and people use the
