@@ -90,7 +90,18 @@ plan. Checklist per task:
   - changed: <files this task touched>
   - deviation: <what differed from the plan, or "none">
   - commit: pending | committed
+- [x] GATE-FIX <phase or plan name>   # phase-gate fix loop, task granularity only
+  - changed: <files the fix loop touched>
+  - commit: pending | committed
 ```
+
+`GATE-FIX` records a phase-gate fix-loop change made under
+`commit_granularity: task`, where the change belongs to no single task.
+It gets its own checkpoint (never folded into or amended onto a task's
+commit) and follows the same `pending`/`committed` rule as a task. Under
+`commit_granularity: phase` (or a compact plan), no `GATE-FIX` entry is
+needed: the single end-of-phase checkpoint already covers fix-loop
+changes together with everything else.
 
 `commit` never holds a commit id: `progress.md` is committed together with
 the phase (or task) it records, so the id does not exist yet when this file

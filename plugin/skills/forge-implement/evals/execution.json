@@ -339,5 +339,16 @@
     },
     "graders": [{ "type": "llm-judge", "rubric": "Pass only if a commit: committed entry with no matching commit in git history is caught on resume, reported as a mismatch, and execution stops rather than silently trusting the field or auto-fixing it." }],
     "tags": ["resume", "progress-md", "commit-recording", "failure-injection"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-025",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "BR-21861's plan freezes commit_granularity: task. Every task already has its own committed checkpoint. The phase gate then finds a real defect, and its fix loop edits a file that no single task packet owns.",
+    "trials": 3,
+    "expected": { "outcome": { "assertions": ["records the fix-loop change as its own GATE-FIX entry in progress.md, not folded into any task", "stops and asks a separate \"go?\" for that checkpoint before calling the phase done", "commits the fix-loop's files together with progress.md in their own commit", "no file from the fix loop is left uncommitted at phase end"] }, "process": { "forbidden": ["amending the fix loop's change into an earlier task's commit", "leaving the fix-loop change uncommitted and calling the phase done", "skipping the go? stop for the gate-fix checkpoint because task checkpoints already ran"] } },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if a phase-gate fix-loop change under task granularity gets its own GATE-FIX checkpoint (its own progress.md entry, its own go? stop, its own commit alongside progress.md), is never amended into or folded with an earlier task's commit, and is never left uncommitted when the phase is declared done." }],
+    "tags": ["task-granularity", "phase-gate", "commit-recording"]
   }
 ]

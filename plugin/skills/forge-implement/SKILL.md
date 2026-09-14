@@ -81,10 +81,21 @@ risk (ask the human if none is available), at most two fix loops.
 Done when: checks pass and no blocking finding remains, or you have stopped
 to report one that does.
 
+If `commit_granularity` is `task` and a fix loop changed any file, that
+change has no task of its own to ride on — checkpoint it separately before
+calling the phase done. Record it in `progress.md` as its own `GATE-FIX`
+entry (see the shared contract's `progress.md` format) and run step 5 for
+exactly those files: show the summary, ask "go?", and commit only on a
+fresh yes. Never fold a gate fix into an earlier task's commit and never
+amend it in. Under `commit_granularity: phase` (or a compact plan), no
+separate step is needed — the single end-of-phase checkpoint in step 5
+already covers any fix-loop changes together with everything else.
+
 ## 5. Commit checkpoint
 
-One checkpoint per task when `commit_granularity: task`; one at phase end
-(or at the end of a compact plan) otherwise. Show the summary and
+One checkpoint per task when `commit_granularity: task` (plus one more per
+`GATE-FIX` entry from step 4); one at phase end (or at the end of a compact
+plan) otherwise. Show the summary and
 `progress.md`, and ask "go?" — never commit without asking. On go:
 
 1. Mark this checkpoint's task(s) `commit: pending` -> `commit: committed`
