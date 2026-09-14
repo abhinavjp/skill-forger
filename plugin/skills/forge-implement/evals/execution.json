@@ -240,11 +240,39 @@
     "prompt": "A task's proof passes and the user says go at its commit checkpoint. Record the result in progress.md and make the commit.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["progress.md's commit field for this task reads pending before the commit and committed after it, never a commit id", "progress.md's update and the task's changes land in the same commit"] },
-      "process": { "forbidden": ["writing a commit hash into progress.md before the commit exists", "committing the code separately from the progress.md update that marks it done"] }
+      "outcome": { "assertions": ["progress.md's commit field for this task reads pending before the commit and committed after it, never a commit id", "the field is set to committed and staged before the commit is created, then the commit lands with progress.md and the task's files together", "a verify step confirms the commit actually contains progress.md and the task's files"] },
+      "process": { "forbidden": ["writing a commit hash into progress.md before the commit exists", "committing the code separately from the progress.md update that marks it done", "creating the commit before progress.md is updated and staged"] }
     },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if progress.md never records a commit's own id, uses pending/committed instead, and the progress.md edit lands in the same commit as the task it records rather than a follow-up commit." }],
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the checkpoint follows pending -> committed -> stage (files + progress.md) -> commit -> verify in that order: progress.md never records a commit's own id, the committed status is written and staged before the commit exists, the progress.md edit lands in the same commit as the task it records, and a verify step checks the commit's contents rather than assuming success." }],
     "tags": ["progress-md", "commit-recording", "no-self-reference"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-020",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "forge-implement is called for BR-21861 and no plan exists yet. The work touches only two files total, but one change performs an irreversible data migration with no rollback path.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["backfills forge-plan without presetting or suggesting compact mode", "forge-plan's seven-factor assessment recommends detailed because of the severe, irreversible migration, despite the small file count", "the detailed recommendation and its reason are carried into forge-implement's one combined stop"] },
+      "process": { "forbidden": ["recommending or defaulting to compact mode from the small file count alone", "skipping the seven-factor assessment because the change looks small"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the small file count does not by itself select compact mode; the severe reversibility factor (an irreversible migration with no rollback) drives a detailed recommendation with its reason stated, and compact is never preset or recommended for this case." }],
+    "tags": ["backfill", "seven-factor", "mode-selection"]
+  },
+  {
+    "version": 1,
+    "id": "FI-E-021",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "A task's proof passes and the user says go at its commit checkpoint. progress.md is updated to commit: committed and staged with the task's files, but the commit command itself fails (e.g. a pre-commit hook rejects it).",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["restores progress.md's commit field to pending", "reports the exact commit failure", "makes zero commits", "requires a fresh \"go?\" before retrying, not an automatic retry"] },
+      "process": { "forbidden": ["leaving progress.md showing commit: committed when no commit exists", "treating the failed attempt as done", "retrying the commit automatically without a new go"] }
+    },
+    "graders": [{ "type": "llm-judge", "rubric": "Pass only if a failed commit leaves the working tree with progress.md restored to pending, zero commits created, the exact failure reported, and no automatic retry without a fresh user go." }],
+    "tags": ["commit-transaction", "failure-injection", "rollback"]
   },
   {
     "version": 1,
@@ -270,19 +298,5 @@
     },
     "graders": [{ "type": "deterministic", "check": { "kind": "validator", "validator": "declares-unmeasured-without-runner" } }],
     "tags": ["unmeasured", "honest-reporting"]
-  },
-  {
-    "version": 1,
-    "id": "FI-E-020",
-    "kind": "execution",
-    "category": "boundary",
-    "prompt": "forge-implement is called for BR-21861 and no plan exists yet. The work touches only two files total, but one change performs an irreversible data migration with no rollback path.",
-    "trials": 3,
-    "expected": {
-      "outcome": { "assertions": ["backfills forge-plan without presetting or suggesting compact mode", "forge-plan's seven-factor assessment recommends detailed because of the severe, irreversible migration, despite the small file count", "the detailed recommendation and its reason are carried into forge-implement's one combined stop"] },
-      "process": { "forbidden": ["recommending or defaulting to compact mode from the small file count alone", "skipping the seven-factor assessment because the change looks small"] }
-    },
-    "graders": [{ "type": "llm-judge", "rubric": "Pass only if the small file count does not by itself select compact mode; the severe reversibility factor (an irreversible migration with no rollback) drives a detailed recommendation with its reason stated, and compact is never preset or recommended for this case." }],
-    "tags": ["backfill", "seven-factor", "mode-selection"]
   }
 ]

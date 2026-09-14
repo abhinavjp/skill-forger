@@ -70,11 +70,24 @@ to report one that does.
 
 One checkpoint per task when `commit_granularity: task`; one at phase end
 (or at the end of a compact plan) otherwise. Show the summary and
-`progress.md`, and ask "go?" — never commit without asking. On go: stage
-only this checkpoint's files, commit at the plan's `commit_granularity`,
-then mark its task(s) `commit: committed` in `progress.md` (never the
-commit's own id — see the shared contract's `progress.md` format for why).
-Never push.
+`progress.md`, and ask "go?" — never commit without asking. On go, run this
+as one transaction, in order:
 
-Done when: the user said go and the checkpoint is recorded, or they said no
-and you stopped.
+1. Mark this checkpoint's task(s) `commit: pending` -> `commit: committed`
+   in `progress.md`.
+2. Stage this checkpoint's files together with the updated `progress.md`.
+   Never the commit's own id — see the shared contract's `progress.md`
+   format for why the field holds `committed`, not a hash.
+3. Create the commit.
+4. Verify: `git show --name-only HEAD` lists `progress.md` and every
+   checkpoint file, and the committed `progress.md` blob shows
+   `commit: committed` for this checkpoint's task(s).
+
+If staging, the commit, or verification fails at any point, restore
+`commit: pending` in `progress.md`, make no commit, and report the exact
+failure. Do not retry automatically — a fresh "go?" starts the transaction
+over. Never push.
+
+Done when: the user said go and the checkpoint is recorded (transaction
+verified), or they said no and you stopped, or the transaction failed and
+`progress.md` still reads `pending`.
