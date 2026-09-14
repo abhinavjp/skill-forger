@@ -75,24 +75,41 @@ to report one that does.
 
 One checkpoint per task when `commit_granularity: task`; one at phase end
 (or at the end of a compact plan) otherwise. Show the summary and
-`progress.md`, and ask "go?" — never commit without asking. On go, run this
-as one transaction, in order:
+`progress.md`, and ask "go?" — never commit without asking. On go:
 
 1. Mark this checkpoint's task(s) `commit: pending` -> `commit: committed`
-   in `progress.md`.
-2. Stage this checkpoint's files together with the updated `progress.md`.
-   Never the commit's own id — see the shared contract's `progress.md`
-   format for why the field holds `committed`, not a hash.
-3. Create the commit.
-4. Verify: `git show --name-only HEAD` lists `progress.md` and every
-   checkpoint file, and the committed `progress.md` blob shows
-   `commit: committed` for this checkpoint's task(s).
+   in `progress.md`, and stage this checkpoint's files together with that
+   updated `progress.md`.
+2. Create the commit.
 
-If staging, the commit, or verification fails at any point, restore
-`commit: pending` in `progress.md`, make no commit, and report the exact
-failure. Do not retry automatically — a fresh "go?" starts the transaction
-over. Never push.
+**Before the commit exists:** if updating `progress.md`, staging, or the
+commit command itself fails, restore `commit: pending` in `progress.md`.
+Report the staged `committed` copy as evidence — the worktree and the
+index must not quietly disagree — and report the exact failure. Claim
+zero commits. Do not retry automatically: a fresh "go?" restarts the
+transaction from step 1 and re-stages it.
 
-Done when: the user said go and the checkpoint is recorded (transaction
-verified), or they said no and you stopped, or the transaction failed and
-`progress.md` still reads `pending`.
+**After the commit exists:** capture its SHA immediately. Verify against
+that exact SHA, never an assumed `HEAD`: the commit's changed-path set is
+exactly `progress.md` plus this checkpoint's files, with no unrelated
+file added or missing; and the committed `progress.md` blob marks
+exactly this checkpoint's task(s) `commit: committed` (never the
+commit's own id — see the shared contract's `progress.md` format for why
+the field holds `committed`, not a hash).
+
+**If that SHA-bound verification fails:** the commit already exists, and
+preserving it is not optional. Keep the commit and the working tree
+exactly as they are — no `reset`, `amend`, `revert`, recommit, or other
+rewrite of `progress.md` or history. Report the SHA, the expected
+files/status, the observed files/status, and the exact mismatch, then
+stop and wait for explicit recovery direction. A plain "go?" does not
+authorize touching a commit that already exists.
+
+Report the checkpoint as recorded only once both SHA-bound checks pass.
+Never push.
+
+Done when one of three distinct end states holds: the checkpoint is
+recorded with both SHA-bound checks verified; no commit exists and
+`progress.md` still reads `pending`; or a commit exists, unverified,
+preserved untouched, and you have stopped for the user's recovery
+direction.

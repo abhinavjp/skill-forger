@@ -95,10 +95,19 @@ plan. Checklist per task:
 `commit` never holds a commit id: `progress.md` is committed together with
 the phase (or task) it records, so the id does not exist yet when this file
 is written and a commit cannot contain its own hash. `pending` means the
-task is done but not yet committed; `committed` means this line and the
-task's changes are going into the same commit. Find the actual id
-afterward with `git log` against `progress.md` or the task's files, if
-needed.
+task is done but not yet committed; `committed` means the commit exists and
+carries this line together with the task's changes in the same commit.
+
+After creating that commit, its SHA is captured immediately and two checks
+are verified against that exact SHA (never an assumed `HEAD`): the
+changed-path set is exactly `progress.md` plus the checkpoint's files, and
+the committed `progress.md` blob itself marks the right task(s)
+`committed`. A commit that exists but fails either check is preserved
+untouched — never reset, amended, reverted, or recommitted to fix it — and
+reported for explicit recovery direction. `committed` in the worktree does
+not by itself mean the checkpoint is trustworthy until both checks pass.
+Find the actual id afterward with `git log` against `progress.md` or the
+task's files, if needed.
 
 Resume: the first box that is not `[x]` is where work continues. Files listed
 under a task's `changed:` are that task's own files. Re-run that task's proof
