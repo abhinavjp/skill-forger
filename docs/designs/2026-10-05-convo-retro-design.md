@@ -81,7 +81,8 @@ order: `progress.md` -> git range -> transcript signals.
 3. **Script in v1:** yes, `session_signals.py` for Claude Code JSONL only;
    other hosts use agentic reading + disclosed degradation. (R11: deterministic
    extraction earns its cost on a multi-MB log.)
-4. **Output:** chat report; write a file only if asked. Apply only on per-item go.
+4. **Output:** chat report; write a file only if asked. Apply nothing in the run; the user asks separately for numbered items (keeps mutation and idempotency rules out of scope).
+5. **Confirmed 2026-10-06:** decisions 2 and 3 taken as recommended.
 
 ## Skill shape
 
@@ -113,7 +114,7 @@ corrections, one tool dominating output size, files read but never used.
 
 0. **Unblock** pull (see chat); refresh `.reference/mattpocock-skills`; license note (MIT, credit).
 1. **Spec** via forge-discover/clarify: confirm decisions above. Goal in user's words.
-2. **Skill text + trigger evals.** Catalog-overlap check green vs skill-prospector/skill-engineer.
+2. **Skill text + trigger evals. DONE 2026-10-06** (inspector clean, 10 trigger cases validate, not in top overlap pairs). Catalog-overlap check green vs skill-prospector/skill-engineer.
 3. **Extractor, test-first.** Fixtures: thrash, retry loop, revert, secret-bearing line.
 4. **Execution evals + packaging.** `plugin_policy` registry, README/manifest counts ("nine"), CHANGELOG 3.1.0, install docs, `validate_plugin.py` green.
 5. **Dogfood.** Run convo-retro on the forge-implement rework session. Pass = >=3 candidates with real locators, 0 untraceable.

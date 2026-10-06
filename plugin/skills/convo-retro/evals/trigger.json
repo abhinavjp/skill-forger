@@ -1,0 +1,154 @@
+[
+  {
+    "version": 1,
+    "id": "CR-T-001",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Use convo-retro on the session we just finished. The agent searched forever for the config loader and kept re-running a failing lint.",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": true } }
+    ],
+    "tags": ["explicit-invocation", "retro"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-002",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "/convo-retro ~/.claude/projects/my-app/9f2c.jsonl",
+    "trials": 3,
+    "expected": { "trigger": true },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": true } }
+    ],
+    "tags": ["explicit-invocation", "log-path"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-003",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "That session was painful. Look back at what the agent struggled with and tell me what to change in our AGENTS.md and CI so it doesn't happen again.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } }
+    ],
+    "notes": "convo-retro is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.",
+    "tags": ["paraphrase", "implicit-suppression"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-004",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "Run a retrospective on yesterday's coding session and suggest environment improvements.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } }
+    ],
+    "notes": "Same implicit-suppression reasoning as CR-T-003.",
+    "tags": ["paraphrase", "implicit-suppression"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-005",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Review this merge request for bugs and security issues before we merge.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["convo-retro", "merge-sentinel"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "merge-sentinel", "selected": true } }
+    ],
+    "tags": ["code-review-boundary", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-006",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Audit this repository's existing agent guidance and plan which reusable procedures should become Skills.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["convo-retro", "skill-prospector"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "skill-prospector", "selected": true } }
+    ],
+    "tags": ["guidance-audit-boundary", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-007",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "Review my SKILL.md for trigger reliability and context cost.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "competition": {
+      "required_candidates": ["convo-retro", "skill-engineer"],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
+      { "type": "host-routing", "check": { "selected_skill": "skill-engineer", "selected": true } }
+    ],
+    "tags": ["skill-review-boundary", "competing-skill"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-008",
+    "kind": "trigger",
+    "category": "near-neighbour",
+    "prompt": "Summarize what we did in this conversation so I can paste it into the ticket.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } }
+    ],
+    "tags": ["summary-not-retro", "negative"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-009",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "Fix the failing test in the checkout service.",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } }
+    ],
+    "tags": ["code-task", "negative"]
+  },
+  {
+    "version": 1,
+    "id": "CR-T-010",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": { "trigger": false },
+    "graders": [
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } }
+    ],
+    "tags": ["generic-question", "negative"]
+  }
+]
