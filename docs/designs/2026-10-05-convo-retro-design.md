@@ -1,6 +1,6 @@
-# retro-fit — design plan
+# convo-retro — design plan
 
-*Retrofits the repo so the next run doesn't trip on the same stair.*
+*Reads the chat. Fixes the setup, so the next run doesn't trip on the same stair.*
 
 Source: Matt Pocock's `retro` ([article](https://www.aihero.dev/skills-retro),
 [skill](https://github.com/mattpocock/skills/tree/main/skills/engineering/retro), MIT).
@@ -70,8 +70,11 @@ order: `progress.md` -> git range -> transcript signals.
 
 ## Decisions to take (recommendation first)
 
-1. **Name:** `retro-fit` (retro + retrofit; forge-plus-gatekeeper: it turns
-   mistakes into guards). Alt: `forge-temper`, plain `forge-retro`.
+1. **Name:** `convo-retro` (chosen by user 2026-10-06): "retro" is the term people
+   search for; "convo" says what it reads. Description must say it reviews a
+   past agent session to propose setup fixes, and is not for reviewing code
+   (merge-sentinel / code-review). Rejected: retro-fit, forge-temper,
+   forge-retro, twice-shy, friction-fix, review-convo.
 2. **Standalone, not a 6th Forge stage.** Works on any session, like
    merge-sentinel; reads Forge artifacts when present. Avoids touching the
    "five-stage" contract and every count claim.
@@ -83,7 +86,7 @@ order: `progress.md` -> git range -> transcript signals.
 ## Skill shape
 
 ```
-plugin/skills/retro-fit/
+plugin/skills/convo-retro/
   SKILL.md                 ~60 lines, disable-model-invocation: true
   agents/openai.yaml       allow_implicit_invocation: false (kept in sync)
   references/categories.md     rung ladder + use-when per category
@@ -113,7 +116,7 @@ corrections, one tool dominating output size, files read but never used.
 2. **Skill text + trigger evals.** Catalog-overlap check green vs skill-prospector/skill-engineer.
 3. **Extractor, test-first.** Fixtures: thrash, retry loop, revert, secret-bearing line.
 4. **Execution evals + packaging.** `plugin_policy` registry, README/manifest counts ("nine"), CHANGELOG 3.1.0, install docs, `validate_plugin.py` green.
-5. **Dogfood.** Run retro-fit on the forge-implement rework session. Pass = >=3 candidates with real locators, 0 untraceable.
+5. **Dogfood.** Run convo-retro on the forge-implement rework session. Pass = >=3 candidates with real locators, 0 untraceable.
 
 ## v2 backlog (not now)
 
