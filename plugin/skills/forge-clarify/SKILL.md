@@ -1,31 +1,40 @@
 ---
 name: forge-clarify
-description: Use when a user explicitly invokes Forge clarification, or an authorized Forge workflow reaches its clarification stage with unresolved human decisions.
+description: Resolve the open human decisions in a Forge work item, then stop.
+disable-model-invocation: true
 ---
 
 # Forge Clarify
 
-Own the clarification boundary: resolve genuine human decisions from current
-evidence, then stop. Do not activate for general questions, evidence gathering
-alone, technical architecture, planning, or implementation.
+The user calls this, or forge-discover points here because it found open
+human decisions. Follow the shared
+[workflow contract](../../shared/forge/references/workflow-contract.md) for
+approval, stops, and the conflict rule.
 
-Before asking, inspect the current scoped evidence and `decisions.md`. Apply
-the decision-frontier method in [decision-frontier.md](references/decision-frontier.md).
-Ask only decisions a human must make; reuse materially equivalent answers and
-research facts available from current evidence. Do not broaden this into
-Discovery or choose an architecture.
+## 1. Build the decision frontier
 
-Present independent ready decisions together in one round. Keep dependent
-decisions until their prerequisites are settled. Reopen an approved decision
-only when evidence shows a contradiction, staleness, or material scope change;
-state that evidence and the affected decision.
+Read the Goal in `context.md`, its evidence, and any existing `decisions.md`.
+Apply [decision-frontier.md](references/decision-frontier.md) to classify
+every candidate decision: already answered, answerable from evidence,
+ready to ask, or already settled. Do not turn this into Discovery or choose
+an architecture yourself.
 
-On an authorized natural-language approval, record the approved decision in
-`decisions.md` and bind it through the shared workflow contract. If approval or
-binding cannot be established, report the unresolved or blocked state rather
-than inferring it. Follow [the shared workflow contract](../../shared/forge/references/workflow-contract.md)
-for gate, approval, freshness, retry, resume, and continuation semantics.
+Done when: you know exactly which decisions are ready to ask.
 
-Finish with the clarification result. Do not start a later stage unless an
-authorized full-workflow continuation already permits it; workflow intent is
-not approval.
+## 2. Ask, once, in one round
+
+Present every independent ready decision together, each with the decision,
+its material options, and the evidence gap. Hold back a decision that
+depends on another one until its prerequisite is settled.
+
+Done when: the user has answered, or there is nothing left to ask.
+
+## 3. Record the answer
+
+On the user's approval, append the decision to `decisions.md`: the decision,
+its scope, who approved it and their own words, and the evidence behind it.
+Reopen a settled decision only when new evidence contradicts it, and say what
+that evidence is.
+
+Done when: `decisions.md` reflects every answered decision, or you report
+that nothing is unresolved.

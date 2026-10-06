@@ -10,6 +10,22 @@ A portable core must not require host-only frontmatter, host-only agents, hooks
 or permissions, host-specific filesystem paths, or proprietary invocation
 syntax — only `SKILL.md` plus relative resources.
 
+**Exception — `disable-model-invocation`.** A user-invoked Skill (a workflow
+stage the user calls by name, never inferred; the Matt Pocock pattern) may set
+`disable-model-invocation: true` in `SKILL.md` frontmatter even though this key
+is outside the open Agent Skills spec's allowed frontmatter (`name`,
+`description`, `license`, `compatibility`, `metadata`, `allowed-tools`) and
+fails `skills-ref validate`. This is the one accepted host-only-field
+exception, because Claude Code, Cursor, and Factory all honour it and no
+portable substitute exists. Pair it with an `openai.yaml` under the skill's
+`agents` folder, setting `policy.allow_implicit_invocation: false`, for Codex;
+Antigravity has no
+suppression switch (the base Agent Skills spec has none for it), so disclose
+that host as not enforceable and rely on a narrow, human-facing description
+instead. The inspector reports a mismatch between the two fields as a finding,
+and reports `disable-model-invocation`'s `skills-ref validate` failure as
+informational, not an error.
+
 Format compatibility is not behavioural compatibility. A Skill whose mandatory
 workflow requires shell access, an interpreter, a package install or permission
 to execute bundled scripts is claiming more than "any compatible host" can

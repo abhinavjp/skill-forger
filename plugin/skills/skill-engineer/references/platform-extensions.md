@@ -26,7 +26,15 @@ known deviations       — where behaviour differs, and how
 
 - Host-specific frontmatter (for example invocation controls such as
   `disable-model-invocation`, or tool allowlists) stays host-specific — the
-  inspector flags these as platform extensions.
+  inspector flags these as platform extensions. `disable-model-invocation` is
+  the one accepted host-only-field exception in the portable core (R22); the
+  inspector notes its `skills-ref validate` failure as informational and
+  flags a mismatch against an `openai.yaml` under the skill's `agents` folder
+  (its `policy.allow_implicit_invocation` key) as a finding.
+- Open bugs affecting this field are deviation evidence only, not spec:
+  [#26251](https://github.com/anthropics/claude-code/issues/26251),
+  [#78523](https://github.com/anthropics/claude-code/issues/78523),
+  [#43875](https://github.com/anthropics/claude-code/issues/43875).
 - Hooks enforce invariants deterministically (R15); permissions restrict
   authority (R20).
 - Subagents provide context isolation (R16).
@@ -57,6 +65,14 @@ known deviations       — where behaviour differs, and how
 
 - Skills, Rules, workflows, hooks, subagents, permission controls.
 - Treat scripts as executable resources rather than context to load (R13).
+- No user-invoked-only switch exists for Skills; the base Agent Skills spec
+  defines none here. Disclose "user-invoked" as not enforceable on this host
+  and rely on a narrow description instead.
+
+## Factory
+
+- Skills and explicit invocation, similar to Claude Code and Cursor.
+- Honours `disable-model-invocation: true` in `SKILL.md` frontmatter directly.
 
 ## Adapter shape
 

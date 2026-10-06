@@ -7,13 +7,13 @@
     "prompt": "Specify BR-21861. Approved context.md records current signed-in checkout, an unauthenticated cart route, and a payment integration. Approved decisions.md permits guest checkout and fixes session timeout at 30 minutes. Produce the plan-ready behavioural contract.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["produces spec.md with stable requirement identities", "defines guest checkout as changed behaviour and signed-in checkout as preserved behaviour", "preserves the approved 30-minute session timeout", "covers actors, state/data semantics, payment-contract behaviour, acceptance scenarios, success criteria, and traceability", "sets the created revision to awaiting-approval"] },
-      "process": { "required": ["uses approved context.md and decisions.md as inputs", "stops at the artifact-specific Specification approval gate"], "forbidden": ["reopening the settled timeout decision", "choosing an architecture, file path, class, or function"] }
+      "outcome": { "assertions": ["produces spec.md with stable requirement identities", "defines guest checkout as changed behaviour and signed-in checkout as preserved behaviour", "preserves the approved 30-minute session timeout", "covers actors, state/data semantics, payment-contract behaviour, acceptance scenarios, success criteria, and traceability", "reports spec.md as ready for forge-plan"] },
+      "process": { "required": ["uses approved context.md and decisions.md as inputs", "shows the ready spec.md and waits for the user's own go/approve words"], "forbidden": ["reopening the settled timeout decision", "choosing an architecture, file path, class, or function"] }
     },
     "graders": [
-      { "type": "llm-judge", "rubric": "Pass only if the response produces or precisely specifies an implementation-independent spec.md with stable requirement IDs, changed and unchanged checkout behaviour, the approved timeout, material actors/state/integration behaviour, testable acceptance scenarios and success criteria, and traceability to Discovery evidence and decisions. The new revision must be awaiting approval; it may not treat its creation or a workflow request as approval." }
+      { "type": "llm-judge", "rubric": "Pass only if the response produces or precisely specifies an implementation-independent spec.md with stable requirement IDs, changed and unchanged checkout behaviour, the approved timeout, material actors/state/integration behaviour, testable acceptance scenarios and success criteria, and traceability to Discovery evidence and decisions. It must present spec.md as ready for forge-plan and wait for the user's own words; it may not invent a revision-status field or approval-gate mechanism, and may not treat its own creation or a workflow request as approval." }
     ],
-    "tags": ["behavioural-completeness", "stable-ids", "approval-gate"]
+    "tags": ["behavioural-completeness", "stable-ids", "ready-for-plan"]
   },
   {
     "version": 1,
@@ -68,31 +68,30 @@
     "id": "FS-E-005",
     "kind": "execution",
     "category": "boundary",
-    "prompt": "A presented spec.md revision 4 has hash abc123 and is awaiting approval. The requester says, 'Run the full Forge workflow and implement it.' No artifact-specific approval exists. Later an authorized independent approver says, 'Approve spec.md revision 4, hash abc123.'",
+    "prompt": "A presented spec.md is shown to the user. They say, 'Run the full Forge workflow and implement it,' without saying go on the spec itself.",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["keeps the gate closed after the full-workflow instruction", "accepts only the valid artifact-specific approval for revision 4 hash abc123", "allows the Specification state to become approved only after that approval"] },
-      "process": { "required": ["uses the shared workflow approval and freshness semantics"], "forbidden": ["treating workflow intent as approval", "approving a different or stale revision"] }
+      "outcome": { "assertions": ["does not treat the full-workflow request as approval of this exact spec", "still shows the spec and waits for the user's own go/approve words"] },
+      "process": { "forbidden": ["treating a full-workflow or continuation request as artifact approval"] }
     },
     "graders": [
-      { "type": "llm-judge", "rubric": "Pass only if the response leaves Planning and Implementation blocked after the full-workflow request, then recognizes the later approval only because it is artifact-specific, for the exact current hash and revision, and from an authorized independent approver. It must use the shared contract rather than inventing approval, hash, retry, resume, freshness, or check rules." }
+      { "type": "llm-judge", "rubric": "Pass only if a full-workflow request is not treated as approving the shown spec.md; the response still waits for the user's own words on that artifact." }
     ],
-    "tags": ["exact-revision", "full-workflow-not-approval", "shared-contract"]
+    "tags": ["full-workflow-not-approval", "shared-contract"]
   },
   {
     "version": 1,
     "id": "FS-E-006",
     "kind": "execution",
     "category": "regression",
-    "prompt": "A clearly presented pending spec.md revision 4 contains normal prose and a fenced example whose indentation changes its meaning. An authorized independent approver replies, 'Proceed.' A later copy differs only in line endings, trailing whitespace, and repeated blank lines; another changes the indentation inside the fenced example.",
+    "prompt": "A clearly presented pending spec.md is shown. The user replies, 'Looks good, go.'",
     "trials": 3,
     "expected": {
-      "outcome": { "assertions": ["can recognize the unambiguous approval only through shared artifact binding", "keeps approval valid across non-semantic formatting-only differences", "treats the meaningful fenced-code indentation change as a materially different revision requiring approval"] },
-      "process": { "required": ["delegates approval comparison semantics to the shared workflow contract"], "forbidden": ["inventing a Specification-specific hash or formatting rule"] }
+      "outcome": { "assertions": ["treats 'looks good, go' as approval of the shown spec.md", "does not ask for a hash, revision id, or script confirmation"] }
     },
     "graders": [
-      { "type": "llm-judge", "rubric": "Pass only if the response recognizes 'Proceed' as potentially valid only for the clearly presented pending artifact through the shared approval contract, preserves approval across line-ending, trailing-whitespace, and repeated-blank-line noise, and treats meaningful indentation inside the fenced example as approval-significant. The skill may not define a parallel approval or hash algorithm." }
+      { "type": "llm-judge", "rubric": "Pass only if the user's own words are accepted as approval with no hash/revision/script mechanism invoked." }
     ],
-    "tags": ["natural-language-approval", "formatting-noise", "semantic-whitespace", "shared-contract"]
+    "tags": ["natural-language-approval", "shared-contract"]
   }
 ]

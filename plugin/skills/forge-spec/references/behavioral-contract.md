@@ -3,8 +3,7 @@
 Use this structure for `spec.md`. Keep the contract implementation-independent:
 it records required observable behaviour and binding constraints, not a plan
 for building it. The shared [workflow contract](../../../shared/forge/references/workflow-contract.md)
-remains the sole source for approval, hash, freshness, check, retry, and resume
-semantics.
+owns approval, checks, retry, and resume.
 
 ## Required artifact shape
 

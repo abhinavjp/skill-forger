@@ -142,5 +142,91 @@
       { "type": "llm-judge", "rubric": "Pass only if context.md selects and cites the guest-checkout leaf with its stated reason and freshness/provenance, excludes the policy container from selected knowledge, and records the unreadable retention leaf and its UNMEASURED validation as unavailable rather than PASS." }
     ],
     "tags": ["knowledge-provider", "selected-leaf", "freshness", "unavailable-knowledge"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-010",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "The user says: \"Guest checkout is failing for logged-out users on mobile; we want it to work the same as desktop. Done when a guest can complete checkout on mobile. Don't touch the payment provider integration.\"",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["context.md's first section is ## Goal", "the Goal states the problem, outcome, done-when, and not-in-scope in the user's own words", "evidence gathered afterward is recorded below the Goal, not folded into it"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if context.md opens with a Goal section written from the user's stated problem/outcome/done-when/not-in-scope, before any evidence section." }
+    ],
+    "tags": ["goal", "context-md-order"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-011",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "forge-discover is run for a work item with no prior context.md and the user has not yet stated the problem.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["the skill asks for the problem, outcome, done-when, and not-in-scope", "no context.md is written before that answer"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if, with no Goal available, the response asks the user for it rather than inventing or inferring one." }
+    ],
+    "tags": ["goal", "missing-input"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-012",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "forge-discover is re-run on BR-21861 to refresh evidence. context.md already has a Goal the user wrote earlier. New repository evidence has appeared since the Goal was written.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": ["the existing Goal text is unchanged", "new evidence is added below the Goal", "the user is not asked to restate the Goal"] },
+      "process": { "forbidden": ["rewriting or rephrasing the Goal from evidence"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if a fact refresh leaves the existing Goal text byte-for-byte the user's own, adding only evidence below it." }
+    ],
+    "tags": ["goal", "fact-refresh", "stability"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-013",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Discovering BR-21861 finds three open decisions. Two are independent; the third only becomes decision-ready once one of the first two is answered.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": [
+        "runs forge-clarify for the first round covering the two independent decisions",
+        "runs forge-clarify again once the third decision becomes ready",
+        "stops looping only when forge-clarify reports no unresolved human decisions"
+      ] },
+      "process": { "forbidden": ["treating the first clarify round as finishing discovery while a decision remains open"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if forge-discover keeps re-running forge-clarify across rounds, including for a decision unblocked by an earlier answer, until forge-clarify reports nothing left unresolved." }
+    ],
+    "tags": ["clarify-loop", "decision-frontier", "closure"]
+  },
+  {
+    "version": 1,
+    "id": "FD-E-014",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "The user's Goal says: \"Guest checkout is failing for logged-out users on mobile; it should work the same as on desktop. Done when a guest can complete checkout on mobile.\" Desktop enforces a 20-item cart cap for signed-in users only; there is no existing guest-cart cap policy anywhere in the repo or product docs.",
+    "trials": 3,
+    "expected": {
+      "outcome": { "assertions": [
+        "lists the guest cart-item-cap choice as an open decision",
+        "does not treat 'work the same as on desktop' as having settled the cap for guests",
+        "does not pick or default to a cap value in context.md"
+      ] },
+      "process": { "forbidden": ["resolving the cap choice by inference from the Goal's general parity language"] }
+    },
+    "graders": [
+      { "type": "llm-judge", "rubric": "Pass only if a decision the Goal does not literally settle is flagged as open rather than resolved by generous reading of 'same as desktop'; fail if the response invents or assumes a cap." }
+    ],
+    "tags": ["decision-classification", "under-flagging", "goal-does-not-settle"]
   }
 ]

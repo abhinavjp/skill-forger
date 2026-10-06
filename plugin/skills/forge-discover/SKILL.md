@@ -1,56 +1,82 @@
 ---
 name: forge-discover
-description: Use when Forge begins evidence-first discovery for a scoped change, issue, or request and needs verified current behaviour and functional impact before specification.
+description: Start a Forge work item from the user's own problem statement, writing its Goal and gathering the evidence Specification will need.
+disable-model-invocation: true
 ---
 
 # Forge Discover
 
-Produce a bounded, evidence-backed `context.md` for Specification. Discovery
-reconciles what is known; it does not interview people, choose architecture, or
-start a later stage. Follow the shared [workflow contract](../../shared/forge/references/workflow-contract.md)
-for ownership, freshness, gates, retry, and continuation semantics.
+The user calls this to start a work item. Follow the shared
+[workflow contract](../../shared/forge/references/workflow-contract.md) for
+lifecycle, backfill, stops, and locations.
 
-## Gather only material evidence
+## 1. Take the problem in the user's words
 
-Consume approved decisions plus available issue/source and selected knowledge
-evidence. Establish current repository/product behaviour before describing
-impact. For issue sources, inspect materially populated fields and follow only
-comments, attachments, linked items, subtasks, parents, dependencies, and
-requirement-changing history that can alter scope or behaviour. Preserve each
-used item's locator, provenance, and freshness; use selected knowledge leaf
-references only. Apply the [issue-source contract](../../shared/forge/references/issue-source-contract.md)
-and [knowledge-provider contract](../../shared/forge/references/knowledge-provider-contract.md),
-not transport-specific semantics.
+Ask only what is needed to write the Goal: the problem, the wanted outcome,
+what "done" looks like, and what is out of scope. Do not interview the user
+beyond this — send any other open human decision to
+[forge-clarify](../forge-clarify/SKILL.md) instead of asking it here.
 
-Use [impact coverage](references/impact-coverage.md) to assess relevant actors,
-states, paths, exclusions and cohorts, permissions, integrations, and
-regressions. State why a relevant dimension is unaffected; omit dimensions that
-are not material. Do not retain raw all-field payloads; retain a raw fragment
-only when it is materially used and cannot be represented faithfully otherwise.
+Name the work item slug from the request. Match it against any existing
+`.forge/<slug>/` before creating a new one; 0 or 2+ matches means ask which
+work item this is.
 
-## Resolve evidence boundaries
+Done when: you can write the Goal in the user's own words.
 
-Record an unreadable or missing source as unavailable evidence, with its reason
-and effect on confidence, scope, or correctness; never treat it as empty or
-successful. Preserve both sides of a material current/history conflict and its
-provenance. Add the affected unresolved human decision to the frontier for
-[forge-clarify](../forge-clarify/SKILL.md); do not ask it directly.
+## 2. Write `context.md`
 
-For UI work, inspect screenshots or visual references only when they can affect
-the requested UI outcome. A missing relevant visual is a warning unless it
-prevents correctness verification; unrelated visual material is out of scope.
+Start the file with:
 
-## Write `context.md`
+```markdown
+## Goal
+Problem: <what is wrong or missing>
+Outcome: <what should be true instead>
+Done when: <observable completion condition>
+Not in scope: <explicitly excluded>
+```
 
-Write a concise, revisit-able record with these sections:
+Only the user changes the Goal once written. A later run of this skill (a
+fact refresh) may add or correct evidence below it, but leaves the Goal
+untouched unless the user says to change it.
 
-1. Scope and consumed approved decisions.
-2. Evidence ledger and verified current behaviour.
-3. Functional-impact coverage and affected surfaces.
-4. Material relationships and requirement-changing history.
-5. Unavailable evidence, freshness observations, and visual-reference status.
-6. Material conflicts and the decision frontier routed to Clarify.
-7. Verification results as `PASS`, `FAIL`, or `UNMEASURED`, with reasons.
+Use [impact coverage](references/impact-coverage.md) to check which actors,
+states, paths, permissions, integrations, and regressions the change touches.
 
-Stop when this context is bounded enough for Specification. Do not repeat
-settled questions or infer a human decision from incomplete evidence.
+Below the Goal, record:
+- current repository/product behaviour relevant to the Goal;
+- evidence used, with enough locator to revisit it;
+- anything unavailable or unreadable, and its effect;
+- open human decisions.
+
+A decision is open unless the Goal's own words settle it. It stays open even
+if it seems implied, a sensible default exists, or the Goal covers something
+related but not this exact point. "Done when a guest can complete checkout
+on mobile" does not by itself settle a cart-cap, error-copy, or rate-limit
+choice for guests — each of those is still open. If closing something
+required you to infer, assume, or pick "the obvious answer," it was open:
+list it, do not resolve it here. When unsure, list it as open.
+
+Done when: `context.md` exists with Goal first and the evidence below it, and
+every choice you had to infer rather than read directly from the Goal is
+listed as an open decision, not silently assumed.
+
+## 3. Close open decisions
+
+If step 2 found open human decisions, run [forge-clarify](../forge-clarify/SKILL.md):
+read its `SKILL.md` and follow it. After each round it records answers in
+`decisions.md` and reports either the next ready round or "no unresolved
+human decisions." Run it again while any decision remains open — including
+one a prior answer only just unblocked — until it reports none left.
+
+If the Goal itself is materially unclear in a way no decision round can fix,
+say what is missing and stop instead of looping.
+
+Done when: forge-clarify reports no unresolved human decisions, or you have
+stopped and said why you could not get there.
+
+## 4. Hand off
+
+Report that discovery is done and Specification can proceed when the user
+calls forge-spec.
+
+Done when: the user knows forge-spec is next.

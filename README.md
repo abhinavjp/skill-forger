@@ -21,17 +21,21 @@ The plugin includes:
   scope, and implementation completeness.
 - [skill-prospector](plugin/skills/skill-prospector/SKILL.md) — audits project
   guidance and plans which reusable procedures should become Skills.
-- [forge-plan](plugin/skills/forge-plan/SKILL.md) — recommends compact or
-  detailed depth and produces approved, dependency-correct implementation plans.
-- [forge-clarify](plugin/skills/forge-clarify/SKILL.md) — resolves genuine
-  human decisions from current evidence, then stops at the clarification
-  boundary.
-- [forge-discover](plugin/skills/forge-discover/SKILL.md) — produces bounded,
-  evidence-backed current-behaviour and impact context before specification.
-- [forge-spec](plugin/skills/forge-spec/SKILL.md) — turns approved discovery
-  facts and decisions into a testable behavioural contract.
-- [forge-implement](plugin/skills/forge-implement/SKILL.md) — safely executes
-  approved implementation packets with explicit gates and recorded evidence.
+- [forge-discover](plugin/skills/forge-discover/SKILL.md) — starts a work item
+  from the user's own problem statement, writing its Goal and gathering
+  current-behaviour evidence.
+- [forge-clarify](plugin/skills/forge-clarify/SKILL.md) — resolves the open
+  human decisions in a work item, then stops.
+- [forge-spec](plugin/skills/forge-spec/SKILL.md) — turns a work item's Goal
+  and decisions into a testable behavioural spec.
+- [forge-plan](plugin/skills/forge-plan/SKILL.md) — turns a work item's Goal,
+  decisions, and spec into an implementation-ready plan.
+- [forge-implement](plugin/skills/forge-implement/SKILL.md) — runs a work
+  item's approved plan against the code, one task or phase at a time.
+
+The five Forge skills are user-invoked, not model-invoked (`disable-model-
+invocation: true`, paired with `agents/openai.yaml` for Codex): the user calls
+each one by name. See [CHANGELOG.md](CHANGELOG.md) for the 3.0.0 rework.
 
 `plugin/shared/forge/` is the portable shared core for the Forge stages: it
 holds their workflow contracts, deterministic utilities, and cross-stage evals.

@@ -19,10 +19,9 @@ PUBLIC_FIXTURE_KEYS = {
     "repository",
     "plan",
 }
-AUTHORITY_KEYS = {"path", "revision", "status", "fresh"}
+AUTHORITY_KEYS = {"path", "fresh"}
 REPOSITORY_KEYS = {"state", "changed_paths"}
-PLAN_KEYS = {"revision", "status", "ticket_ready"}
-AUTHORITY_STATUSES = {"approved", "awaiting-approval"}
+PLAN_KEYS = {"ticket_ready"}
 
 # These are rejected case-insensitively and with common separator changes at
 # every nesting level, before the allowlist is checked.  The explicit names
@@ -90,10 +89,6 @@ def _safe_relative_path(value: Any) -> bool:
     return ".." not in posix.parts and all(part not in {"", "."} for part in posix.parts)
 
 
-def _positive_int(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and value > 0
-
-
 def validate_public_fixture(value: Any) -> List[str]:
     """Return all schema violations for data sent to a runner."""
     errors: List[str] = []
@@ -118,10 +113,6 @@ def validate_public_fixture(value: Any) -> List[str]:
                 continue
             if not _safe_relative_path(entry.get("path")):
                 errors.append("{}.path must be a safe relative path".format(location))
-            if not _positive_int(entry.get("revision")):
-                errors.append("{}.revision must be a positive integer".format(location))
-            if not isinstance(entry.get("status"), str) or entry.get("status") not in AUTHORITY_STATUSES:
-                errors.append("{}.status is not an allowed authority status".format(location))
             if not isinstance(entry.get("fresh"), bool):
                 errors.append("{}.fresh must be boolean".format(location))
 
@@ -137,10 +128,6 @@ def validate_public_fixture(value: Any) -> List[str]:
 
     plan = value.get("plan")
     if _require_exact_keys(plan, PLAN_KEYS, "$.plan", errors):
-        if not _positive_int(plan.get("revision")):
-            errors.append("$.plan.revision must be a positive integer")
-        if not isinstance(plan.get("status"), str) or plan.get("status") not in AUTHORITY_STATUSES:
-            errors.append("$.plan.status is not an allowed artifact status")
         if not isinstance(plan.get("ticket_ready"), bool):
             errors.append("$.plan.ticket_ready must be boolean")
     return errors

@@ -8,18 +8,20 @@
     "trials": 3,
     "expected": { "trigger": true },
     "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": true } }],
-    "tags": ["explicit-stage", "approved-packets", "implementation"]
+    "tags": ["explicit-stage", "approved-packets", "implementation", "explicit-invocation"]
   },
   {
     "version": 1,
     "id": "FI-T-002",
     "kind": "trigger",
     "category": "paraphrase",
-    "prompt": "The exact Specification and technical Plan revisions are approved. Apply only their dependency-ready work packets, run each relevant narrow check, handle Git checkpoints safely, then provide integrated evidence.",
+    "prompt": "The Specification and technical Plan are approved. Apply only their dependency-ready work packets, run each relevant narrow check, handle Git checkpoints safely, then provide integrated evidence.",
     "trials": 3,
-    "expected": { "trigger": true },
-    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": true } }],
-    "tags": ["packet-execution", "verification", "git"]
+    "expected": { "trigger": false },
+    "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
+    "graders": [{ "type": "host-routing", "check": { "selected_skill": "forge-implement", "selected": false } }],
+    "notes": "forge-implement is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs its own agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.",
+    "tags": ["packet-execution", "verification", "git", "implicit-suppression"]
   },
   {
     "version": 1,

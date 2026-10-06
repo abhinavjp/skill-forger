@@ -28,15 +28,28 @@ user accepts automatic-routing risk.
 
 Host statements have separate status: `standards-compatible`, `tested`,
 `untested`, or `known deviation`. Repository signals do not prove an installed
-host, and no host-only field belongs in portable `SKILL.md` frontmatter.
+host, and no host-only field belongs in portable `SKILL.md` frontmatter, with
+one exception: `disable-model-invocation: true` for a user-invoked Skill (a
+workflow stage the user calls by name — the Matt Pocock pattern). It fails
+`skills-ref validate`; disclose that as a known deviation, not an error.
 
 | Host | Automatic routing | Explicit route | Explicit-only enforcement | Status/evidence |
 |---|---|---|---|---|
-| Claude Code | Skills are automatically loaded when relevant | `/skill-name` | `disable-model-invocation: true`; `user-invocable: false` is a visibility control, not suppression | `standards-compatible`; official contract verified 2026-08-30 at [Claude Code Skills/slash commands](https://code.claude.com/docs/en/slash-commands). Plugin delivery `untested`; dated reports such as [issue #26251](https://github.com/anthropics/claude-code/issues/26251) are deviation evidence only. |
-| OpenAI Codex | Portable `name`/`description` catalog routing | Named Skill / `$skill-name` where surfaced | No portable suppression field established; use `not-enforceable-portably` or another host mechanism | `standards-compatible`; official sample/source verified 2026-08-30 at [Codex skill creator](https://github.com/openai/codex/blob/main/codex-rs/skills/src/assets/samples/skill-creator/SKILL.md). Native catalog trial `untested`. |
+| Claude Code | Skills are automatically loaded when relevant | `/skill-name` | `disable-model-invocation: true`; `user-invocable: false` is a visibility control, not suppression | `standards-compatible`; official contract verified 2026-08-30 at [Claude Code Skills/slash commands](https://code.claude.com/docs/en/slash-commands). Plugin delivery `untested`; dated reports such as [issue #26251](https://github.com/anthropics/claude-code/issues/26251), [issue #78523](https://github.com/anthropics/claude-code/issues/78523), and [issue #43875](https://github.com/anthropics/claude-code/issues/43875) are deviation evidence only. |
+| OpenAI Codex | Portable `name`/`description` catalog routing | Named Skill / `$skill-name` where surfaced | An `openai.yaml` under the skill's `agents` folder, `policy.allow_implicit_invocation: false`, paired with `disable-model-invocation: true` in `SKILL.md` | `standards-compatible`; official sample/source verified 2026-08-30 at [Codex skill creator](https://github.com/openai/codex/blob/main/codex-rs/skills/src/assets/samples/skill-creator/SKILL.md). Native catalog trial `untested`. |
 | Cursor | Agent Skill routing where installed | `/skill-name` | `disable-model-invocation: true` in the current Cursor contract | `standards-compatible`; official contract verified 2026-08-30 at [Cursor Agent Skills](https://cursor.com/docs/skills). Exact project/plugin delivery `untested`; [forum report #155748](https://forum.cursor.com/t/disable-model-invocation-true-completely-hides-plugin-delivered-skills-from-command-palette/155748) is dated deviation evidence only. |
-| Antigravity | On-demand Skill selected from its `description` | User-triggered `/` Workflow; some surfaces expose Skill slash invocation | Workflow is the documented strict user-triggered mechanism; no portable Skill suppression key established | `standards-compatible`; official behavior verified 2026-08-30 at [Antigravity SDD codelab](https://codelabs.developers.google.com/sdd-adk-antigravity) and [Antigravity Skills codelab](https://codelabs.developers.google.com/getting-started-with-antigravity-skills). Native trial `untested`. |
+| Factory | Skills routed like Claude Code | Named Skill invocation | `disable-model-invocation: true`, same field as Claude Code/Cursor | `standards-compatible`; `untested` in this repository. |
+| Antigravity | On-demand Skill selected from its `description` | User-triggered `/` Workflow; some surfaces expose Skill slash invocation | **Not enforceable for Skills.** Workflow is the documented strict user-triggered mechanism, but the base Agent Skills spec defines no Skill suppression key; a narrow description is the only lever. Disclose "user-invoked" as intent, not guarantee, on this host. | `standards-compatible`; official behavior verified 2026-08-30 at [Antigravity SDD codelab](https://codelabs.developers.google.com/sdd-adk-antigravity) and [Antigravity Skills codelab](https://codelabs.developers.google.com/getting-started-with-antigravity-skills). Native trial `untested`. |
 
 For an unknown host, keep the portable core only and label runtime behavior
 `untested`. Never present a repository issue, forum report, or signal as a host
 contract, and never propose a host key for an undetected host.
+
+## User-invoked description rule
+
+When a candidate's invocation policy is `explicit-only-required` (a
+user-invoked workflow stage), its `description` is one human-facing sentence
+saying what the Skill does when the user calls it — never a trigger-phrase
+list. Trigger phrases imply model-invocation the field is meant to suppress.
+This also keeps the description narrow enough to do real work on Antigravity,
+where no switch enforces the policy.

@@ -18,12 +18,10 @@ Ask all independent `Decision-ready` items in one numbered round. Defer an item
 whose options depend on another decision. Do not turn preference, policy, or
 technical design choice into an assumed answer.
 
-For each approval, append an idempotent `decisions.md` record containing the
-decision, current scope/artifact identity, approving actor and natural-language
-approval, supporting evidence/provenance and freshness, and any superseded
-decision. Bind that record using the state and approval terms in the
-[shared workflow contract](../../../shared/forge/references/workflow-contract.md); do not invent a parallel gate or approval rule.
+For each answer, append one `decisions.md` record: the decision, its scope,
+who answered and their own words, and the supporting evidence. Note any
+decision it supersedes. This is a plain record, not a gate: the user's words
+are the approval (see the [shared workflow contract](../../../shared/forge/references/workflow-contract.md)).
 
-Return one of: the grouped decision round; a recorded approval with its binding
-status; or “no unresolved human decisions.” Then stop at clarification unless
-continuation is already authorized.
+Return one of: the grouped decision round; the recorded answer; or "no
+unresolved human decisions." Then stop.

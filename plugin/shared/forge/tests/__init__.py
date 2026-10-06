@@ -2,12 +2,11 @@
 
 import unittest
 
-from . import test_run_static_evals, test_workflow_state
+from . import test_run_static_evals
 
 
 def load_tests(loader, _tests, _pattern):
-    """Load Forge's two test modules for ``python -m unittest ...tests``."""
+    """Load Forge's shared test module for ``python -m unittest ...tests``."""
     suite = unittest.TestSuite()
     suite.addTests(loader.loadTestsFromModule(test_run_static_evals))
-    suite.addTests(loader.loadTestsFromModule(test_workflow_state))
     return suite

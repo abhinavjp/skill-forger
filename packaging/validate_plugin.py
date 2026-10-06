@@ -254,8 +254,18 @@ def check_inspector(skill_dirs: List[Path]) -> None:
             problems.append(f"broken references={report['broken_references']}")
         if personal_paths:
             problems.append(f"personal paths={personal_paths}")
-        if report["platform_extensions"]:
-            problems.append(f"platform frontmatter={report['platform_extensions']}")
+        # disable-model-invocation is the one accepted host-only-field
+        # exception (R22 in rules-portability.md): a user-invoked Skill pairs
+        # it with an agents/openai.yaml policy, checked by invocation_policy.
+        unexpected_extensions = [
+            extension for extension in report["platform_extensions"]
+            if extension.get("key") != "disable-model-invocation"
+        ]
+        if unexpected_extensions:
+            problems.append(f"platform frontmatter={unexpected_extensions}")
+        invocation_mismatch = report.get("invocation_policy", {}).get("mismatch")
+        if invocation_mismatch:
+            problems.append(f"invocation policy mismatch={invocation_mismatch}")
         if escaping_refs:
             problems.append(f"references escaping plugin/={escaping_refs}")
         if problems:

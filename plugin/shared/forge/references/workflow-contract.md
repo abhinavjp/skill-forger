@@ -1,107 +1,163 @@
-# Forge workflow contract
+# Forge shared contract
 
-This is the portable source of truth for Forge workflow boundaries. Adapters
-and stage Skills use the deterministic terms and decisions in
-`plugin/shared/forge/scripts/workflow_state.py`; they do not redefine them.
+Every Forge skill points here instead of copying these rules. Terms (work
+item, high risk, go, stop, blocker, backfill, second reviewer) are defined in
+root `CONTEXT.md` and used as-is.
 
-## State and boundaries
+## Lifecycle and backfill
 
-```text
-discover/clarify complete
-  -> spec active
-  -> spec awaiting-approval
-  -> spec approved
-  -> plan active
-  -> plan awaiting-approval
-  -> plan approved
-  -> implementation active
+Order: discover -> clarify -> spec -> plan -> implement. The user calls each
+skill by name.
 
-any required gate missing/stale/unauthorized
-  -> blocked-at-gate (read-only for source/implementation artifacts)
+"Run a skill" means: read its `SKILL.md` and follow it. This works the same
+whether the user typed the invocation or another skill is backfilling it.
 
-approved artifact materially changes
-  -> approval stale
-  -> downstream dependent gates invalid
+If a skill needs an input that is missing:
+- Always run forge-discover first. It writes the Goal.
+- Run forge-clarify only if discover (or the current skill) found open human
+  decisions.
+- Never auto-run forge-spec. Plan and implement work from `context.md` and
+  `decisions.md` when no `spec.md` exists.
+
+## Approval
+
+The user's own words are approval. "Go", "implement the plan", "looks good",
+or similar means proceed. There are no hashes, approval records, or scripts
+that decide this.
+
+A backfilled artifact is shown once, with "review or go?", and the skill
+waits. Going ahead before that answer is a bug, not a shortcut.
+
+## Stops
+
+Stop and wait for the user at:
+- the one combined backfill stop (see below),
+- before every commit,
+- any blocker (see [Conflict rule](#conflict-rule) and CONTEXT.md's
+  definition of blocker).
+
+Never push. A "go" on one stop does not cover a later stop.
+
+## One combined stop
+
+When a skill backfills more than one thing before it can start, show all of
+it in one message: the Goal, open decisions with suggested answers, the mode
+chosen (compact/detailed), and the plan path if one exists. Ask once. Only
+redo and re-show this stop if the user's answer changes the plan; otherwise
+move on.
+
+## Conflict rule
+
+When `context.md`, `decisions.md`, `spec.md`, and the plan disagree, that is a
+blocker. Show both sides plainly. The user decides which one is right. Fix the
+file that was wrong; do not guess or split the difference.
+
+## Locations
+
+An existing repo convention for where Forge artifacts live wins. Otherwise use
+`.forge/<work-item>/`, committed. `progress.md` is committed together with the
+phase it records.
+
+## Git rules
+
+- Commit to the current branch unless it is protected (the default branch,
+  `main`, `master`, `develop`, `release/*`, or host-protected). If protected,
+  create and switch to a suggested branch name, then verify the current
+  branch is actually the new one — a suggested name that is never created or
+  switched to is not protection, it is a label. Do this before any file is
+  touched, not only before the first commit. It happens automatically; it is
+  not one of the listed [Stops](#stops). On failure to create, switch to, or
+  verify the branch, stop and report the exact failure without touching any
+  file or committing. Follow the repo's existing branch-naming convention if
+  one exists.
+- If the user gives a new naming convention, ask to save it (default:
+  `docs/contributing/git.md`, with one pointer line in root `AGENTS.md` or
+  `CLAUDE.md` if either exists) and say why: later agents and people use the
+  same names.
+- Never push.
+
+## progress.md format
+
+One `progress.md` per compact plan, and one per `phases/NN/` in a detailed
+plan. Checklist per task:
+
+```markdown
+- [ ] TSK-01 <title>      # todo
+- [~] TSK-02 <title>      # doing
+- [x] TSK-03 <title>      # done
+- [!] TSK-04 <title>      # blocked
+  - check: <command> -> PASS | FAIL | UNMEASURED
+  - changed: <files this task touched>
+  - deviation: <what differed from the plan, or "none">
+  - commit: pending | committed
+- [x] GATE-FIX <phase or plan name>   # phase-gate fix loop, task granularity only
+  - changed: <files the fix loop touched>
+  - commit: pending | committed
 ```
 
-Discovery/clarification is evidence gathering and reconciliation. Specification
-owns the Specification artifact; Planning owns the Plan artifact; Implementation
-owns source and implementation artifacts. A stage may change only its owned
-artifact and only within its authorized scope. Discovery is read-only.
-Specification and Planning may write their own artifacts, but neither may mutate
-source or implementation artifacts. Implementation is mutation-capable only
-after all of its gates allow entry. Delivery operations are separate mutations:
-they require explicit scope authorization and an adapter-authorized operation.
+`GATE-FIX` records a phase-gate fix-loop change made under
+`commit_granularity: task`, where the change belongs to no single task.
+It gets its own checkpoint (never folded into or amended onto a task's
+commit) and follows the same `pending`/`committed` rule as a task. Under
+`commit_granularity: phase` (or a compact plan), no `GATE-FIX` entry is
+needed: the single end-of-phase checkpoint already covers fix-loop
+changes together with everything else.
 
-There is no direct transition from Discovery or Specification draft to
-Implementation. A full-workflow request may continue through eligible stages,
-but it stops at every required approval gate; it is never approval of an
-artifact.
+`commit` never holds a commit id: `progress.md` is committed together with
+the phase (or task) it records, so the id does not exist yet when this file
+is written and a commit cannot contain its own hash. `pending` means the
+task is done but not yet committed; `committed` means the commit exists and
+carries this line together with the task's changes in the same commit.
 
-## Gates, approval, and freshness
+After creating that commit, its SHA is captured immediately and two checks
+are verified against that exact SHA (never an assumed `HEAD`): the
+changed-path set is exactly `progress.md` plus the checkpoint's files, and
+the committed `progress.md` blob itself marks the right task(s)
+`committed`. A commit that exists but fails either check is preserved
+untouched — never reset, amended, reverted, or recommitted to fix it — and
+reported for explicit recovery direction. `committed` in the worktree does
+not by itself mean the checkpoint is trustworthy until both checks pass.
+Find the actual id afterward with `git log` against `progress.md` or the
+task's files, if needed.
 
-Planning requires a valid Specification approval when `requires_spec_approval`
-is true. Implementation requires a valid Plan approval and, when required, the
-valid Specification approval. Gate decisions use the state helper's
-`can_enter_stage` rules: an approval is artifact-specific, matches the current
-artifact hash and revision, is not by the current actor or artifact author, and
-precedes every mutation it is claimed to authorize. A full-workflow or
-implementation intent is not artifact approval. Approval after a mutation is
-post-hoc and does not validate that mutation.
-An approval is artifact approval only when it records no intent or the intent
-`artifact`; any other recorded intent is a continuation intent and never opens
-a gate. An approval must strictly precede the mutation it authorizes; an
-approval recorded at the same ordering value as the mutation does not
-authorize it.
+Resume: the first box that is not `[x]` is where work continues. Files listed
+under a task's `changed:` are that task's own files. Re-run that task's proof
+on resume before trusting its state.
 
-When an adapter supplies designated approvers or approval policy, it narrows
-the acceptable actors for its `planning` and `implementation` policy stages; it
-does not override, infer, or weaken Forge gates. A mismatch, self-approval,
-unknown authorization, stale hash/revision, or unproven approval ordering keeps
-the gate closed. Material change to an approved artifact makes its approval
-stale and invalidates dependent downstream gates.
-When an adapter supplies an approval policy, a policy stage with no designated
-approvers is closed, not unrestricted; omitting the policy entirely means no
-narrowing.
+Also reconcile every `[x]` task's `commit:` field against git, not only the
+first non-`[x]` box. `[x]` with `commit: pending` means a session stopped
+before its checkpoint: return to the commit checkpoint for it, with a fresh
+"go?", instead of skipping it. `[x]` with `commit: committed`: verify a
+commit actually contains that exact `progress.md` state; if none does,
+report the mismatch and stop rather than auto-fixing it.
 
-`state.mutations`, when present, is a list of objects, each carrying a `stage`
-(one of the recognised stages: `discovery`, `clarification`, `specification`,
-`planning`, `implementation`) and an `at` ordering value comparable with
-`approval.approved_at`. A mutation is in scope for a gate when its `stage`
-matches the stage being entered, or when its `stage` is absent, unrecognised,
-or otherwise not a member of the recognised set — an unlabelled or malformed
-record is never assumed to be out of scope. A mutation labelled with a
-different recognised stage is out of scope and does not block. A `mutations`
-value that is not a list, or an entry that is not an object, is itself treated
-as an in-scope violation. Adapters that do not track mutations may omit the
-`mutations` key entirely; its absence is not a violation.
+List other people's uncommitted changes at the top of `progress.md` as
+"not mine". Never edit, stage, or commit them.
 
-Requirement sources and selected knowledge are fresh only when their recorded
-provenance and hashes/freshness observations still match the artifact's
-materially used inputs. A requirement-changing historical contradiction stays
-unresolved until clarified; it blocks the affected artifact and its dependants.
+## Checks
 
-## Checks, retries, and resume
+A check is exactly `PASS`, `FAIL`, or `UNMEASURED`. Only `PASS` counts as
+passing. `UNMEASURED` always carries a reason and never satisfies a required
+check.
 
-Checks are exactly `PASS`, `FAIL`, or `UNMEASURED`. `PASS` alone is passing.
-`FAIL` records failed evidence. `UNMEASURED` requires a reason and is not a
-pass; a required gate that needs it remains unsatisfied unless a separately
-authorized replacement evidence path is recorded.
+## Retry
 
-Retry is explicit: transient failures may retry only below their configured
-attempt limit; deterministic failures may retry only after relevant inputs
-change. Do not retry an unknown classification implicitly. A blocked artifact
-blocks every transitive dependant. Resume is idempotent: begin at the first
-incomplete or unverifiable ordered item (including hash drift), and return no
-resume point only when every completed item is verified.
+A transient failure may retry, up to a small fixed limit. A deterministic
+failure may retry only after something relevant actually changed (code,
+config, or environment) — not by repeating the same action. Do not retry a
+failure you cannot classify; report it instead.
 
-## Safety invariants
+## Blocked task blocks dependants
 
-- Do not infer approval from intent to run the full workflow.
-- Do not mutate source code before the Implementation gate; do not silently
-  mutate delivery state at any stage.
-- Refuse unauthorized scope or delivery requests, and record the refusal.
-- Isolate pre-existing changes: neither overwrite, clean up, claim, nor deliver
-  them unless separately authorized.
-- Propagate contradictions, stale approvals, and missing required gates to all
-  affected downstream work as `blocked-at-gate`.
+If a task is blocked (`[!]`), every task that depends on it is blocked too.
+Keep working on other ready tasks whose dependencies are still met; stop and
+report once nothing else is ready.
+
+## Phase gate
+
+At the end of each phase (or at the end of a compact plan): run its checks,
+then review the diff against the Goal and the plan. High risk needs a
+second reviewer (root `CONTEXT.md`); with none available, ask the human
+to review. Fix findings, re-run affected checks, and re-review — at most two
+fix loops. If it still is not clean after that, stop and report to the user
+rather than looping again. Stop before the commit that follows.
