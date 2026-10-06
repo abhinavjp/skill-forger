@@ -29,10 +29,13 @@ session with no transcript is labelled `partial`.
 
 ## 2. Find the friction
 
-Look for: long searches before the right file, commands that failed then
-re-ran, edits later reverted, user corrections, expensive tool calls,
-information the agent needed but could not reach, steering lines that changed
-nothing. Read excerpts around each hit, not the whole log.
+For a Claude Code log, run `python scripts/session_signals.py <log>` first. It
+is read-only and prints redacted signals with `file:line` locators (search
+thrash, failed commands re-run, reverted edits, user corrections, heavy tool
+output). No Python, or another host's log: search the log yourself for the
+same signals. Also look for information the agent needed but could not reach,
+and steering lines that changed nothing. Read excerpts around each hit, not
+the whole log.
 
 Done when: every signal has a locator (file and line, message number, or task
 id) and at most one quoted line. Drop a signal that has no locator.

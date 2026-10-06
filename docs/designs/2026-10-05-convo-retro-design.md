@@ -115,7 +115,7 @@ corrections, one tool dominating output size, files read but never used.
 0. **Unblock** pull (see chat); refresh `.reference/mattpocock-skills`; license note (MIT, credit).
 1. **Spec** via forge-discover/clarify: confirm decisions above. Goal in user's words.
 2. **Skill text + trigger evals. DONE 2026-10-06** (inspector clean, 10 trigger cases validate, not in top overlap pairs). Catalog-overlap check green vs skill-prospector/skill-engineer.
-3. **Extractor, test-first.** Fixtures: thrash, retry loop, revert, secret-bearing line.
+3. **Extractor, test-first. DONE 2026-10-06** (32 tests; real logs: 0 parse errors, ~0.2s/3MB; `unused_read` signal deferred to v2 as costly to do deterministically). Fixtures: thrash, retry loop, revert, secret-bearing line.
 4. **Execution evals + packaging.** `plugin_policy` registry, README/manifest counts ("nine"), CHANGELOG 3.1.0, install docs, `validate_plugin.py` green.
 5. **Dogfood.** Run convo-retro on the forge-implement rework session. Pass = >=3 candidates with real locators, 0 untraceable.
 
