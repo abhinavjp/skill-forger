@@ -30,13 +30,36 @@ QUOTE_CHARS = 120
 _REDACTED = "[REDACTED]"
 _REDACTIONS = [
     (re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.S), _REDACTED),
+    # Truncated key: header with no end marker; drop the base64 that follows it.
+    (
+        re.compile(
+            r"-----BEGIN [A-Z ]*PRIVATE KEY-----(?:\s|\\[rn])*"
+            r"(?:(?:(?:Proc-Type|DEK-Info):[^\r\n\\]*|[A-Za-z0-9+/=]{8,})(?:\s|\\[rn])*)*"
+        ),
+        _REDACTED,
+    ),
     (re.compile(r"\bsk-[A-Za-z0-9_-]{16,}"), _REDACTED),
+    (re.compile(r"\bsk_(?:live|test)_[A-Za-z0-9]{16,}"), _REDACTED),
+    (re.compile(r"\bAIza[0-9A-Za-z_-]{35}"), _REDACTED),
+    (re.compile(r"\b(?=[0-9a-fA-F]*\d)(?=[0-9a-fA-F]*[a-fA-F])[0-9a-fA-F]{32}\b"), _REDACTED),
+    # user:password@ inside a URL; the host stays.
+    (re.compile(r"(\b[A-Za-z][A-Za-z0-9+.-]*://[^\s/:@]*:)[^\s/@?#]+(@)"), r"\1" + _REDACTED + r"\2"),
+    (re.compile(r"(?i)(\bAuthorization[\"']?\s*:\s*[\"']?Basic\s+)\S+"), r"\1" + _REDACTED),
+    # CLI flags: --password hunter2, --token=abc, and -pHunter22 (value glued to -p, needs a letter and a digit).
+    (
+        re.compile(r"(?i)(--(?:password|passwd|pwd|secret|token|api[_-]?key)(?:=|\s+))(?:\"[^\"]*\"|'[^']*'|\S+)"),
+        r"\1" + _REDACTED,
+    ),
+    (re.compile(r"(?<!\S)(-p)(?=[^\s=./]*\d)(?=[^\s=./]*[A-Za-z])[^\s=./]{6,}\S*"), r"\1" + _REDACTED),
     (re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})"), _REDACTED),
     (re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"), _REDACTED),
     (re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"), _REDACTED),
     (re.compile(r"(?i)(\bBearer\s+)[A-Za-z0-9._~+/=-]{16,}"), r"\1" + _REDACTED),
     (
-        re.compile(r"(?i)(\b[A-Za-z0-9_]*(?:password|passwd|secret|token|api[_-]?key)[A-Za-z0-9_]*\s*[:=]\s*)\S+"),
+        re.compile(
+            r"(?i)(\b[A-Za-z0-9_]*(?:password|passwd|secret|token|api[_-]?key)[A-Za-z0-9_]*[\"']?\s*[:=]\s*)"
+            r"(?:\"[^\"]*\"|'[^']*'|\S+)"
+        ),
         r"\1" + _REDACTED,
     ),
     # Long mixed letter+digit blobs (keys, hashes). Paths and slugs keep their slashes and dots.
@@ -249,7 +272,7 @@ def analyze(
                 continue
             try:
                 record = json.loads(raw)
-            except ValueError:
+            except (ValueError, RecursionError):  # RecursionError: deeply nested crafted line
                 report["parse_errors"] += 1
                 continue
             if not isinstance(record, dict):

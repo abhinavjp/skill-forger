@@ -79,6 +79,101 @@ class RedactTests(unittest.TestCase):
         text = "grep -rn loader src/config/loader.ts"
         self.assertEqual(ss.redact(text), text)
 
+    def test_redacts_each_secret_shape(self):
+        # (label, text, secret substrings that must be absent from redact(text))
+        rows = [
+            ("json api_key", '{"api_key": "abcd1234efgh"}', ["abcd1234efgh"]),
+            ("json password no space", '"password":"hunter2"', ["hunter2"]),
+            # Built at runtime so no secret-shaped literal sits in the source (push protection).
+            ("stripe live", "key " + "sk_" + "live_" + "4eC39HqLyjWDarjtT1zdp7dc", ["4eC39HqLyjWDarjtT1zdp7dc"]),
+            ("stripe test", "key " + "sk_" + "test_" + "4eC39HqLyjWDarjtT1zdp7dc", ["4eC39HqLyjWDarjtT1zdp7dc"]),
+            ("google AIza", "key AIza" + "Ab1-_" * 7, ["Ab1-_" * 7]),
+            ("32 hex token", "token-ish 5d41402abc4b2a76b9719d911017c592 here", ["5d41402abc4b2a76b9719d911017c592"]),
+            ("url credentials", "postgres://admin:S3cretPass@db.example.com/app", ["S3cretPass"]),
+            ("basic auth", "Authorization: Basic dXNlcjpwYXNzd29yZA==", ["dXNlcjpwYXNzd29yZA"]),
+            ("--password space", "mysql --password hunter2 -u root", ["hunter2"]),
+            ("--password equals", "mysql --password=hunter2 -u root", ["hunter2"]),
+            ("-p glued", "mysql -pHunter22 -u root", ["Hunter22"]),
+            ("-p glued quoted", "mysql -p'Hunter22' -u root", ["Hunter22"]),
+            ("quoted value with spaces", 'password: "correct horse battery"', ["correct", "horse", "battery"]),
+            (
+                "truncated PEM",
+                "-----BEGIN RSA PRIVATE KEY-----\nMIIEvQIBADANBgkq",
+                ["MIIEvQIBADANBgkq"],
+            ),
+            ("AKIA key", "aws AKIAIOSFODNN7EXAMPLE", ["AKIAIOSFODNN7EXAMPLE"]),
+            ("slack xox token", "tok xoxb-123456789012-abcdefghijkl", ["xoxb-123456789012-abcdefghijkl"]),
+            ("empty-username url 1", "redis://:onlypass@host:6379", ["onlypass"]),
+            ("empty-username url 2", "redis://:hunter2pass@cache:6379/0", ["hunter2pass"]),
+            (
+                "quoted json Authorization",
+                '{"Authorization": "Basic dXNlcjpwYXNzd29yZA=="}',
+                ["dXNlcjpwYXNzd29yZA"],
+            ),
+            (
+                "quoted value Authorization",
+                'Authorization: "Basic dXNlcjpwYXNzd29yZA=="',
+                ["dXNlcjpwYXNzd29yZA"],
+            ),
+            ("lowercase authorization", "authorization:basic dXNlcjpwYXNzd29yZA==", ["dXNlcjpwYXNzd29yZA"]),
+            (
+                "curl -H Authorization",
+                "curl -H 'Authorization: Basic dXNlcjpwYXNzd29yZA==' http://x",
+                ["dXNlcjpwYXNzd29yZA"],
+            ),
+            (
+                "truncated PEM literal backslash-n",
+                "-----BEGIN RSA PRIVATE KEY-----" + "\\n" + "MIIEvQIBADANBgkq" + "\\n" + "hkiG9w0BAQEFAASC",
+                ["MIIEvQIBADANBgkq", "hkiG9w0BAQEFAASC"],
+            ),
+            (
+                "truncated PEM Proc-Type",
+                "-----BEGIN EC PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\nMHcCAQEEIBkg",
+                ["ENCRYPTED", "MHcCAQEEIBkg"],
+            ),
+            (
+                "truncated PEM Proc-Type and DEK-Info",
+                "-----BEGIN EC PRIVATE KEY-----\r\nProc-Type: 4,ENCRYPTED\r\nDEK-Info: AES-128-CBC,0A1B2C3D4E5F\r\n\r\nMHcCAQEEIBkg",
+                ["ENCRYPTED", "AES-128-CBC", "MHcCAQEEIBkg"],
+            ),
+            (
+                "truncated PEM literal backslash-r-backslash-n",
+                "-----BEGIN RSA PRIVATE KEY-----" + "\\r\\n" + "MIIEvQIBADANBgkq" + "\\r\\n" + "hkiG9w0BAQEFAASC",
+                ["MIIEvQIBADANBgkq", "hkiG9w0BAQEFAASC"],
+            ),
+            ("-p glued with dot", "mysql -pS3cret.pw -u root", ["S3cret", "pw"]),
+            ("-p glued with slash", "mysql -pHunter22/x -u root", ["Hunter22", "/x"]),
+        ]
+        for label, text, secrets in rows:
+            with self.subTest(label):
+                out = ss.redact(text)
+                for secret in secrets:
+                    self.assertNotIn(secret, out)
+                self.assertIn("[REDACTED]", out)
+
+    def test_truncated_pem_survives_quote_whitespace_collapse(self):
+        out = ss.quote("-----BEGIN RSA PRIVATE KEY-----\nMIIEvQIBADANBgkq")
+        self.assertNotIn("MIIEvQIBADANBgkq", out)
+
+    def test_negative_rows_stay_unchanged(self):
+        slug = "-".join(["alpha"] * 8)
+        self.assertGreaterEqual(len(slug), 45)
+        rows = [
+            "mkdir -p src/x",
+            "pytest -p no:cacheprovider",
+            "go test -parallel=4 ./...",
+            "gcc -print-file-name=libc.so.6",
+            "perl -pi.bak2 -e s/a/b/ f",
+            "x -p/usr/lib64 y",
+            "curl http://localhost:3000?user=bob@example.com",
+            "grep -rn loader src/config/loader.ts",
+            slug,
+            "src/components/v2/very/deeply/nested/directory/structure/of/the/project/file1.ts",
+        ]
+        for text in rows:
+            with self.subTest(text):
+                self.assertEqual(ss.redact(text), text)
+
 
 class LoadTests(LogCase):
     def test_counts_records_and_malformed_lines(self):
@@ -92,6 +187,18 @@ class LoadTests(LogCase):
         report = ss.analyze(path, max_line_bytes=1000)
         self.assertEqual(report["records"], 0)
         self.assertEqual(report["oversize_lines"], 1)
+
+    def test_deeply_nested_line_counts_as_parse_error_and_does_not_crash(self):
+        path = self.dir / "session.jsonl"
+        path.write_bytes(json.dumps(user_text("hello")).encode() + b"\n" + b"[" * 200000 + b"\n")
+        report = ss.analyze(path)
+        self.assertEqual(report["records"], 1)
+        self.assertEqual(report["parse_errors"], 1)
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = ss.main([str(path)])
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out.getvalue())["parse_errors"], 1)
 
     def test_report_marks_quoted_text_as_data(self):
         report = ss.analyze(self.write_log([user_text("hi")]))

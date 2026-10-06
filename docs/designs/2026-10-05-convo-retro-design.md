@@ -123,3 +123,31 @@ corrections, one tool dominating output size, files read but never used.
 
 Codex/Cursor log parsers; cross-session recurrence mining; existing-check
 firing-rate audit from CI history (original's admitted weakest area).
+
+## Review loop status (2026-10-06)
+
+Opus review of phases 2-3, then a Sonnet-implements / Opus-verifies loop with a
+closed scope (reviewer may only judge ledger items and regressions from the
+round's own diff). Stopped after batch A by request.
+
+**Cleared (batch A, redaction + crash):** F-H1 (secret shapes: JSON keys, sk_live,
+AIza, 32-hex, URL credentials incl. empty username, Basic auth incl. quoted,
+--password and -p flags, quoted values, truncated PEM incl. literal \n and \r\n),
+F-M1 (RecursionError on crafted line). 36 tests.
+
+**Open, not yet fixed:**
+- F-H2 retry_loop counts healthy fail-then-pass reruns; count only consecutive failures.
+- F-H3 search_thrash blind to `cd x && rg ...` chains and the PowerShell tool.
+- F-L1 skip isMeta/isCompactSummary and Stop-hook records; treat
+  `[Request interrupted by user` as a correction; exclude "No problem/idea/worries/rush".
+- F-M6 add synthetic real-shape fixtures; assert exact counts; QUOTE_CHARS bound.
+- F-M2 do not open heavy_output lines. F-M3 dry-run only single read-only commands.
+  F-M4 hooks/CI items are "apply alone, confirm first". F-M5 CR-T-001 must use the
+  slash form; notes on CR-T-005/6/7. F-M7 sync this doc with shipped signals.
+- F-L2..L7 prose: fresh-session rerun offer, one home per rule, "environment" as the
+  one term, positive phrasing, writing-guidance line, MIT credit, Forge-jargon prefix.
+- Known, pre-existing: the URL scheme prefix regex is quadratic on crafted input
+  (about 3.4s on 'a.' * 50000). quote() redacts untruncated user text, so cap the
+  text before redacting (for example first 2000 chars) in a follow-up.
+- Accepted cost: a glued `-p` password containing `.` in a short segment, for
+  example `-pab.cd1234`, is indistinguishable from `-pi.bak2` and is not redacted.
