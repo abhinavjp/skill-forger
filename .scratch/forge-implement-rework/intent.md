@@ -70,8 +70,11 @@ Any workhorse model, in any harness, can take an approved forge-plan and:
    Goal changes only when the user says so. Plan, spec, implement check against it.
 8. **Backfill depth.** Missing inputs: always run discover. Run clarify only if discover found
    open human decisions. Never auto-run spec; plan works from context.md + decisions.md.
-9. **Plan mode.** forge-plan always asks compact or detailed, with its suggestion and reason.
-   From implement: suggest compact and confirm. If a risky item shows up, ask again.
+9. **Plan mode.** forge-plan always recommends compact or detailed, with its reason. When the
+   user calls forge-plan directly, it asks and waits right there. When forge-implement (or
+   another skill) backfills forge-plan, forge-plan does not ask separately — see decision 18,
+   which is the single authoritative stop contract for backfill. If a risky item shows up after
+   the mode is set, say so and ask again either way.
 10. **progress.md format.** Checklist per task: `- [ ]` todo, `[~]` doing, `[x]` done, `[!]` blocked,
     with indented `check:`, `changed:`, `deviation:`, `commit:` lines. Resume = first box not `[x]`.
 11. **Dirty tree.** List other people's changes in progress.md. Never edit, stage, or commit them.
@@ -89,7 +92,10 @@ Any workhorse model, in any harness, can take an approved forge-plan and:
 17. **High risk** = any one of size, risk, complexity is high, or two are medium. Plan marks it;
     implement re-checks the real diff. Same rule in both modes.
 18. **One combined stop** when backfilling: Goal, open decisions (with suggestions), mode, plan path
-    in one message. Redo and show again only if the answer changes the plan.
+    in one message. Redo and show again only if the answer changes the plan. This is the only stop
+    before the first source edit in a backfill: forge-plan's own mode-confirmation ask and its own
+    end-of-draft "review or go?" both fold into this single message when forge-plan was backfilled
+    rather than called directly by the user (resolves the former conflict with decision 9).
 19. **Resume.** Write a file under the task's `changed:` before editing it. On resume, those files
     are "mine"; re-run the task's proof.
 20. **Conflicts.** Goal, decisions.md, spec.md, and plan disagree -> blocker. Show both, user decides,
