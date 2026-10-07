@@ -1504,14 +1504,19 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         validator._ok = True
         self.addCleanup(setattr, validator, "_ok", True)
         with contextlib.redirect_stdout(io.StringIO()):
-            validator.check_skill_count_claims(8, {"manifest": "Eight portable Agent Skills"})
+            validator.check_skill_count_claims(9, {"manifest": "Nine portable Agent Skills"})
         self.assertTrue(validator._ok)
 
         validator._ok = True
         with contextlib.redirect_stdout(io.StringIO()) as stream:
-            validator.check_skill_count_claims(9, {"manifest": "Eight portable Agent Skills"})
+            validator.check_skill_count_claims(10, {"manifest": "Nine portable Agent Skills"})
         self.assertFalse(validator._ok)
-        self.assertIn("claims 8", stream.getvalue())
+        self.assertIn("claims 9", stream.getvalue())
+
+    def test_claimed_counts_still_parses_written_out_numbers(self) -> None:
+        """Keep parser coverage for older wording such as "Eight portable Agent Skills"."""
+        self.assertEqual({8}, validator._claimed_counts("Eight portable Agent Skills"))
+        self.assertEqual({9}, validator._claimed_counts("all nine shipped skills"))
 
     def test_count_claim_scan_covers_the_readme_and_every_install_doc(self) -> None:
         """The README is the most likely home for a stale whole-set count."""

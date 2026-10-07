@@ -16,6 +16,7 @@ ln -s "$(pwd)/skill-forger/plugin/skills/forge-discover" ~/.gemini/config/skills
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-spec" ~/.gemini/config/skills/forge-spec
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-plan" ~/.gemini/config/skills/forge-plan
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-implement" ~/.gemini/config/skills/forge-implement
+ln -s "$(pwd)/skill-forger/plugin/skills/convo-retro" ~/.gemini/config/skills/convo-retro
 
 # Required by the five forge-* Skills: the portable shared core they reference.
 ln -s "$(pwd)/skill-forger/plugin/shared" ~/.gemini/config/shared
@@ -48,9 +49,13 @@ shared link is redundant but harmless. Which behaviour your build has is
 ## Verify
 
 Confirm `skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
-`forge-discover`, `forge-spec`, `forge-plan`, and `forge-implement` appear
+`forge-discover`, `forge-spec`, `forge-plan`, `forge-implement`, and `convo-retro` appear
 from the installed plugin, then run through
 [verify-installation.md](verify-installation.md).
+
+Antigravity has no Skill-level suppression switch, so `convo-retro` is user-invoked
+by intent only, exactly as for the Forge Skills: its narrow description is the only
+guard, and it is not enforced there.
 
 ## Update
 

@@ -129,6 +129,8 @@ firing-rate audit from CI history (original's admitted weakest area).
 
 ## Review loop status (2026-10-06)
 
+Phase 4 (execution evals, packaging as 3.1.0) landed 2026-10-07.
+
 Opus review of phases 2-3, then a Sonnet-implements / Opus-verifies loop with a
 closed scope (reviewer may only judge ledger items and regressions from the
 round's own diff). Batch A cleared. Batches B, C and D landed (round 1 of the

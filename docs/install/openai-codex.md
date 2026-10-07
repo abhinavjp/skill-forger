@@ -22,6 +22,7 @@ ln -s "$(pwd)/skill-forger/plugin/skills/forge-discover" <codex-skills-dir>/forg
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-spec" <codex-skills-dir>/forge-spec
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-plan" <codex-skills-dir>/forge-plan
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-implement" <codex-skills-dir>/forge-implement
+ln -s "$(pwd)/skill-forger/plugin/skills/convo-retro" <codex-skills-dir>/convo-retro
 
 # Required by the five forge-* Skills: the portable shared core they reference.
 ln -s "$(pwd)/skill-forger/plugin/shared" <codex-skills-dir>/../shared
@@ -52,9 +53,12 @@ shared link is redundant but harmless. Which behaviour your build has is
 ## Verify
 
 Confirm Codex discovers `skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
-`forge-discover`, `forge-spec`, `forge-plan`, and `forge-implement`
+`forge-discover`, `forge-spec`, `forge-plan`, `forge-implement`, and `convo-retro`
 by name, then run through
 [verify-installation.md](verify-installation.md).
+
+`convo-retro` is user-invoked like the Forge Skills: its `agents/openai.yaml` sets
+`allow_implicit_invocation: false`, so Codex runs it only when you name it.
 
 ## Update
 

@@ -32,10 +32,13 @@ The plugin includes:
   decisions, and spec into an implementation-ready plan.
 - [forge-implement](plugin/skills/forge-implement/SKILL.md) — runs a work
   item's approved plan against the code, one task or phase at a time.
+- [convo-retro](plugin/skills/convo-retro/SKILL.md) — reviews a past agent
+  session and proposes fixes to its environment, so the next run goes smoother.
 
-The five Forge skills are user-invoked, not model-invoked (`disable-model-
-invocation: true`, paired with `agents/openai.yaml` for Codex): the user calls
-each one by name. See [CHANGELOG.md](CHANGELOG.md) for the 3.0.0 rework.
+The five Forge skills and convo-retro are user-invoked, not model-invoked
+(`disable-model-invocation: true`, paired with `agents/openai.yaml` for Codex):
+the user calls each one by name. See [CHANGELOG.md](CHANGELOG.md) for the 3.0.0
+rework and the 3.1.0 convo-retro addition.
 
 `plugin/shared/forge/` is the portable shared core for the Forge stages: it
 holds their workflow contracts, deterministic utilities, and cross-stage evals.
