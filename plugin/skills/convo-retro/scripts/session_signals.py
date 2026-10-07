@@ -84,7 +84,6 @@ _PS_SEARCH_COMMANDS = {
     "get-childitem", "gci", "dir", "ls", "select-string", "sls", "get-content", "gc", "cat", "type", "findstr",
     "rg", "grep", "find",
 }  # compared lowercased
-_SEGMENT_SPLIT = re.compile(r"&&|\|\||;|\|")
 _QUOTE_INPUT_CHARS = 2000  # redaction patterns can be quadratic on huge input; quote() caps before redacting
 
 
@@ -133,25 +132,232 @@ def user_text(record: dict) -> str:
 
 
 def _command(tool_input: dict) -> str:
+    """Whitespace-normalized command: the retry_loop identity only. Never used to parse a command."""
     command = tool_input.get("command")
     return " ".join(command.split()) if isinstance(command, str) else ""
 
 
-def _explore_target(name: str, tool_input: dict):
-    """Return a short target string if this call is exploration, else None."""
+def _raw_command(tool_input: dict) -> str:
+    command = tool_input.get("command")
+    return command if isinstance(command, str) else ""
+
+
+_READ_TOOLS = {"Read"}
+_BASH_READS = {"cat"}  # pure file reads; in Bash `type` is a builtin lookup, not a read
+_PS_READS = {"cat", "type", "get-content", "gc"}  # compared lowercased
+_SEARCH_ONLY_COMMANDS = _SEARCH_COMMANDS - _BASH_READS
+_PS_SEARCH_ONLY_COMMANDS = _PS_SEARCH_COMMANDS - _PS_READS
+_PATH_FLAGS = {"-path", "-literalpath", "-p"}  # PowerShell: the next token (or the :attached value) is the path
+_VALUE_FLAGS = {  # PowerShell: the next token is a value, not a path
+    "-totalcount", "-tail", "-head", "-first", "-last", "-readcount", "-encoding", "-delimiter", "-stream",
+    "-filter", "-include", "-exclude",
+}
+_MAX_OPERANDS = 50  # file operands examined per shell call; the rest are ignored
+_DRIVE = re.compile(r"^([A-Za-z]):(?:[\\/]|$)")
+_MSYS = re.compile(r"^/([A-Za-z])/(.+)$")
+_STDERR_REDIRECT = re.compile(r"^2>(?:>|&\d)?")
+_BASH_ESCAPED = ";|&'\""  # after a backslash outside quotes (as is any whitespace): the command is not parsed
+
+
+def _norm_path(value: str, shell: bool = False, drives=None) -> str:
+    """Identity of a path: Windows drive paths fold case and use slashes; an MSYS /c/... form maps to the drive form in a shell
+    or once a drive form was seen; POSIX paths are left alone. Never truncated or whitespace-collapsed."""
+    drive = _DRIVE.match(value)
+    if drive:
+        if drives is not None:
+            drives.add(drive.group(1).lower())
+        return value.replace("\\", "/").casefold()
+    if value.startswith("/"):
+        msys = _MSYS.match(value)
+        if msys and (shell or (drives is not None and msys.group(1).lower() in drives)):
+            return (msys.group(1) + ":/" + msys.group(2)).casefold()
+        return value
+    return value.replace("\\", "/")
+
+
+def _segments(command: str, bash: bool):
+    """Split a command on && || ; | and newlines outside quotes.
+
+    Returns None (unclassifiable) when it cannot be parsed with confidence: an unbalanced quote, or in Bash a
+    backslash-escaped separator or quote outside quotes. Stops at an unquoted heredoc marker: conservative by design,
+    everything from "<<" on (the body, and anything after it) is data and is never classified.
+    """
+    out, cur, quote_char, i = [], [], None, 0
+    while i < len(command):
+        ch = command[i]
+        if quote_char:
+            if bash and quote_char == '"' and ch == "\\" and i + 1 < len(command):
+                cur.append(command[i : i + 2])  # a Bash escape inside double quotes
+                i += 2
+                continue
+            cur.append(ch)
+            if ch == quote_char:
+                quote_char = None
+        elif ch in "'\"":
+            quote_char = ch
+            cur.append(ch)
+        elif bash and ch == "\\" and i + 1 < len(command) and (command[i + 1].isspace() or command[i + 1] in _BASH_ESCAPED):
+            return None
+        elif command.startswith("<<", i):
+            cur.append("<<")
+            break
+        elif command.startswith("&&", i) or command.startswith("||", i):
+            out.append("".join(cur))
+            cur, i = [], i + 2
+            continue
+        elif ch in ";|\n":
+            out.append("".join(cur))
+            cur = []
+        else:
+            cur.append(ch)
+        i += 1
+    if quote_char:
+        return None
+    out.append("".join(cur))
+    return out
+
+
+def _tokens(segment: str, bash: bool):
+    """Quote-aware split into (text, quoted, redirect); quoted means the token began with a quote.
+    Backslashes are literal (Windows paths). None when a quote is unbalanced."""
+    tokens, cur, quote_char, started, quoted, redirect, i = [], [], None, False, False, False, 0
+    while i < len(segment):
+        ch = segment[i]
+        if quote_char:
+            if bash and quote_char == '"' and ch == "\\" and segment[i + 1 : i + 2] in ('"', "\\", "$", "`", "\n"):
+                return None  # a real Bash escape inside double quotes changes the operand; do not guess
+            if ch == quote_char:
+                quote_char = None
+            else:
+                cur.append(ch)
+        elif ch in "'\"":
+            quote_char = ch
+            quoted = quoted or not started
+            started = True
+        elif ch.isspace():
+            if started:
+                tokens.append(("".join(cur), quoted, redirect))
+                cur, started, quoted, redirect = [], False, False, False
+        else:
+            redirect = redirect or ch in "<>"
+            cur.append(ch)
+            started = True
+        i += 1
+    if quote_char:
+        return None
+    if started:
+        tokens.append(("".join(cur), quoted, redirect))
+    return tokens
+
+
+def _segment_read_paths(tokens: list, bash: bool):
+    """Paths read by one cat/type/Get-Content segment, or None when it redirects (a write, not a read).
+
+    Bash cat flags never take a value, `--` ends options and `-` is stdin. PowerShell path flags take the next token
+    or an attached `-Path:value`; value flags (-TotalCount ...) skip their value.
+    """
+    args, i = tokens[1:], 0
+    flagged, positional = [], []
+    options_ended = False
+    while i < len(args):
+        text, quoted, redirect = args[i]
+        i += 1
+        if redirect:
+            if _STDERR_REDIRECT.match(text):
+                if text in ("2>", "2>>"):
+                    i += 1  # the file that stderr goes to
+                continue
+            return None
+        if bash:
+            if text == "-":
+                continue
+            if not options_ended and text in ("--help", "--version"):
+                return []  # prints help or the version; reads nothing
+            if not options_ended and text == "--":
+                options_ended = True  # quoting does not change what `--` means
+                continue
+            if not options_ended and not quoted and text.startswith("-"):
+                continue
+            positional.append(text)
+            continue
+        if not quoted and text.startswith("-") and len(text) > 1:
+            name, _, attached = text.partition(":")
+            name = name.lower()
+            if attached:
+                if name in _PATH_FLAGS:
+                    flagged.append(attached)
+            elif name in _PATH_FLAGS:
+                if i < len(args):
+                    flagged.append(args[i][0])
+                    i += 1
+            elif name in _VALUE_FLAGS and i < len(args):
+                i += 1
+            continue
+        positional.append(text)
+    return flagged or positional
+
+
+def _shell_call(command: str, bash: bool, drives):
+    """Heuristic classifier: a search, a read of files, or None. An uncertain command is None (neutral)."""
+    segments = _segments(command, bash)
+    if segments is None:
+        return None
+    only = _SEARCH_ONLY_COMMANDS if bash else _PS_SEARCH_ONLY_COMMANDS
+    reads = _BASH_READS if bash else _PS_READS
+    keys, seen, operands, is_read = [], set(), 0, False
+    for segment in segments:
+        tokens = _tokens(segment, bash)
+        if not tokens:
+            continue
+        head = tokens[0][0] if bash else tokens[0][0].lower()
+        if head in only:
+            return "search", quote(command), ("shell", " ".join(command.split()))
+        if head in reads:
+            paths = _segment_read_paths(tokens, bash)
+            if paths is None:
+                continue
+            is_read = True
+            for path in paths[: _MAX_OPERANDS - operands]:
+                operands += 1
+                if not path:
+                    continue
+                key = ("read", _norm_path(path, True, drives), None, None)
+                if key not in seen:
+                    seen.add(key)
+                    keys.append(key)
+    return ("read", quote(command), keys) if is_read else None
+
+
+def _page_value(value):
+    return value if isinstance(value, (int, str)) else None
+
+
+def _explore_call(name: str, tool_input: dict, drives=None):
+    """Classify a call: None (not exploration), or (kind, target, key).
+
+    kind is "search" (always counts; key is one hashable identity) or "read" (counts only as a re-read;
+    key is a list of identities, one per file read, empty when no path is readable).
+    """
+    if name in _READ_TOOLS:
+        value = tool_input.get("file_path")
+        if not isinstance(value, str):
+            value = tool_input.get("path")
+        if isinstance(value, str):
+            page = (_page_value(tool_input.get("offset")), _page_value(tool_input.get("limit")))
+            return "read", quote(value), [("read", _norm_path(value, False, drives)) + page]
+        return "read", name, []
     if name in _EXPLORE_TOOLS:
-        for key in ("pattern", "file_path", "path"):
-            value = tool_input.get(key)
-            if isinstance(value, str):
-                return quote(value)
-        return name
+        fields = [tool_input.get(key) for key in ("pattern", "file_path", "path")]
+        fields = [field if isinstance(field, str) else None for field in fields]
+        if all(field is None for field in fields):
+            return "search", name, (name,)
+        pattern, file_path, path = fields
+        text = next(field for field in fields if field is not None)
+        file_path = None if file_path is None else _norm_path(file_path, False, drives)
+        path = None if path is None else _norm_path(path, False, drives)
+        return "search", quote(text), ("search", name, pattern, file_path, path)
     if name in _SHELL_TOOLS:
-        command = _command(tool_input)
-        searches = _SEARCH_COMMANDS if name == "Bash" else _PS_SEARCH_COMMANDS
-        for segment in _SEGMENT_SPLIT.split(command):
-            head = segment.strip().split(" ", 1)[0]
-            if (head if name == "Bash" else head.lower()) in searches:
-                return quote(command)
+        return _shell_call(_raw_command(tool_input), name == "Bash", drives)
     return None
 
 
@@ -175,7 +381,13 @@ class _State:
         self.heavy_chars = heavy_chars
         self.signals: list = []
         self.tools: dict = {}  # tool_use id -> {"name", "line", "command"}
-        self.run: list = []  # exploration calls since the last write or user turn: (line, target)
+        # Counted exploration calls since the last write or user turn: (line, target, key).
+        # Searches count at once; a read counts only once its path is read again (then both reads count).
+        self.run: list = []
+        self.reads: dict = {}  # read key -> first call (line, target, key, call id) awaiting a re-read, or None once promoted
+        self.counted: set = set()  # call ids already in the run: a call counts once
+        self.drives: set = set()  # drive letters seen in Windows-form paths (lets the MSYS /c/... form map to the drive form)
+        self.seq = 0
         # normalized command -> failure streaks, once it has failed:
         # {"streak", "streak_line" (current), "line", "count" (longest streak so far)}
         self.retries: dict = {}
@@ -186,15 +398,19 @@ class _State:
 
     def flush_run(self) -> None:
         if len(self.run) >= EXPLORE_RUN_MIN:
+            self.run.sort(key=lambda call: call[0])
             self.signals.append(
                 {
                     "kind": "search_thrash",
                     "locator": self.locator(self.run[0][0]),
                     "count": len(self.run),
-                    "targets": [target for _, target in self.run[:5]],
+                    "distinct": len({key for _, _, key in self.run}),
+                    "targets": [target for _, target, _ in self.run[:5]],
                 }
             )
         self.run = []
+        self.reads = {}
+        self.counted = set()
 
     def tool_use(self, lineno: int, block: dict) -> None:
         name = block.get("name") if isinstance(block.get("name"), str) else ""
@@ -205,11 +421,39 @@ class _State:
         if name in _WRITE_TOOLS:
             self.flush_run()
         else:
-            target = _explore_target(name, tool_input)
-            if target is not None:
-                self.run.append((lineno, target))
+            call = _explore_call(name, tool_input, self.drives)
+            if call is not None:
+                self._explore(lineno, *call)
         if name == "Edit":
             self._edit(lineno, tool_input)
+
+    def _explore(self, lineno: int, kind: str, target: str, key) -> None:
+        if kind == "search":
+            self.run.append((lineno, target, key))
+            return
+        # A read: key is a list of file identities. A first read is neutral; a re-read of any identity counts,
+        # and so does the earlier call that first read it. Each call counts at most once.
+        keys = list(dict.fromkeys(key))
+        if not keys:
+            return
+        self.seq += 1
+        call_id = self.seq
+        promoted = False
+        for read_key in keys:
+            if read_key in self.reads:
+                first = self.reads[read_key]
+                if first is not None:
+                    self.reads[read_key] = None
+                    if first[3] not in self.counted:
+                        self.counted.add(first[3])
+                        self.run.append((first[0], first[1], read_key))
+                if not promoted:
+                    promoted = True
+                    self.counted.add(call_id)
+                    self.run.append((lineno, target, read_key))
+        for read_key in keys:
+            if read_key not in self.reads:
+                self.reads[read_key] = (lineno, target, read_key, call_id)
 
     def _edit(self, lineno: int, tool_input: dict) -> None:
         path, old, new = (tool_input.get(k) for k in ("file_path", "old_string", "new_string"))

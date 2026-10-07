@@ -120,16 +120,28 @@ reported by size alone.
 2. **Skill text + trigger evals. DONE 2026-10-06** (inspector clean, 10 trigger cases validate, not in top overlap pairs). Catalog-overlap check green vs skill-prospector/skill-engineer.
 3. **Extractor, test-first. DONE 2026-10-06** (55 tests after review batches; real logs: 0 parse errors, ~0.2s/3MB; `unused_read` signal deferred to v2 as costly to do deterministically). Fixtures: synthetic fixture logs under `scripts/fixtures/` (added in review batch C), never real user logs: `search-thrash`, `retry-revert`, `corrections-heavy`.
 4. **Execution evals + packaging.** `plugin_policy` registry, README/manifest counts ("nine"), CHANGELOG 3.1.0, install docs, `validate_plugin.py` green.
-5. **Dogfood.** Run convo-retro on the forge-implement rework session. Pass = >=3 candidates with real locators, 0 untraceable.
+5. **Dogfood. DONE 2026-10-07.** Pass = >=3 candidates with real locators, 0 untraceable.
+   Result: ran on the forge-implement PR3-fix sessions (two logs, a fresh Sonnet
+   subagent following SKILL.md): 5 candidates, 17 locators verified against the
+   logs, 0 untraceable. Passed. The candidate list lives in the scratchpad only
+   and is not committed.
+   Found: `search_thrash` false positives on reads of distinct files (5 of 11);
+   the extractor was fixed in the same phase. Found: the agent could not judge a
+   `user_correction` without the preceding turn, so SKILL.md now reads up to 3
+   records before it; the script path is now stated relative to the skill folder;
+   the report format allows `Rung: nothing` and `Dry run`/`Load: n/a`.
 
 ## v2 backlog (not now)
 
 Codex/Cursor log parsers; cross-session recurrence mining; existing-check
 firing-rate audit from CI history (original's admitted weakest area).
+Missed by the extractor in dogfooding: repeated slow command; elapsed-time and
+call-count cost data; failure text inside piped output with no `is_error`; user
+turns that are corrections in substance but carry no keyword.
 
 ## Review loop status (2026-10-06)
 
-Phase 4 (execution evals, packaging as 3.1.0) landed 2026-10-07.
+Phase 4 (execution evals, packaging as 3.1.0) landed 2026-10-07. Phase 5 dogfood done 2026-10-07 (see Phases).
 
 Opus review of phases 2-3, then a Sonnet-implements / Opus-verifies loop with a
 closed scope (reviewer may only judge ledger items and regressions from the
@@ -143,19 +155,6 @@ AIza, 32-hex, URL credentials incl. empty username, Basic auth incl. quoted,
 --password and -p flags, quoted values, truncated PEM incl. literal \n and \r\n),
 F-M1 (RecursionError on crafted line). 36 tests.
 
-**Open, not yet fixed:**
-- F-H2 retry_loop counts healthy fail-then-pass reruns; count only consecutive failures.
-- F-H3 search_thrash blind to `cd x && rg ...` chains and the PowerShell tool.
-- F-L1 skip isMeta/isCompactSummary and Stop-hook records; treat
-  `[Request interrupted by user` as a correction; exclude "No problem/idea/worries/rush".
-- F-M6 add synthetic real-shape fixtures; assert exact counts; QUOTE_CHARS bound.
-- F-M2 do not open heavy_output lines. F-M3 dry-run only single read-only commands.
-  F-M4 hooks/CI items are "apply alone, confirm first". F-M5 CR-T-001 must use the
-  slash form; notes on CR-T-005/6/7. F-M7 sync this doc with shipped signals.
-- F-L2..L7 prose: fresh-session rerun offer, one home per rule, "environment" as the
-  one term, positive phrasing, writing-guidance line, MIT credit, Forge-jargon prefix.
-- Known, pre-existing: the URL scheme prefix regex is quadratic on crafted input
-  (about 3.4s on 'a.' * 50000). quote() redacts untruncated user text, so cap the
-  text before redacting (for example first 2000 chars) in a follow-up.
-- Accepted cost: a glued `-p` password containing `.` in a short segment, for
-  example `-pab.cd1234`, is indistinguishable from `-pi.bak2` and is not redacted.
+**Phase 5 review trail:** three Codex gpt-6.1-sol rounds on the read/re-read tracking (5, 10, then 3 findings). The last 3 (escapes in double quotes, quoted `--`, `cat --help`) were fixed directly with tests and not re-reviewed, because the 3-round cap was reached.
+
+**Remaining known limits:** the shell read/search classifier is a heuristic aid: an uncertain command (unbalanced quote, Bash backslash-escaped separator, text after a heredoc marker) is left unclassified, so it can miss real thrash but should not invent it; known gaps are path flavour ambiguity (POSIX backslash filenames vs Windows paths, UNC casing), MSYS drive mapping depending on encounter order, and searches after a heredoc body not being seen; exotic shells are missed; only Claude Code logs are tested; a `-p` glued password containing `.` is not redacted (accepted cost); the v2 backlog above is not started.
