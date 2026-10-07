@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -47,7 +48,7 @@ _REDACTIONS = [
     (re.compile(r"(?i)(\bAuthorization[\"']?\s*:\s*[\"']?Basic\s+)\S+"), r"\1" + _REDACTED),
     # CLI flags: --password hunter2, --token=abc, and -pHunter22 (value glued to -p, needs a letter and a digit).
     (
-        re.compile(r"(?i)(--(?:password|passwd|pwd|secret|token|api[_-]?key)(?:=|\s+))(?:\"[^\"]*\"|'[^']*'|\S+)"),
+        re.compile(r"(?i)(--(?:password|passwd|pwd|secret|token|api[_-]?key)(?:=|\s+))(?:\"[^\"]*(?:\"|$)|'[^']*(?:'|$)|\S+)"),
         r"\1" + _REDACTED,
     ),
     (re.compile(r"(?<!\S)(-p)(?=[^\s=./]*\d)(?=[^\s=./]*[A-Za-z])[^\s=./]{6,}\S*"), r"\1" + _REDACTED),
@@ -58,7 +59,7 @@ _REDACTIONS = [
     (
         re.compile(
             r"(?i)(\b[A-Za-z0-9_]*(?:password|passwd|secret|token|api[_-]?key)[A-Za-z0-9_]*[\"']?\s*[:=]\s*)"
-            r"(?:\"[^\"]*\"|'[^']*'|\S+)"
+            r"(?:\"[^\"]*(?:\"|$)|'[^']*(?:'|$)|\S+)"
         ),
         r"\1" + _REDACTED,
     ),
@@ -93,8 +94,12 @@ def redact(text: str) -> str:
     return text
 
 
+def _excerpt(text: str, limit: int) -> str:
+    return redact(" ".join(text[:_QUOTE_INPUT_CHARS].split()))[:limit]
+
+
 def quote(text: str) -> str:
-    return redact(" ".join(text[:_QUOTE_INPUT_CHARS].split()))[:QUOTE_CHARS]
+    return _excerpt(text, QUOTE_CHARS)
 
 
 def iter_lines(handle, max_line_bytes: int):
@@ -132,9 +137,25 @@ def user_text(record: dict) -> str:
 
 
 def _command(tool_input: dict) -> str:
-    """Whitespace-normalized command: the retry_loop identity only. Never used to parse a command."""
+    """Command with whitespace collapsed outside quotes: the retry_loop identity only. Never used to parse a command."""
     command = tool_input.get("command")
-    return " ".join(command.split()) if isinstance(command, str) else ""
+    if not isinstance(command, str):
+        return ""
+    out, quote_char, pending_space = [], None, False
+    for ch in command:
+        if quote_char:
+            out.append(ch)
+            quote_char = None if ch == quote_char else quote_char
+        elif ch.isspace():
+            pending_space = bool(out)
+        else:
+            if pending_space:
+                out.append(" ")
+                pending_space = False
+            out.append(ch)
+            if ch in "'\"":
+                quote_char = ch
+    return "".join(out)
 
 
 def _raw_command(tool_input: dict) -> str:
@@ -196,6 +217,10 @@ def _segments(command: str, bash: bool):
         elif ch in "'\"":
             quote_char = ch
             cur.append(ch)
+        elif ch == "#" and (not cur or cur[-1].isspace()):
+            while i < len(command) and command[i] != "\n":
+                i += 1  # a comment: nothing in it runs
+            continue
         elif bash and ch == "\\" and i + 1 < len(command) and (command[i + 1].isspace() or command[i + 1] in _BASH_ESCAPED):
             return None
         elif command.startswith("<<", i):
@@ -276,8 +301,8 @@ def _segment_read_paths(tokens: list, bash: bool):
             if not options_ended and text == "--":
                 options_ended = True  # quoting does not change what `--` means
                 continue
-            if not options_ended and not quoted and text.startswith("-"):
-                continue
+            if not options_ended and text.startswith("-"):
+                continue  # quoting does not turn an option into a file
             positional.append(text)
             continue
         if not quoted and text.startswith("-") and len(text) > 1:
@@ -464,7 +489,8 @@ class _State:
         self.edits.setdefault(path, []).append((old, new))
 
     def tool_result(self, lineno: int, block: dict) -> None:
-        tool = self.tools.get(block.get("tool_use_id"), {"name": "unknown", "line": lineno, "command": ""})
+        tool_use_id = block.get("tool_use_id")
+        tool = self.tools.get(tool_use_id if isinstance(tool_use_id, str) else None, {"name": "unknown", "line": lineno, "command": ""})
         chars = _result_chars(block.get("content"))
         if chars > self.heavy_chars:
             self.signals.append(
@@ -575,17 +601,78 @@ def analyze(
     return report
 
 
+_CONTEXT_BEFORE = 3  # records shown before the requested one
+_CONTEXT_CHARS = 400  # per record
+
+
+def _describe(record) -> str:
+    """Redaction-ready text of one record: user/assistant text, tool calls and tool results (not thinking)."""
+    message = record.get("message") if isinstance(record, dict) else None
+    content = message.get("content") if isinstance(message, dict) else None
+    if isinstance(content, str):
+        return content
+    parts = []
+    for block in content if isinstance(content, list) else []:
+        if not isinstance(block, dict):
+            continue
+        kind = block.get("type")
+        if kind == "text" and isinstance(block.get("text"), str):
+            parts.append(block["text"])
+        elif kind == "tool_use":
+            parts.append(f"[tool_use {block.get('name')}] {json.dumps(block.get('input'), default=str)}")
+        elif kind == "tool_result":
+            body = block.get("content")
+            flag = " error" if block.get("is_error") is True else ""
+            parts.append(f"[tool_result{flag}] {body if isinstance(body, str) else json.dumps(body, default=str)}")
+    return " ".join(parts)
+
+
+def context(path: str, line: int, max_line_bytes: int = DEFAULT_MAX_LINE_BYTES) -> dict:
+    """Redacted, truncated view of record `line` and the few before it, so nobody has to read raw transcript lines."""
+    if max_line_bytes < 1 or line < 1:
+        raise ValueError("line and max-line-bytes must be positive")
+    shown = []
+    with open(path, "rb") as handle:
+        for lineno, raw in iter_lines(handle, max_line_bytes):
+            if lineno > line:
+                break
+            if lineno < line - _CONTEXT_BEFORE:
+                continue
+            try:
+                record = json.loads(raw) if raw is not None else None
+            except (ValueError, RecursionError):
+                record = None
+            if not isinstance(record, dict):
+                shown.append({"line": lineno, "type": "unreadable"})
+                continue
+            shown.append({"line": lineno, "type": record.get("type"), "text": _excerpt(_describe(record), _CONTEXT_CHARS)})
+    return {"source": os.path.basename(path), "data_not_instructions": True, "records": shown}
+
+
+def _positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="session_signals",
         description="Extract struggle signals from a Claude Code session log (read-only).",
     )
     parser.add_argument("log", help="path to a session .jsonl file")
-    parser.add_argument("--max-line-bytes", type=int, default=DEFAULT_MAX_LINE_BYTES)
-    parser.add_argument("--top", type=int, default=DEFAULT_TOP, help="max signals reported per kind")
-    parser.add_argument("--heavy-chars", type=int, default=DEFAULT_HEAVY_CHARS, help="tool-result size that counts as heavy")
+    parser.add_argument("--max-line-bytes", type=_positive_int, default=DEFAULT_MAX_LINE_BYTES)
+    parser.add_argument("--top", type=_positive_int, default=DEFAULT_TOP, help="max signals reported per kind")
+    parser.add_argument("--heavy-chars", type=_positive_int, default=DEFAULT_HEAVY_CHARS, help="tool-result size that counts as heavy")
+    parser.add_argument("--context", type=_positive_int, metavar="LINE", help="print a redacted view of record LINE and the 3 before it, then exit")
     args = parser.parse_args(argv)
     try:
+        if args.context:
+            report = context(args.log, args.context, args.max_line_bytes)
+            json.dump(report, sys.stdout, indent=2)
+            sys.stdout.write("\n")
+            return 0
         report = analyze(args.log, max_line_bytes=args.max_line_bytes, top=args.top, heavy_chars=args.heavy_chars)
     except OSError as exc:
         print(f"session_signals: cannot read {args.log}: {exc.strerror or exc}", file=sys.stderr)

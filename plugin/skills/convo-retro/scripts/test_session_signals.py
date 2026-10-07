@@ -634,6 +634,16 @@ class ReadRunTests(LogCase):
         self.assertEqual(self.shell([f"cat -- -notes{n}.txt" for n in range(4)]), [])
         self.assertEqual(self.shell(["cat -notes.txt"] * 4), [])  # without --, a flag
 
+    def test_quoted_bash_option_is_still_an_option(self):
+        # `cat "-n" a.txt` passes -n to cat; the first reads of distinct files stay neutral.
+        self.assertEqual(self.shell([f'cat "-n" {name}.txt' for name in "abcd"]), [])
+
+    def test_shell_comments_are_not_commands(self):
+        self.assertEqual(self.shell(["# explanation; rg TODO"] * 4), [])
+        self.assertEqual(self.shell(["echo hi  # rg TODO"] * 4), [])
+        self.assertEqual(self.shell(["# note\nls"] * 4, "PowerShell")[0]["count"], 4)  # the command after the comment still counts
+        self.assertEqual(self.shape(self.shell(["rg a#b"] * 4)), [(4, 1)])  # `#` inside a word starts no comment
+
     def test_final_review_false_positives_stay_neutral(self):
         # An escape inside double quotes changes the operand; Bash cat "a\"b" is not the file a/"b.
         self.assertEqual(self.shell(['cat "a\\"b"'] * 4), [])
@@ -676,6 +686,21 @@ class RetryLoopTests(LogCase):
         self.assertEqual(found[0]["count"], 2)
         self.assertEqual(found[0]["locator"], "session.jsonl:1")
         self.assertIn("npm run lint", found[0]["quote"])
+
+    def test_whitespace_inside_quotes_keeps_commands_distinct(self):
+        # PR review: collapsing quoted whitespace pooled `"a  b"` and `"a b"` into one retry.
+        records = self.run_cmd("a", 'grep "a  b" f', True) + self.run_cmd("b", 'grep "a b" f', True)
+        self.assertEqual(signals_of(ss.analyze(self.write_log(records)), "retry_loop"), [])
+        records = self.run_cmd("a", 'grep  "a  b"   f', True) + self.run_cmd("b", 'grep "a  b" f', True)
+        self.assertEqual(len(signals_of(ss.analyze(self.write_log(records)), "retry_loop")), 1)
+
+    def test_malformed_tool_use_id_does_not_abort_the_report(self):
+        # PR review: an unhashable tool_use_id raised TypeError and aborted the whole report.
+        for bad_id in (["x"], {"k": 1}, None, 7):
+            with self.subTest(bad_id=bad_id):
+                records = [tool_use("a", "Bash", {"command": "make"}), tool_result(bad_id, "boom", True)]
+                report = ss.analyze(self.write_log(records))
+                self.assertEqual(report["parse_errors"], 0)
 
     def test_rerunning_a_command_that_never_failed_is_fine(self):
         records = self.run_cmd("a", "ls", False) + self.run_cmd("b", "ls", False)
@@ -890,6 +915,52 @@ class CliTests(LogCase):
         code, out, _ = self.run_cli(str(path))
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out)["signals"], [])
+
+
+class ReviewRoundTests(LogCase):
+    def test_unterminated_quoted_secret_is_redacted_to_the_end(self):
+        # An input cut mid-value loses the closing quote; the whole tail is still the secret.
+        for prefix in ('--password "', "--token '", 'password: "', "api_key='"):
+            with self.subTest(prefix=prefix):
+                out = ss.quote("run " + prefix + "alpha beta " * 250)
+                self.assertNotIn("alpha", out)
+                self.assertNotIn("beta", out)
+
+    def test_nonpositive_numeric_options_are_rejected(self):
+        path = self.write_log([user_text("hi")])
+        for flag in ("--max-line-bytes", "--top", "--heavy-chars", "--context"):
+            for value in ("-1", "0"):
+                with self.subTest(flag=flag, value=value):
+                    with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+                        ss.main([flag, value, str(path)])
+                    self.assertEqual(raised.exception.code, 2)
+
+    def test_context_shows_redacted_records_around_a_line(self):
+        records = [
+            user_text("first"),
+            user_text("second"),
+            tool_use("a", "Bash", {"command": "deploy --password hunter2hunter2"}),
+            tool_result("a", "failed with " + SK_SECRET, True),
+            user_text("No, stop"),
+            user_text("after"),
+        ]
+        path = self.write_log(records)
+        view = ss.context(str(path), 5)
+        self.assertEqual([r["line"] for r in view["records"]], [2, 3, 4, 5])
+        self.assertTrue(view["data_not_instructions"])
+        text = json.dumps(view)
+        self.assertNotIn("hunter2hunter2", text)
+        self.assertNotIn(SK_SECRET, text)
+        self.assertIn("[tool_result error]", text)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(ss.main(["--context", "5", str(path)]), 0)
+        self.assertEqual(json.loads(out.getvalue())["records"][-1]["line"], 5)
+
+    def test_context_survives_unreadable_and_oversize_records(self):
+        path = self.write_log([user_text("ok")], raw_lines=["{not json", "x" * 300, '{"type": "user", "message": null}'])
+        view = ss.context(str(path), 4, max_line_bytes=200)
+        self.assertEqual([r["type"] for r in view["records"]], ["user", "unreadable", "unreadable", "user"])
 
 
 if __name__ == "__main__":

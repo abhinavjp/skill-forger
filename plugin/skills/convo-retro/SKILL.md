@@ -35,9 +35,9 @@ this skill's folder. It is read-only and prints redacted signals with `file:line
 locators (search thrash, failed commands re-run, reverted edits, user
 corrections, heavy tool output). No Python, or another host's log: search the
 log yourself for the same signals. Also look for information the agent needed
-but could not reach, and steering lines that changed nothing. Read the record at
-the locator, plus up to 3 records before it for `user_correction`; never open a
-`heavy_output` line, use its reported size alone.
+but could not reach, and steering lines that changed nothing. Judge a signal with
+`--context <line>`: a redacted view of that record and the 3 before it. Leave raw
+lines unopened (secrets); for `heavy_output` use the reported size alone.
 
 Done when: every signal has a locator (file and line, message number, or task
 id) and at most one quoted line. Drop a signal that has no locator.

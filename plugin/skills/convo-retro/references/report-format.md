@@ -22,14 +22,14 @@ N. <title>
 
 Rules:
 
-- No candidate without a locator. List dropped signals in one closing line.
+- Give every candidate a locator. List dropped signals in one closing line.
 - `Rung: nothing` fits a one-off with a locator but no fix: give a reason, or
   list it in the closing dropped-signals line.
 - `Dry run:` applies to checks only. For any other candidate (pointer,
   reviewer standard, tool/access, prune) it is `n/a: <reason>`.
 - `Load:` may be `n/a: <reason>` for `Rung: nothing`, a new-file candidate, or
   a prune candidate.
-- A check that hits good code today is reported with its hits, not hidden.
+- Report every check's hit count, including hits on good code.
 - Net load: a line added to an always-loaded file names a line to delete, or
   says why the load is worth it.
 - End with: "Say which numbers to apply."
