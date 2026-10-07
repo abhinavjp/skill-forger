@@ -971,6 +971,16 @@ class ReviewRoundTests(LogCase):
             self.assertNotIn(leaked, text)
         self.assertEqual(view["records"][-1]["type"], "other")
 
+    def test_context_redacts_a_spaced_secret_held_in_a_json_field(self):
+        records = [
+            tool_use("a", "Bash", {"env": {"password": "alpha beta gamma", "note": "keep me"}}),
+            tool_result("a", {"detail": {"api_key": "delta epsilon"}}),
+        ]
+        text = json.dumps(ss.context(str(self.write_log(records)), 2))
+        for leaked in ("alpha", "beta", "gamma", "delta", "epsilon"):
+            self.assertNotIn(leaked, text)
+        self.assertIn("keep me", text)
+
     def test_escaped_quote_does_not_end_a_quoted_retry_argument(self):
         def retries(first, second):
             records = self.run_cmd("a", first, True) + self.run_cmd("b", second, True)

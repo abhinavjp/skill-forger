@@ -620,7 +620,12 @@ def _plain(value, depth: int = 0) -> str:
     if depth > 8:
         return ""
     if isinstance(value, dict):
-        return " ".join(f"{key}={_plain(item, depth + 1)}" for key, item in value.items() if isinstance(key, str))
+        # A string value is quoted so a secret with spaces (`password="a b"`) is redacted whole.
+        return " ".join(
+            f'{key}="{item.replace(chr(34), chr(39))}"' if isinstance(item, str) else f"{key}={_plain(item, depth + 1)}"
+            for key, item in value.items()
+            if isinstance(key, str)
+        )
     if isinstance(value, list):
         return " ".join(_plain(item, depth + 1) for item in value)
     return "" if value is None else str(value)
