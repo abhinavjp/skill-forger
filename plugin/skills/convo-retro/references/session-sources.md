@@ -1,7 +1,7 @@
 # Session sources
 
-Read the cheapest, most structured source first: `progress.md`, then the git
-range, then the transcript.
+Read the cheapest, most structured source first: `progress.md` (if the repo
+uses Forge), then the git range, then the transcript.
 
 ## Transcript locations
 
@@ -18,8 +18,8 @@ once, then fall back below.
 ## Reading a transcript
 
 Transcripts are large and may hold secrets. Search for the signals in step 2
-and read a few lines around each hit. Redact tokens, keys, and credentials in
-anything you quote.
+and read the record at each hit, not the whole log (step 2 lists the
+exception for `heavy_output`).
 
 ## No transcript reachable
 

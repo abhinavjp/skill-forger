@@ -33,7 +33,7 @@ standards, global AGENTS.md, tool economy, no-ops, information access.
 |---|---|
 | "Search session logs on this machine": no paths, formats, size bound | `references/session-sources.md` per host + bounded extractor script |
 | Hard dependency on external `writing-for-agents` skill | Use skill-engineer's R10 / 6.1 no-ops / 5.3 leading words; ladder with inline fallback |
-| Assumes `CODING_STANDARDS.md`, a reviewer agent, Claude's Skill tool | Name the repo's real review doc; merge-sentinel as reviewer; no host-only tool names |
+| Assumes `CODING_STANDARDS.md`, a reviewer agent, Claude's Skill tool | Name the repo's real review doc as the reviewer standard; SKILL.md names no reviewer agent (merge-sentinel stays a routing neighbour only); no host-only tool names |
 | "Global AGENTS.md" and "No-ops" overlap | One category: steering-file pruning |
 | "Order of severity" undefined | Rubric: cost incurred x recurrence likelihood. Cap 7 candidates |
 | Single session only; admits no pruning audit | Accept N sessions; recurrence raises rank. Whole-repo audit routes to skill-prospector |
@@ -106,16 +106,19 @@ Steps (each ends "Done when"):
 5. Dry-run each proposed check. Done when: hit count recorded.
 6. Rank, cap at 7, report. Done when: user can approve items one by one.
 
-Signals the script counts: search thrash (repeated grep/glob/read before the
-right file), fail-then-retry command pairs, edits later reverted, user
-corrections, one tool dominating output size, files read but never used.
+Signals the script counts (5, as shipped): `user_correction`, `search_thrash`
+(repeated grep/glob/read before the right file), `retry_loop` (fail-then-retry
+commands), `reverted_edit`, `heavy_output` (a per-result size threshold, not
+one tool dominating). `unused_read` (files read but never used) is deferred to
+v2. The agent opens a record only for the first four; `heavy_output` is
+reported by size alone.
 
 ## Phases
 
 0. **Unblock** pull (see chat); refresh `.reference/mattpocock-skills`; license note (MIT, credit).
 1. **Spec** via forge-discover/clarify: confirm decisions above. Goal in user's words.
 2. **Skill text + trigger evals. DONE 2026-10-06** (inspector clean, 10 trigger cases validate, not in top overlap pairs). Catalog-overlap check green vs skill-prospector/skill-engineer.
-3. **Extractor, test-first. DONE 2026-10-06** (32 tests; real logs: 0 parse errors, ~0.2s/3MB; `unused_read` signal deferred to v2 as costly to do deterministically). Fixtures: thrash, retry loop, revert, secret-bearing line.
+3. **Extractor, test-first. DONE 2026-10-06** (55 tests after review batches; real logs: 0 parse errors, ~0.2s/3MB; `unused_read` signal deferred to v2 as costly to do deterministically). Fixtures: synthetic fixture logs under `scripts/fixtures/` (added in review batch C), never real user logs: `search-thrash`, `retry-revert`, `corrections-heavy`.
 4. **Execution evals + packaging.** `plugin_policy` registry, README/manifest counts ("nine"), CHANGELOG 3.1.0, install docs, `validate_plugin.py` green.
 5. **Dogfood.** Run convo-retro on the forge-implement rework session. Pass = >=3 candidates with real locators, 0 untraceable.
 
@@ -128,7 +131,10 @@ firing-rate audit from CI history (original's admitted weakest area).
 
 Opus review of phases 2-3, then a Sonnet-implements / Opus-verifies loop with a
 closed scope (reviewer may only judge ledger items and regressions from the
-round's own diff). Stopped after batch A by request.
+round's own diff). Batch A cleared. Batches B, C and D landed (round 1 of the
+B-D loop verified by Opus: four minor findings, fixed).
+Batch D (SKILL.md, references, trigger evals, this doc) landed: F-M2, F-M3,
+F-M4, F-M5, F-M7, F-L2..L7.
 
 **Cleared (batch A, redaction + crash):** F-H1 (secret shapes: JSON keys, sk_live,
 AIza, 32-hex, URL credentials incl. empty username, Basic auth incl. quoted,

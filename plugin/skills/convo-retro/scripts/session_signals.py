@@ -67,13 +67,25 @@ _REDACTIONS = [
 ]
 
 _CORRECTION = re.compile(
-    r"^\s*(?:no|nope|don'?t|do not|stop|wrong|not that|that'?s not|actually|instead|why did you|undo|revert)\b",
+    # "No problem / idea / worries / rush" are polite, not corrections.
+    r"^\s*(?:no(?!\s+(?:problem|idea|worries|rush)\b)|nope|don'?t|do not|stop|wrong|not that|that'?s not|actually"
+    r"|instead|why did you|undo|revert)\b",
     re.I,
 )
+_INTERRUPT = "[Request interrupted by user"
+# Harness-injected user text, not something the user said.
+_NOT_USER_PREFIXES = ("Stop hook feedback",)
 
 _EXPLORE_TOOLS = {"Read", "Grep", "Glob"}
 _WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+_SHELL_TOOLS = {"Bash", "PowerShell"}
 _SEARCH_COMMANDS = {"grep", "rg", "find", "ls", "cat", "tree", "fd", "ag"}
+_PS_SEARCH_COMMANDS = {
+    "get-childitem", "gci", "dir", "ls", "select-string", "sls", "get-content", "gc", "cat", "type", "findstr",
+    "rg", "grep", "find",
+}  # compared lowercased
+_SEGMENT_SPLIT = re.compile(r"&&|\|\||;|\|")
+_QUOTE_INPUT_CHARS = 2000  # redaction patterns can be quadratic on huge input; quote() caps before redacting
 
 
 def redact(text: str) -> str:
@@ -83,7 +95,7 @@ def redact(text: str) -> str:
 
 
 def quote(text: str) -> str:
-    return redact(" ".join(text.split()))[:QUOTE_CHARS]
+    return redact(" ".join(text[:_QUOTE_INPUT_CHARS].split()))[:QUOTE_CHARS]
 
 
 def iter_lines(handle, max_line_bytes: int):
@@ -133,10 +145,13 @@ def _explore_target(name: str, tool_input: dict):
             if isinstance(value, str):
                 return quote(value)
         return name
-    if name == "Bash":
+    if name in _SHELL_TOOLS:
         command = _command(tool_input)
-        if command.split(" ", 1)[0] in _SEARCH_COMMANDS:
-            return quote(command)
+        searches = _SEARCH_COMMANDS if name == "Bash" else _PS_SEARCH_COMMANDS
+        for segment in _SEGMENT_SPLIT.split(command):
+            head = segment.strip().split(" ", 1)[0]
+            if (head if name == "Bash" else head.lower()) in searches:
+                return quote(command)
     return None
 
 
@@ -161,7 +176,9 @@ class _State:
         self.signals: list = []
         self.tools: dict = {}  # tool_use id -> {"name", "line", "command"}
         self.run: list = []  # exploration calls since the last write or user turn: (line, target)
-        self.retries: dict = {}  # normalized command -> {"line", "count"}, once it has failed
+        # normalized command -> failure streaks, once it has failed:
+        # {"streak", "streak_line" (current), "line", "count" (longest streak so far)}
+        self.retries: dict = {}
         self.edits: dict = {}  # file -> [(old, new)]
 
     def locator(self, lineno: int) -> str:
@@ -182,7 +199,7 @@ class _State:
     def tool_use(self, lineno: int, block: dict) -> None:
         name = block.get("name") if isinstance(block.get("name"), str) else ""
         tool_input = block.get("input") if isinstance(block.get("input"), dict) else {}
-        command = _command(tool_input) if name == "Bash" else ""
+        command = _command(tool_input) if name in _SHELL_TOOLS else ""
         if isinstance(block.get("id"), str):
             self.tools[block["id"]] = {"name": name, "line": lineno, "command": command}
         if name in _WRITE_TOOLS:
@@ -199,7 +216,7 @@ class _State:
         if not all(isinstance(v, str) for v in (path, old, new)):
             return
         if any(prev_old == new and prev_new == old for prev_old, prev_new in self.edits.get(path, [])):
-            self.signals.append({"kind": "reverted_edit", "locator": self.locator(lineno), "file": redact(path)[:200]})
+            self.signals.append({"kind": "reverted_edit", "locator": self.locator(lineno), "file": redact(path[:_QUOTE_INPUT_CHARS])[:200]})
         self.edits.setdefault(path, []).append((old, new))
 
     def tool_result(self, lineno: int, block: dict) -> None:
@@ -210,16 +227,22 @@ class _State:
                 {"kind": "heavy_output", "locator": self.locator(lineno), "tool": tool["name"], "chars": chars}
             )
         command = tool["command"]
-        if tool["name"] == "Bash" and command:
+        if tool["name"] in _SHELL_TOOLS and command:
             entry = self.retries.get(command)
-            if entry is not None:
-                entry["count"] += 1
-            elif block.get("is_error") is True:
-                self.retries[command] = {"line": tool["line"], "count": 1}
+            if block.get("is_error") is True:
+                if entry is None:
+                    entry = self.retries[command] = {"streak": 0, "streak_line": 0, "line": 0, "count": 0}
+                entry["streak"] += 1
+                if entry["streak"] == 1:
+                    entry["streak_line"] = tool["line"]
+                if entry["streak"] > entry["count"]:  # strict: an earlier streak wins ties
+                    entry["count"], entry["line"] = entry["streak"], entry["streak_line"]
+            elif entry is not None:
+                entry["streak"] = 0  # a pass ends the streak: fail,pass is a fix, not a retry
 
     def user_turn(self, lineno: int, text: str) -> None:
         self.flush_run()
-        if _CORRECTION.match(text):
+        if _CORRECTION.match(text) or text.lstrip().startswith(_INTERRUPT):
             self.signals.append({"kind": "user_correction", "locator": self.locator(lineno), "quote": quote(text)})
 
     def finish(self) -> list:
@@ -292,7 +315,8 @@ def analyze(
                     if block.get("type") == "tool_result":
                         state.tool_result(lineno, block)
                 text = user_text(record)
-                if text:
+                injected = record.get("isMeta") is True or record.get("isCompactSummary") is True
+                if text and not injected and not text.lstrip().startswith(_NOT_USER_PREFIXES):
                     state.user_turn(lineno, text)
     by_kind: dict = {}
     for signal in state.finish():

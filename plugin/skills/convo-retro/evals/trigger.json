@@ -4,7 +4,7 @@
     "id": "CR-T-001",
     "kind": "trigger",
     "category": "positive",
-    "prompt": "Use convo-retro on the session we just finished. The agent searched forever for the config loader and kept re-running a failing lint.",
+    "prompt": "/convo-retro on the session we just finished. The agent searched forever for the config loader and kept re-running a failing lint.",
     "trials": 3,
     "expected": { "trigger": true },
     "graders": [
@@ -72,6 +72,7 @@
       { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
       { "type": "host-routing", "check": { "selected_skill": "merge-sentinel", "selected": true } }
     ],
+    "notes": "Measures competitor selection: convo-retro is explicit-only, so the competitor must win routing.",
     "tags": ["code-review-boundary", "competing-skill"]
   },
   {
@@ -91,6 +92,7 @@
       { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
       { "type": "host-routing", "check": { "selected_skill": "skill-prospector", "selected": true } }
     ],
+    "notes": "Measures competitor selection: convo-retro is explicit-only, so the competitor must win routing.",
     "tags": ["guidance-audit-boundary", "competing-skill"]
   },
   {
@@ -110,6 +112,7 @@
       { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
       { "type": "host-routing", "check": { "selected_skill": "skill-engineer", "selected": true } }
     ],
+    "notes": "Measures competitor selection: convo-retro is explicit-only, so the competitor must win routing.",
     "tags": ["skill-review-boundary", "competing-skill"]
   },
   {

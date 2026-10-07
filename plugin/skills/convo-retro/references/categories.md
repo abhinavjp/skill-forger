@@ -45,5 +45,5 @@ Neither belongs in an always-loaded steering file.
 
 ## Not a retro fix
 
-A line that says "remember X happened" is memory, not setup. Change the
+A line that says "remember X happened" is memory, not an environment change. Change the
 environment so X cannot recur, or leave it.
