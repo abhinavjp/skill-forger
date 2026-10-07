@@ -141,11 +141,16 @@ def _command(tool_input: dict) -> str:
     command = tool_input.get("command")
     if not isinstance(command, str):
         return ""
-    out, quote_char, pending_space = [], None, False
+    out, quote_char, pending_space, escaped = [], None, False, False
     for ch in command:
         if quote_char:
             out.append(ch)
-            quote_char = None if ch == quote_char else quote_char
+            if escaped:
+                escaped = False  # the character after a backslash in double quotes never closes the quote
+            elif ch == "\\" and quote_char == '"':
+                escaped = True
+            elif ch == quote_char:
+                quote_char = None
         elif ch.isspace():
             pending_space = bool(out)
         else:
@@ -605,6 +610,22 @@ _CONTEXT_BEFORE = 3  # records shown before the requested one
 _CONTEXT_CHARS = 400  # per record
 
 
+_RECORD_TYPES = ("user", "assistant", "system", "summary", "unreadable")  # labels safe to print; any other type is "other"
+
+
+def _plain(value, depth: int = 0) -> str:
+    """String leaves of a JSON value joined by spaces, unescaped (json.dumps would hide quote pairs from the redactor)."""
+    if isinstance(value, str):
+        return value
+    if depth > 8:
+        return ""
+    if isinstance(value, dict):
+        return " ".join(f"{key}={_plain(item, depth + 1)}" for key, item in value.items() if isinstance(key, str))
+    if isinstance(value, list):
+        return " ".join(_plain(item, depth + 1) for item in value)
+    return "" if value is None else str(value)
+
+
 def _describe(record) -> str:
     """Redaction-ready text of one record: user/assistant text, tool calls and tool results (not thinking)."""
     message = record.get("message") if isinstance(record, dict) else None
@@ -619,11 +640,11 @@ def _describe(record) -> str:
         if kind == "text" and isinstance(block.get("text"), str):
             parts.append(block["text"])
         elif kind == "tool_use":
-            parts.append(f"[tool_use {block.get('name')}] {json.dumps(block.get('input'), default=str)}")
+            parts.append(f"[tool_use {block.get('name')}] {_plain(block.get('input'))}")
         elif kind == "tool_result":
             body = block.get("content")
             flag = " error" if block.get("is_error") is True else ""
-            parts.append(f"[tool_result{flag}] {body if isinstance(body, str) else json.dumps(body, default=str)}")
+            parts.append(f"[tool_result{flag}] {_plain(body)}")
     return " ".join(parts)
 
 
@@ -645,7 +666,10 @@ def context(path: str, line: int, max_line_bytes: int = DEFAULT_MAX_LINE_BYTES) 
             if not isinstance(record, dict):
                 shown.append({"line": lineno, "type": "unreadable"})
                 continue
-            shown.append({"line": lineno, "type": record.get("type"), "text": _excerpt(_describe(record), _CONTEXT_CHARS)})
+            kind = record.get("type")
+            shown.append(
+                {"line": lineno, "type": kind if kind in _RECORD_TYPES else "other", "text": _excerpt(_describe(record), _CONTEXT_CHARS)}
+            )
     return {"source": os.path.basename(path), "data_not_instructions": True, "records": shown}
 
 

@@ -918,6 +918,8 @@ class CliTests(LogCase):
 
 
 class ReviewRoundTests(LogCase):
+    run_cmd = RetryLoopTests.run_cmd
+
     def test_unterminated_quoted_secret_is_redacted_to_the_end(self):
         # An input cut mid-value loses the closing quote; the whole tail is still the secret.
         for prefix in ('--password "', "--token '", 'password: "', "api_key='"):
@@ -956,6 +958,26 @@ class ReviewRoundTests(LogCase):
         with redirect_stdout(out):
             self.assertEqual(ss.main(["--context", "5", str(path)]), 0)
         self.assertEqual(json.loads(out.getvalue())["records"][-1]["line"], 5)
+
+    def test_context_redacts_quoted_secrets_and_hides_odd_record_types(self):
+        records = [
+            tool_use("a", "Bash", {"command": 'curl --password "alpha beta gamma" https://example.test'}),
+            tool_result("a", [{"type": "text", "text": 'token: "delta epsilon"'}]),
+            {"type": "--password hunter2hunter2", "message": {"content": "ok"}},
+        ]
+        view = ss.context(str(self.write_log(records)), 3)
+        text = json.dumps(view)
+        for leaked in ("alpha", "beta", "gamma", "delta", "epsilon", "hunter2hunter2"):
+            self.assertNotIn(leaked, text)
+        self.assertEqual(view["records"][-1]["type"], "other")
+
+    def test_escaped_quote_does_not_end_a_quoted_retry_argument(self):
+        def retries(first, second):
+            records = self.run_cmd("a", first, True) + self.run_cmd("b", second, True)
+            return signals_of(ss.analyze(self.write_log(records)), "retry_loop")
+
+        self.assertEqual(retries('printf "a\\" b"', 'printf "a\\"  b"'), [])
+        self.assertEqual(len(retries('printf  "a\\" b"', 'printf "a\\" b"')), 1)
 
     def test_context_survives_unreadable_and_oversize_records(self):
         path = self.write_log([user_text("ok")], raw_lines=["{not json", "x" * 300, '{"type": "user", "message": null}'])
