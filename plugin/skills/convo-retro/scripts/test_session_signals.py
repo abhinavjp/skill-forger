@@ -989,6 +989,13 @@ class ReviewRoundTests(LogCase):
         self.assertEqual(retries('printf "a\\" b"', 'printf "a\\"  b"'), [])
         self.assertEqual(len(retries('printf  "a\\" b"', 'printf "a\\" b"')), 1)
 
+    def test_format_stays_undecided_until_positive_evidence(self):
+        # An unrecognized leading record must not lock a Codex log to the Claude reader.
+        codex_user = {"type": "response_item", "payload": {
+            "type": "message", "role": "user", "content": [{"type": "input_text", "text": "No, do not touch the config"}]}}
+        report = ss.analyze(self.write_log([{}, {"type": "session_meta", "payload": {}}, codex_user]))
+        self.assertEqual(self.kinds(report), ["user_correction"])
+
     def test_context_survives_unreadable_and_oversize_records(self):
         path = self.write_log([user_text("ok")], raw_lines=["{not json", "x" * 300, '{"type": "user", "message": null}'])
         view = ss.context(str(path), 4, max_line_bytes=200)

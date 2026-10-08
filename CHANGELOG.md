@@ -8,9 +8,11 @@ the eight existing Skills.
 - **convo-retro** reviews a past agent session and proposes fixes to its
   environment (checks, reviewer standards, pointers, tool or access changes,
   pruning). User-invoked and propose-only: it edits nothing.
-- **Extractor script.** `scripts/session_signals.py` reads a Claude Code log
-  read-only and prints redacted signals with `file:line` locators. Tested on
-  Claude Code logs; Codex, Cursor and Antigravity log sources are untested.
+- **Extractor script.** `scripts/session_signals.py` reads a session log
+  read-only and prints redacted signals with `file:line` locators; `--context`
+  prints a redacted view of one record. Claude Code and Codex logs are tested
+  (Codex through `scripts/log_adapters.py`); the Cursor transcript reader is
+  experimental, built on an unverified format; Antigravity logs are untested.
 - **Host support** matches the Forge Skills (`disable-model-invocation: true`
   plus `agents/openai.yaml`):
   - **Enforced:** Claude Code, Cursor, Factory, OpenAI Codex.

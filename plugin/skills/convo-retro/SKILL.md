@@ -30,8 +30,8 @@ session with no transcript is labelled `partial`.
 
 ## 2. Find the friction
 
-For a Claude Code log, first run `python scripts/session_signals.py <log>` from
-this skill's folder. It is read-only and prints redacted signals with `file:line`
+For a Claude Code, Codex or Cursor log, first run `python scripts/session_signals.py <log>`
+from this skill's folder. It is read-only and prints redacted signals with `file:line`
 locators (search thrash, failed commands re-run, reverted edits, user
 corrections, heavy tool output). No Python, or another host's log: search the
 log yourself for the same signals. Also look for information the agent needed

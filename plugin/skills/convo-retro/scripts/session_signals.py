@@ -22,6 +22,9 @@ import re
 import sys
 from pathlib import Path
 
+from log_adapters import detect_format, to_claude_records
+
+_CLAUDE_TYPES = ("user", "assistant", "system", "summary", "file-history-snapshot", "queue-operation")
 DEFAULT_MAX_LINE_BYTES = 8 * 1024 * 1024
 DEFAULT_TOP = 5
 DEFAULT_HEAVY_CHARS = 20000
@@ -552,6 +555,7 @@ def analyze(
 ) -> dict:
     path = Path(path)
     state = _State(path.name, heavy_chars)
+    fmt = None
     report = {
         "source": path.name,
         "records": 0,
@@ -577,22 +581,27 @@ def analyze(
                 report["parse_errors"] += 1
                 continue
             report["records"] += 1
-            kind = record.get("type")
-            message = record.get("message")
-            content = message.get("content") if isinstance(message, dict) else None
-            blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
-            if kind == "assistant":
-                for block in blocks:
-                    if block.get("type") == "tool_use":
-                        state.tool_use(lineno, block)
-            elif kind == "user":
-                for block in blocks:
-                    if block.get("type") == "tool_result":
-                        state.tool_result(lineno, block)
-                text = user_text(record)
-                injected = record.get("isMeta") is True or record.get("isCompactSummary") is True
-                if text and not injected and not text.lstrip().startswith(_NOT_USER_PREFIXES):
-                    state.user_turn(lineno, text)
+            if fmt is None:
+                guess = detect_format(record)
+                if guess != "claude" or record.get("type") in _CLAUDE_TYPES:
+                    fmt = guess  # lock on positive evidence; ambiguous leading records stay undecided
+            for record in to_claude_records(record, fmt or "claude"):  # other hosts' logs become Claude-shaped records
+                kind = record.get("type")
+                message = record.get("message")
+                content = message.get("content") if isinstance(message, dict) else None
+                blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+                if kind == "assistant":
+                    for block in blocks:
+                        if block.get("type") == "tool_use":
+                            state.tool_use(lineno, block)
+                elif kind == "user":
+                    for block in blocks:
+                        if block.get("type") == "tool_result":
+                            state.tool_result(lineno, block)
+                    text = user_text(record)
+                    injected = record.get("isMeta") is True or record.get("isCompactSummary") is True
+                    if text and not injected and not text.lstrip().startswith(_NOT_USER_PREFIXES):
+                        state.user_turn(lineno, text)
     by_kind: dict = {}
     for signal in state.finish():
         by_kind.setdefault(signal["kind"], []).append(signal)

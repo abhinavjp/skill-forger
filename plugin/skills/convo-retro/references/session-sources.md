@@ -8,8 +8,8 @@ uses Forge), then the git range, then the transcript.
 | Host | Where | Status |
 |------|-------|--------|
 | Claude Code | `~/.claude/projects/<encoded-project-path>/<session-id>.jsonl`; newest file is usually the latest session | tested |
-| Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`; records are `session_meta`, `response_item` (`message`, `function_call`, `custom_tool_call` plus `*_output`) and `event_msg`; shape seen locally, `scripts/session_signals.py` does not parse it, so search by hand | untested |
-| Cursor | users report `~/.cursor/projects/<project>/agent-transcripts/*.jsonl`, and chats in the SQLite `User/globalStorage/state.vscdb` (`cursorDiskKV`, `bubbleId` rows); not verified here, so confirm the path with the user | untested |
+| Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`; records are `session_meta`, `response_item` (`message`, `function_call`, `custom_tool_call` plus `*_output`) and `event_msg`; `scripts/session_signals.py` reads it through `scripts/log_adapters.py` | tested on local logs |
+| Cursor | users report `~/.cursor/projects/<project>/agent-transcripts/*.jsonl`, and chats in the SQLite `User/globalStorage/state.vscdb` (`cursorDiskKV`, `bubbleId` rows); the script reads the JSONL transcripts through `scripts/log_adapters.py` on a best-guess format that is not verified on a real file; transcripts omit tool results, so `retry_loop` cannot fire; confirm the path with the user | experimental, untested |
 | Google Antigravity | no stable path known; ask the user for an export or paste | untested |
 
 Never guess a path. When the user asks for an external transcript on an untested

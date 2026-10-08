@@ -133,7 +133,7 @@ reported by size alone.
 
 ## v2 backlog (not now)
 
-Codex/Cursor log parsers; cross-session recurrence mining; existing-check
+Verify the Cursor transcript format on a real file (the adapter is a best guess); cross-session recurrence mining; existing-check
 firing-rate audit from CI history (original's admitted weakest area).
 Missed by the extractor in dogfooding: repeated slow command; elapsed-time and
 call-count cost data; failure text inside piped output with no `is_error`; user
@@ -158,5 +158,7 @@ F-M1 (RecursionError on crafted line). 36 tests.
 **Phase 5 review trail:** three Codex gpt-6.1-sol rounds on the read/re-read tracking (5, 10, then 3 findings). The last 3 (escapes in double quotes, quoted `--`, `cat --help`) were fixed directly with tests and not re-reviewed, because the 3-round cap was reached.
 
 **PR #4 review round:** fixed two Codex-bot comments (quoted whitespace in retry identity; non-string `tool_use_id`) and four lens-review findings (unterminated quoted secrets after the 2000-char cap, numeric CLI validation, quoted Bash options, shell comments). Added `--context <line>`, a redacted record viewer, so the skill never opens raw transcript lines. Not fixed: a host-enforced read-only boundary for "edit nothing". `allowed-tools` is a platform extension that the portable-payload policy rejects, so the rule stays prose plus propose-only design, as for the Forge skills.
+
+**Multi-host logs:** `scripts/log_adapters.py` turns Codex rollout records and Cursor transcript records into Claude-shaped records, so one analyzer serves all three; the first record with positive evidence fixes the format. Codex is tested on local logs (74 MB log in under 1 s). Cursor is a best guess: no real transcript was available and Cursor omits tool results, so `retry_loop` cannot fire there. Codex commands are read from `cmd:` strings in `exec` JavaScript, so a `cmd:` inside an unrelated JS string can read as a command (accepted).
 
 **Remaining known limits:** the shell read/search classifier is a heuristic aid: an uncertain command (unbalanced quote, Bash backslash-escaped separator, text after a heredoc marker) is left unclassified, so it can miss real thrash but should not invent it; known gaps are path flavour ambiguity (POSIX backslash filenames vs Windows paths, UNC casing), MSYS drive mapping depending on encounter order, and searches after a heredoc body not being seen; exotic shells are missed; only Claude Code logs are tested; a `-p` glued password containing `.` is not redacted (accepted cost); the v2 backlog above is not started.
