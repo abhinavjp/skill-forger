@@ -44,11 +44,13 @@ _PATCH_PATH = re.compile(
     r"^\*\*\* (?:Update|Add|Delete) File:[ \t]*([^\r\n]*)",
     re.MULTILINE,
 )
-_PROCESS_EXIT = re.compile(r"Process exited with code\s*([0-9]+)\b", re.IGNORECASE)  # authoritative; stdout may quote others
-_EXIT_CODE = re.compile(
-    r"(?:Process exited with code|exit code\s*:)\s*([0-9]+)\b",
-    re.IGNORECASE,
+# Runner status wordings, most authoritative first; stdout may quote the weaker ones ("Exit code: 1" is also real-log wording).
+_EXIT_STATUS = (
+    re.compile(r"Process exited with code\s*([0-9]+)\b", re.IGNORECASE),
+    re.compile(r'"exit_code"\s*:\s*([0-9]+)\b'),
+    re.compile(r"exit code\s*:\s*([0-9]+)\b", re.IGNORECASE),
 )
+_SCRIPT_FAILED = re.compile(r"^\s*Script failed\b")
 _TAG = re.compile(r"<(/?)([A-Za-z_][A-Za-z0-9_-]*)>")
 
 
@@ -57,8 +59,10 @@ def _open_tags(prefix: str) -> list:
     stack = []
     for match in _TAG.finditer(prefix):
         if match.group(1):
-            if match.group(2) in stack:
-                del stack[stack.index(match.group(2)):]
+            for index in range(len(stack) - 1, -1, -1):
+                if stack[index] == match.group(2):
+                    del stack[index:]
+                    break
         else:
             stack.append(match.group(2))
     return stack
@@ -287,9 +291,8 @@ def _codex_records(record):
             return []
         text = _text(payload.get("output"))
         # Avoid int(): malformed logs may contain arbitrarily long numbers.
-        authoritative = _PROCESS_EXIT.search(text)
-        matches = [authoritative] if authoritative else list(_EXIT_CODE.finditer(text))
-        failed = any(match.group(1).lstrip("0") for match in matches)
+        status = next((m for m in (pattern.search(text) for pattern in _EXIT_STATUS) if m), None)
+        failed = bool(status and status.group(1).lstrip("0")) or bool(_SCRIPT_FAILED.match(text))
         return [{
             "type": "user",
             "message": {

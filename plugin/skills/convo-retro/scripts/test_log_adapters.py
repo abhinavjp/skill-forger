@@ -361,6 +361,21 @@ class ReviewRoundAdapterTests(unittest.TestCase):
         record["payload"]["output"] = "boom\nProcess exited with code 2"
         self.assertTrue(to_claude_records(record, "codex")[0]["message"]["content"][0]["is_error"])
 
+    def test_codex_failure_wordings_seen_in_real_logs(self):
+        def is_error(output):
+            record = {"type": "response_item", "payload": {"type": "custom_tool_call_output", "call_id": "c", "output": output}}
+            return to_claude_records(record, "codex")[0]["message"]["content"][0]["is_error"]
+
+        self.assertTrue(is_error("Exit code: 1\nWall time 0.2 seconds"))
+        self.assertTrue(is_error('{"exit_code":2,"original_token_count":5,"output":"x"}'))
+        self.assertTrue(is_error("Script failed\nSyntaxError"))
+        self.assertFalse(is_error('{"exit_code":0,"original_token_count":5,"output":"x"}'))
+        self.assertFalse(is_error("Script completed\nWall time 1.3 seconds"))
+
+    def test_nested_identical_context_tags_stay_open(self):
+        nested = {"role": "user", "text": "<context><context></context><user_query>No, stop</user_query></context>"}
+        self.assertIs(to_claude_records(nested, "cursor")[0].get("isMeta"), True)
+
     def test_compact_summaries_are_meta_in_every_host(self):
         codex = {"type": "response_item", "isCompactSummary": True, "payload": {
             "type": "message", "role": "user", "content": [{"type": "input_text", "text": "No, stop"}]}}
