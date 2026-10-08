@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.1.0 — convo-retro: fix the environment, not the code
+
+Adds a ninth Skill, `convo-retro`, and bumps the plugin to 3.1.0. No change to
+the eight existing Skills.
+
+- **convo-retro** reviews a past agent session and proposes fixes to its
+  environment (checks, reviewer standards, pointers, tool or access changes,
+  pruning). User-invoked and propose-only: it edits nothing.
+- **Extractor script.** `scripts/session_signals.py` reads a session log
+  read-only and prints redacted signals with `file:line` locators; `--context`
+  prints a redacted view of one record. Claude Code and Codex logs are tested
+  (Codex through `scripts/log_adapters.py`); the Cursor transcript reader is
+  experimental, built on an unverified format; Antigravity logs are untested.
+- **Host support** matches the Forge Skills (`disable-model-invocation: true`
+  plus `agents/openai.yaml`):
+  - **Enforced:** Claude Code, Cursor, Factory, OpenAI Codex.
+  - **Not enforced:** Google Antigravity.
+  - **Known deviation:** fails `skills-ref validate` by the accepted
+    `disable-model-invocation` exception, as the Forge Skills do.
+- **Credit.** Adapted from Matt Pocock's `retro` skill
+  (https://github.com/mattpocock/skills, MIT).
+
 ## 3.0.0 — Forge: approval by the user's own words
 
 Major version: the approval model changed, and plans/artifacts made under
