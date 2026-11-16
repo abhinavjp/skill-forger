@@ -1,7 +1,6 @@
 ---
 name: forge-plan
 description: Turn a Forge work item's Goal, decisions, and spec into an implementation-ready plan.
-disable-model-invocation: true
 ---
 
 # Forge Plan

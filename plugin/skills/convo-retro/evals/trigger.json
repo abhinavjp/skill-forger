@@ -32,13 +32,11 @@
     "category": "paraphrase",
     "prompt": "That session was painful. Look back at what the agent struggled with and tell me what to change in our AGENTS.md and CI so it doesn't happen again.",
     "trials": 3,
-    "expected": { "trigger": false },
-    "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
+    "expected": { "trigger": true },
     "graders": [
-      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } }
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": true } }
     ],
-    "notes": "convo-retro is explicit-only (disable-model-invocation). This prompt matches its domain closely but must not be implicitly selected on content match alone. claude-code, cursor, and factory honour disable-model-invocation directly; Codex needs agents/openai.yaml policy.allow_implicit_invocation: false (checked structurally by packaging, not here). A Codex host without that policy cannot be graded PASS here and must report UNMEASURED, not PASS.",
-    "tags": ["paraphrase", "implicit-suppression"]
+    "tags": ["paraphrase", "implicit-selection"]
   },
   {
     "version": 1,
@@ -47,13 +45,11 @@
     "category": "paraphrase",
     "prompt": "Run a retrospective on yesterday's coding session and suggest environment improvements.",
     "trials": 3,
-    "expected": { "trigger": false },
-    "platforms": { "required": ["claude-code", "cursor", "factory"], "optional": ["codex"] },
+    "expected": { "trigger": true },
     "graders": [
-      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } }
+      { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": true } }
     ],
-    "notes": "Same implicit-suppression reasoning as CR-T-003.",
-    "tags": ["paraphrase", "implicit-suppression"]
+    "tags": ["paraphrase", "implicit-selection"]
   },
   {
     "version": 1,
@@ -72,7 +68,6 @@
       { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
       { "type": "host-routing", "check": { "selected_skill": "merge-sentinel", "selected": true } }
     ],
-    "notes": "Measures competitor selection: convo-retro is explicit-only, so the competitor must win routing.",
     "tags": ["code-review-boundary", "competing-skill"]
   },
   {
@@ -92,7 +87,6 @@
       { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
       { "type": "host-routing", "check": { "selected_skill": "skill-prospector", "selected": true } }
     ],
-    "notes": "Measures competitor selection: convo-retro is explicit-only, so the competitor must win routing.",
     "tags": ["guidance-audit-boundary", "competing-skill"]
   },
   {
@@ -112,7 +106,6 @@
       { "type": "host-routing", "check": { "selected_skill": "convo-retro", "selected": false } },
       { "type": "host-routing", "check": { "selected_skill": "skill-engineer", "selected": true } }
     ],
-    "notes": "Measures competitor selection: convo-retro is explicit-only, so the competitor must win routing.",
     "tags": ["skill-review-boundary", "competing-skill"]
   },
   {

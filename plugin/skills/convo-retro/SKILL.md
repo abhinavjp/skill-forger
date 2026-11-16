@@ -1,7 +1,6 @@
 ---
 name: convo-retro
 description: Review a past agent session and propose fixes to its environment (pointers, checks, standards, steering files) so the next run goes smoother. Not for reviewing code.
-disable-model-invocation: true
 ---
 
 # Convo Retro

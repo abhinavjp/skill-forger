@@ -1,7 +1,6 @@
 ---
 name: forge-implement
 description: Run a Forge work item's approved plan against the code, one task or phase at a time.
-disable-model-invocation: true
 ---
 
 # Forge Implement
