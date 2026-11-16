@@ -1,7 +1,6 @@
 ---
 name: forge-spec
 description: Turn a Forge work item's Goal and decisions into a testable behavioural spec.
-disable-model-invocation: true
 ---
 
 # Forge Spec

@@ -57,9 +57,6 @@ Confirm Codex discovers `skill-engineer`, `merge-sentinel`, `skill-prospector`, 
 by name, then run through
 [verify-installation.md](verify-installation.md).
 
-`convo-retro` is user-invoked like the Forge Skills: its `agents/openai.yaml` sets
-`allow_implicit_invocation: false`, so Codex runs it only when you name it.
-
 ## Update
 
 Re-run the plugin update command for the plugin route, or re-clone/`git pull` and recreate the

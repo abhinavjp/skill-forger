@@ -1,7 +1,6 @@
 ---
 name: forge-discover
 description: Start a Forge work item from the user's own problem statement, writing its Goal and gathering the evidence Specification will need.
-disable-model-invocation: true
 ---
 
 # Forge Discover

@@ -53,10 +53,6 @@ Confirm `skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
 from the installed plugin, then run through
 [verify-installation.md](verify-installation.md).
 
-Antigravity has no Skill-level suppression switch, so `convo-retro` is user-invoked
-by intent only, exactly as for the Forge Skills: its narrow description is the only
-guard, and it is not enforced there.
-
 ## Update
 
 Run `git pull` inside the clone. Because each installed Skill is a link to the clone, Antigravity
