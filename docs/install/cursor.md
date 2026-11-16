@@ -13,7 +13,7 @@ route as untested for your build rather than inventing a second authored copy â€
 ## Verify
 
 Confirm Cursor discovers `skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
-`forge-discover`, `forge-spec`, `forge-plan`, and `forge-implement`
+`forge-discover`, `forge-spec`, `forge-plan`, `forge-implement`, and `convo-retro`
 by their portable frontmatter names, with no second authored copy anywhere, then run through
 [verify-installation.md](verify-installation.md).
 

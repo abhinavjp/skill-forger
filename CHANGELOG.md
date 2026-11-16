@@ -1,5 +1,53 @@
 # Changelog
 
+## 3.2.0 — every skill is model-invocable
+
+Minor version: no new Skill and no change to what any Skill does. The five
+Forge Skills and `convo-retro` stop being user-only.
+
+- **What changed.** Removed `disable-model-invocation: true` from `forge-clarify`,
+  `forge-discover`, `forge-spec`, `forge-plan`, `forge-implement` and
+  `convo-retro`, and deleted their `agents/openai.yaml` (the Codex
+  `allow_implicit_invocation: false` pairing). All nine Skills can now be
+  selected by the host from their descriptions, on every host, including
+  Google Antigravity (which had no suppression switch anyway). Calling a Skill
+  by name still works.
+- **Safety unchanged.** The Forge stops (review-or-go, never push, never touch
+  someone else's uncommitted changes) live in the Skill text, not in
+  invocation suppression, so they apply however a Skill is started.
+- **Evals.** The `implicit-suppression` trigger cases now expect selection
+  (`implicit-selection`); their per-host suppression notes are gone. The
+  packaging test now fails if any shipped Skill reintroduces the flag or the
+  Codex policy.
+- **Tooling kept.** `inspect_skill.py` and the `skill-engineer` rules still
+  understand `disable-model-invocation` for other people's Skills; this plugin
+  just no longer uses it.
+- **Known deviation removed.** No shipped `SKILL.md` carries a host-only
+  frontmatter field now, so the `skills-ref validate` exception noted under
+  3.0.0 and 3.1.0 no longer applies.
+
+## 3.1.0 — convo-retro: fix the environment, not the code
+
+Adds a ninth Skill, `convo-retro`, and bumps the plugin to 3.1.0. No change to
+the eight existing Skills.
+
+- **convo-retro** reviews a past agent session and proposes fixes to its
+  environment (checks, reviewer standards, pointers, tool or access changes,
+  pruning). User-invoked and propose-only: it edits nothing.
+- **Extractor script.** `scripts/session_signals.py` reads a session log
+  read-only and prints redacted signals with `file:line` locators; `--context`
+  prints a redacted view of one record. Claude Code and Codex logs are tested
+  (Codex through `scripts/log_adapters.py`); the Cursor transcript reader is
+  experimental, built on an unverified format; Antigravity logs are untested.
+- **Host support** matches the Forge Skills (`disable-model-invocation: true`
+  plus `agents/openai.yaml`):
+  - **Enforced:** Claude Code, Cursor, Factory, OpenAI Codex.
+  - **Not enforced:** Google Antigravity.
+  - **Known deviation:** fails `skills-ref validate` by the accepted
+    `disable-model-invocation` exception, as the Forge Skills do.
+- **Credit.** Adapted from Matt Pocock's `retro` skill
+  (https://github.com/mattpocock/skills, MIT).
+
 ## 3.0.0 — Forge: approval by the user's own words
 
 Major version: the approval model changed, and plans/artifacts made under

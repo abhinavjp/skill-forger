@@ -1360,17 +1360,13 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
                 if PERSONAL_PATH_RE.search(finding["match"])
             ]
             self.assertEqual([], personal_paths, skill_id)
-            # disable-model-invocation is the one accepted host-only-field
-            # exception (R22): user-invoked Skills pair it with an
-            # agents/openai.yaml policy, checked by invocation_policy below.
-            unexpected_extensions = [
-                extension for extension in report["platform_extensions"]
-                if extension.get("key") != "disable-model-invocation"
-            ]
-            self.assertEqual([], unexpected_extensions, skill_id)
-            if any(extension.get("key") == "disable-model-invocation"
-                   for extension in report["platform_extensions"]):
-                self.assertIsNone(report["invocation_policy"]["mismatch"], skill_id)
+            # Every shipped Skill is model-invocable: no host-only invocation
+            # frontmatter and no Codex policy that suppresses implicit use.
+            # (The inspector still supports `disable-model-invocation` for
+            # other people's Skills; this plugin just does not use it.)
+            self.assertEqual([], report["platform_extensions"], skill_id)
+            self.assertFalse(
+                report["invocation_policy"]["openai_no_implicit_invocation"], skill_id)
 
         self.assertEqual(sorted(EXPECTED_SKILL_IDS), sorted(names))
         self.assertEqual(len(names), len(set(names)))
@@ -1504,14 +1500,19 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         validator._ok = True
         self.addCleanup(setattr, validator, "_ok", True)
         with contextlib.redirect_stdout(io.StringIO()):
-            validator.check_skill_count_claims(8, {"manifest": "Eight portable Agent Skills"})
+            validator.check_skill_count_claims(9, {"manifest": "Nine portable Agent Skills"})
         self.assertTrue(validator._ok)
 
         validator._ok = True
         with contextlib.redirect_stdout(io.StringIO()) as stream:
-            validator.check_skill_count_claims(9, {"manifest": "Eight portable Agent Skills"})
+            validator.check_skill_count_claims(10, {"manifest": "Nine portable Agent Skills"})
         self.assertFalse(validator._ok)
-        self.assertIn("claims 8", stream.getvalue())
+        self.assertIn("claims 9", stream.getvalue())
+
+    def test_claimed_counts_still_parses_written_out_numbers(self) -> None:
+        """Keep parser coverage for older wording such as "Eight portable Agent Skills"."""
+        self.assertEqual({8}, validator._claimed_counts("Eight portable Agent Skills"))
+        self.assertEqual({9}, validator._claimed_counts("all nine shipped skills"))
 
     def test_count_claim_scan_covers_the_readme_and_every_install_doc(self) -> None:
         """The README is the most likely home for a stale whole-set count."""

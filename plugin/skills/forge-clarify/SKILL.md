@@ -1,7 +1,6 @@
 ---
 name: forge-clarify
 description: Resolve the open human decisions in a Forge work item, then stop.
-disable-model-invocation: true
 ---
 
 # Forge Clarify
