@@ -1,0 +1,17 @@
+{
+  "seeded_defects": [
+    {
+      "variant": "mismatch",
+      "requirement": "REQ-001",
+      "decision": "Guest cart limit",
+      "source": "P-001",
+      "defect": "the guest cart limit is 20 instead of the decided 10"
+    }
+  ],
+  "unmeasurable": [
+    {
+      "requirement": "REQ-002",
+      "reason": "human observation is its only proof"
+    }
+  ]
+}

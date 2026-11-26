@@ -19,12 +19,13 @@ ln -s "$(pwd)/skill-forger/plugin/skills/skill-engineer" <codex-skills-dir>/skil
 ln -s "$(pwd)/skill-forger/plugin/skills/skill-prospector" <codex-skills-dir>/skill-prospector
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-clarify" <codex-skills-dir>/forge-clarify
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-discover" <codex-skills-dir>/forge-discover
+ln -s "$(pwd)/skill-forger/plugin/skills/forge-prototype" <codex-skills-dir>/forge-prototype
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-spec" <codex-skills-dir>/forge-spec
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-plan" <codex-skills-dir>/forge-plan
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-implement" <codex-skills-dir>/forge-implement
 ln -s "$(pwd)/skill-forger/plugin/skills/convo-retro" <codex-skills-dir>/convo-retro
 
-# Required by the five forge-* Skills: the portable shared core they reference.
+# Required by the six forge-* Skills: the portable shared core they reference.
 ln -s "$(pwd)/skill-forger/plugin/shared" <codex-skills-dir>/../shared
 ```
 
@@ -34,7 +35,7 @@ and is safe to delete and recreate at any time.
 
 ### The forge-* Skills need the shared core alongside them
 
-The five `forge-*` Skills reference `../../shared/forge/` for their workflow
+The six `forge-*` Skills reference `../../shared/forge/` for their workflow
 contract, which owns every gate, approval, and mutation-safety rule. Under the
 plugin route that tree ships inside the plugin and resolves automatically. Under
 this per-Skill link route it does not, so the `shared` link above must sit one
@@ -53,8 +54,8 @@ shared link is redundant but harmless. Which behaviour your build has is
 ## Verify
 
 Confirm Codex discovers `skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
-`forge-discover`, `forge-spec`, `forge-plan`, `forge-implement`, and `convo-retro`
-by name, then run through
+`forge-discover`, `forge-prototype`, `forge-spec`, `forge-plan`, `forge-implement`, and
+`convo-retro` by name, then run through
 [verify-installation.md](verify-installation.md).
 
 ## Update

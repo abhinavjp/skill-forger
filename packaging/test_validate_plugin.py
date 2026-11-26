@@ -40,6 +40,7 @@ FORGE_SKILL_IDS = {
     "forge-spec",
     "forge-plan",
     "forge-implement",
+    "forge-prototype",
 }
 FORGE_EVAL_VALIDATOR = PLUGIN_SKILLS / "skill-engineer" / "scripts" / "validate_evals.py"
 CANONICAL_EVAL_VALIDATORS = {
@@ -1500,14 +1501,14 @@ class CanonicalPluginLayoutTests(unittest.TestCase):
         validator._ok = True
         self.addCleanup(setattr, validator, "_ok", True)
         with contextlib.redirect_stdout(io.StringIO()):
-            validator.check_skill_count_claims(9, {"manifest": "Nine portable Agent Skills"})
+            validator.check_skill_count_claims(10, {"manifest": "Ten portable Agent Skills"})
         self.assertTrue(validator._ok)
 
         validator._ok = True
         with contextlib.redirect_stdout(io.StringIO()) as stream:
-            validator.check_skill_count_claims(10, {"manifest": "Nine portable Agent Skills"})
+            validator.check_skill_count_claims(11, {"manifest": "Ten portable Agent Skills"})
         self.assertFalse(validator._ok)
-        self.assertIn("claims 9", stream.getvalue())
+        self.assertIn("claims 10", stream.getvalue())
 
     def test_claimed_counts_still_parses_written_out_numbers(self) -> None:
         """Keep parser coverage for older wording such as "Eight portable Agent Skills"."""

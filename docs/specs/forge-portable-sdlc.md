@@ -1,5 +1,9 @@
 # Forge Portable SDLC Skills — Specification
 
+> **Historical document.** Its stage count and invocation model are superseded
+> by releases 3.0.0 to 3.3.0 (see [CHANGELOG.md](../../CHANGELOG.md)). Do not
+> treat CON-001 (five-stage suite) or CON-002 (user-invoked skills) as binding.
+
 ## 1. Purpose
 
 The existing Brain SDLC skills contain useful clarification, discovery,

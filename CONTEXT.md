@@ -8,7 +8,7 @@
 
 **Go** — any user reply that means "proceed". Go on a shown artifact is its approval. Go never covers a later stop.
 
-**Stop** — a point where the skill waits for the user: the combined check before code, before each commit, or at a blocker.
+**Stop** — a point where the skill waits for the user: the combined check before code, before each commit, at a blocker, or before forge-prototype's first file on a protected branch.
 
 **Blocker** — something only the user can resolve: artifacts that disagree, plan that does not match the code, a change outside write scope, a file changed by someone else, checks still failing after retries, or high-risk work with no second reviewer.
 

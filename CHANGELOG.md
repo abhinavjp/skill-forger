@@ -1,5 +1,34 @@
 # Changelog
 
+## 3.3.0 — forge-prototype: click it before you specify it
+
+Adds a tenth Skill, `forge-prototype`, and bumps the plugin to 3.3.0.
+
+- **forge-prototype** is an optional Forge step. For one work item it builds a
+  disposable, locally runnable UI in `prototype/`, logs observations in a
+  non-binding `prototype-decisions.md` ledger, and routes every choice through
+  forge-clarify into `decisions.md`. Forge never commits those two artifacts.
+- **One new stop.** On a protected branch it asks before writing its first file.
+- **"Looks good" in a prototype review** continues the review and records no
+  decision. Approval elsewhere is unchanged.
+- **Edits to existing Skills.** forge-discover records a UI prototype
+  assessment and leaves a "prototype first" decision open while closing the
+  others; forge-clarify reads uncited ledger entries and records a chosen or
+  dropped question with a behaviour line and `Source: P-###`; forge-spec is
+  not ready while a ledger entry has no citing decision. The shared contract
+  counts such an entry as an open decision. forge-plan and forge-implement are
+  unchanged.
+- **Why its own Skill.** A forge-spec subsection would mix building with
+  specifying, and a generic prototype skill lives outside this repository, so
+  it cannot own `.forge` artifacts or the clarify handoff. The extra catalog
+  entry is justified only if routing trials come out clean; they are
+  `UNMEASURED` (no host-routing runner here). Revisit after they run.
+- **Catalog overlap** (lexical proxy, not routing): closest pairs are
+  forge-clarify 0.200, forge-plan 0.107, forge-spec 0.107, forge-implement
+  0.097.
+- **Known limit.** A requirement whose only proof is human observation ends
+  `UNMEASURED`, which blocks its task until the user decides.
+
 ## 3.2.0 — every skill is model-invocable
 
 Minor version: no new Skill and no change to what any Skill does. The five

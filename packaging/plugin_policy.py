@@ -12,5 +12,6 @@ CANONICAL_EVAL_VALIDATORS = {
     "forge-spec": "plugin/skills/skill-engineer/scripts/validate_evals.py",
     "forge-implement": "plugin/skills/skill-engineer/scripts/validate_evals.py",
     "convo-retro": "plugin/skills/skill-engineer/scripts/validate_evals.py",
+    "forge-prototype": "plugin/skills/skill-engineer/scripts/validate_evals.py",
 }
 EXPECTED_SKILL_IDS = frozenset(CANONICAL_EVAL_VALIDATORS)
