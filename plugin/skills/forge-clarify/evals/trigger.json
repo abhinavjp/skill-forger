@@ -120,5 +120,44 @@
       { "type": "host-routing", "check": { "selected_skill": "skill-prospector", "selected": true } }
     ],
     "tags": ["guidance-audit", "incumbent-catalog"]
+  },
+  {
+    "version": 1,
+    "id": "FC-T-009",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "For the BR-21861 work item, build a clickable prototype of the two guest checkout flows so I can compare them before I choose.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-clarify",
+        "forge-prototype"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-clarify",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "prototype-boundary",
+      "competing-skill"
+    ]
   }
 ]

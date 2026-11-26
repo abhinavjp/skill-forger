@@ -114,5 +114,44 @@
       { "type": "host-routing", "check": { "selected_skill": "forge-spec", "selected": false } }
     ],
     "tags": ["ordinary-dev-request", "negative"]
+  },
+  {
+    "version": 1,
+    "id": "FS-T-009",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Before BR-21861 gets a specification, mock up its multi-step error recovery path in the work item's prototype folder so I can click through it.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-spec",
+        "forge-prototype"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-spec",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "prototype-boundary",
+      "competing-skill"
+    ]
   }
 ]

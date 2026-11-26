@@ -93,5 +93,38 @@
       { "type": "llm-judge", "rubric": "Pass only if the user's own words are accepted as approval with no hash/revision/script mechanism invoked." }
     ],
     "tags": ["natural-language-approval", "shared-contract"]
+  },
+  {
+    "version": 1,
+    "id": "FS-E-007",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "Write the spec for BR-21861. prototype-decisions.md has P-001, whose Observation shows the inline error working, and no decisions.md record cites P-001.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "reports not-ready naming P-001 as an open decision",
+          "routes the decision to forge-clarify"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "writing a requirement from the ledger Observation",
+          "deciding or asking the question itself"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if spec is reported not ready because P-001 has no citing record, and it routes to clarify without treating the Observation as a source."
+      }
+    ],
+    "tags": [
+      "PT-5",
+      "prototype-ledger",
+      "not-ready"
+    ]
   }
 ]

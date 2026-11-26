@@ -29,7 +29,7 @@ CLAUDE_PLUGIN_JSON = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
 MARKETPLACE_JSON = REPO_ROOT / ".claude-plugin" / "marketplace.json"
 # Competitors a trigger corpus may name that this plugin does not ship: they are
 # provided by the host, so they cannot be validated against the packaged set.
-EXTERNAL_COMPETITORS = {"skill-creator"}
+EXTERNAL_COMPETITORS = {"skill-creator", "prototype", "frontend-design"}
 REPOSITORY_URL = "https://github.com/abhinavjp/skill-forger"
 PERSONAL_PATH_RE = re.compile(
     r"(?i)(?:[a-z]:[\\/]+users[\\/]+[^\\/]+|/(?:home|users)/[^/]+)"

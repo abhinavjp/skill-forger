@@ -6,8 +6,10 @@ root `CONTEXT.md` and used as-is.
 
 ## Lifecycle and backfill
 
-Order: discover -> clarify -> spec -> plan -> implement. The user calls each
-skill by name.
+Order: discover -> clarify -> [prototype, when useful, then clarify its
+choices] -> spec -> plan -> implement. The prototype branch is optional, never
+a gate. Every Forge skill is model-invocable, and the user can call one by
+name; stops, not invocation, are the safety control.
 
 "Run a skill" means: read its `SKILL.md` and follow it. This works the same
 whether the user typed the invocation or another skill is backfilling it.
@@ -18,12 +20,21 @@ If a skill needs an input that is missing:
   decisions.
 - Never auto-run forge-spec. Plan and implement work from `context.md` and
   `decisions.md` when no `spec.md` exists.
+- No backfill in either direction for forge-prototype: no other skill runs it,
+  and it backfills nothing. With no `context.md` for the work item it writes
+  nothing, says forge-discover must run first, and stops.
+- A `P-###` in `prototype-decisions.md` that no `decisions.md` record cites is
+  an open human decision.
 
 ## Approval
 
 The user's own words are approval. "Go", "implement the plan", "looks good",
 or similar means proceed. There are no hashes, approval records, or scripts
 that decide this.
+
+Exception: in a forge-prototype review round, a general "looks good" means
+continue the review; it approves that prototype artifact only, chooses no
+alternative, and records no decision.
 
 A backfilled artifact is shown once, with "review or go?", and the skill
 waits. Going ahead before that answer is a bug, not a shortcut.
@@ -33,6 +44,8 @@ waits. Going ahead before that answer is a bug, not a shortcut.
 Stop and wait for the user at:
 - the one combined backfill stop (see below),
 - before every commit,
+- before forge-prototype writes its first file (ledger or `prototype/`) while
+  the current branch is protected (see [Git rules](#git-rules)),
 - any blocker (see [Conflict rule](#conflict-rule) and CONTEXT.md's
   definition of blocker).
 
@@ -56,7 +69,16 @@ file that was wrong; do not guess or split the difference.
 
 An existing repo convention for where Forge artifacts live wins. Otherwise use
 `.forge/<work-item>/`, committed. `progress.md` is committed together with the
-phase it records.
+phase it records. Exception: the prototype ledger `prototype-decisions.md` and
+the `prototype/` folder are working artifacts that Forge never commits; the
+user may.
+
+| Artifact | Sole writer | Role |
+| --- | --- | --- |
+| `context.md` | forge-discover | Goal, evidence, open decisions, prototype assessment |
+| `decisions.md` | forge-clarify | The only binding decision record |
+| `prototype-decisions.md` | forge-prototype | Non-binding ledger of prototype observations |
+| `prototype/` | forge-prototype | One disposable runnable folder |
 
 ## Git rules
 
@@ -65,11 +87,19 @@ phase it records.
   create and switch to a suggested branch name, then verify the current
   branch is actually the new one — a suggested name that is never created or
   switched to is not protection, it is a label. Do this before any file is
-  touched, not only before the first commit. It happens automatically; it is
-  not one of the listed [Stops](#stops). On failure to create, switch to, or
-  verify the branch, stop and report the exact failure without touching any
-  file or committing. Follow the repo's existing branch-naming convention if
-  one exists.
+  touched, not only before the first commit. For forge-implement it happens
+  automatically; that switch is not one of the listed [Stops](#stops). On
+  failure to create, switch to, or verify the branch, stop and report the exact
+  failure without touching any file or committing. Follow the repo's existing
+  branch-naming convention if one exists.
+- forge-prototype alone asks instead. Before its first file of either kind on a
+  protected branch, it asks once whether to switch to a new branch, saying that
+  forge-implement will later run on and commit to that branch. It asks again in
+  a new session while the branch is still protected, and an earlier "go" does
+  not answer it. Yes: create, switch, and verify as above; on any failure stop
+  with no file touched. No: write on the current branch; nothing is committed,
+  and the files carry over if forge-implement later creates its own branch. On
+  an unprotected branch it does not ask.
 - If the user gives a new naming convention, ask to save it (default:
   `docs/contributing/git.md`, with one pointer line in root `AGENTS.md` or
   `CLAUDE.md` if either exists) and say why: later agents and people use the

@@ -13,12 +13,13 @@ ln -s "$(pwd)/skill-forger/plugin/skills/merge-sentinel" ~/.gemini/config/skills
 ln -s "$(pwd)/skill-forger/plugin/skills/skill-prospector" ~/.gemini/config/skills/skill-prospector
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-clarify" ~/.gemini/config/skills/forge-clarify
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-discover" ~/.gemini/config/skills/forge-discover
+ln -s "$(pwd)/skill-forger/plugin/skills/forge-prototype" ~/.gemini/config/skills/forge-prototype
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-spec" ~/.gemini/config/skills/forge-spec
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-plan" ~/.gemini/config/skills/forge-plan
 ln -s "$(pwd)/skill-forger/plugin/skills/forge-implement" ~/.gemini/config/skills/forge-implement
 ln -s "$(pwd)/skill-forger/plugin/skills/convo-retro" ~/.gemini/config/skills/convo-retro
 
-# Required by the five forge-* Skills: the portable shared core they reference.
+# Required by the six forge-* Skills: the portable shared core they reference.
 ln -s "$(pwd)/skill-forger/plugin/shared" ~/.gemini/config/shared
 ```
 
@@ -30,7 +31,7 @@ for the current discovery locations.
 
 ### The forge-* Skills need the shared core alongside them
 
-The five `forge-*` Skills reference `../../shared/forge/` for their workflow
+The six `forge-*` Skills reference `../../shared/forge/` for their workflow
 contract, which owns every gate, approval, and mutation-safety rule. Under the
 plugin route that tree ships inside the plugin and resolves automatically. Under
 this per-Skill link route it does not, so the `shared` link above must sit one
@@ -49,8 +50,8 @@ shared link is redundant but harmless. Which behaviour your build has is
 ## Verify
 
 Confirm `skill-engineer`, `merge-sentinel`, `skill-prospector`, `forge-clarify`,
-`forge-discover`, `forge-spec`, `forge-plan`, `forge-implement`, and `convo-retro` appear
-from the installed plugin, then run through
+`forge-discover`, `forge-prototype`, `forge-spec`, `forge-plan`, `forge-implement`, and
+`convo-retro` appear from the installed plugin, then run through
 [verify-installation.md](verify-installation.md).
 
 ## Update
@@ -61,7 +62,7 @@ current session has already indexed the previous Skill metadata.
 
 ## Uninstall
 
-Delete the three links under `.agents/skills/` or `~/.gemini/config/skills/`. This removes only
+Delete the links you created under `.agents/skills/` or `~/.gemini/config/skills/`. This removes only
 Antigravity's installation state and never touches the clone.
 
 ## Do not also install a standalone copy

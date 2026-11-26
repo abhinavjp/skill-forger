@@ -10,10 +10,10 @@ explicit-only controls are host-specific and must not be inferred from another h
    runners `UNMEASURED`.
 2. **Only one installation source is enabled.** Use exactly one route for this
    host, not the plugin route and a standalone copy together.
-3. **All nine user-facing Skills are discoverable.** Confirm the host lists
+3. **All ten user-facing Skills are discoverable.** Confirm the host lists
    or can invoke `skill-engineer`, `merge-sentinel`, `skill-prospector`,
-   `forge-clarify`, `forge-discover`, `forge-spec`, `forge-plan`,
-   `forge-implement`, and `convo-retro`. `plugin/shared/forge/` is portable shared core material,
+   `forge-clarify`, `forge-discover`, `forge-prototype`, `forge-spec`,
+   `forge-plan`, `forge-implement`, and `convo-retro`. `plugin/shared/forge/` is portable shared core material,
    not a user-facing Skill.
 4. **Positive project-audit trigger.** Ask: "audit our conventions and tell me
    what should be a Skill". Confirm `skill-prospector` activates and records a
@@ -24,7 +24,7 @@ explicit-only controls are host-specific and must not be inferred from another h
 6. **Existing-Skill review boundary.** Ask to review a `SKILL.md` for broken
    references or trigger problems. Confirm this routes to `skill-engineer`, not
    `skill-prospector`.
-7. **Forge stage routing under the real catalog.** With all nine Skills
+7. **Forge stage routing under the real catalog.** With all ten Skills
    installed, capture a catalog snapshot first (host, model, date, and the list
    of Skills the host reports as routable), then run each `competing-skill` and
    `boundary` case in `plugin/skills/forge-*/evals/trigger.json` for the number
@@ -38,6 +38,10 @@ explicit-only controls are host-specific and must not be inferred from another h
    through `FI-T-004` are the cases that settle it. Rank the catalog first with
    `python packaging/measure_catalog_overlap.py` to see which other pairs are
    worth extra trials.
+
+   Also watch `forge-prototype` against the host's generic `prototype` and
+   `frontend-design` Skills, where present; the `competing-skill` cases in
+   `forge-prototype/evals/trigger.json` cover them.
 8. **Contained scan smoke.** In an isolated target, place one guidance file
    inside the root and a secret file outside it. Run the project-guidance audit;
    confirm no outside content appears, no inventory or candidate directory is

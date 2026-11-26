@@ -22,6 +22,25 @@ For each answer, append one `decisions.md` record: the decision, its scope,
 who answered and their own words, and the supporting evidence. Note any
 decision it supersedes. This is a plain record, not a gate: the user's words
 are the approval (see the [shared workflow contract](../../../shared/forge/references/workflow-contract.md)).
+A user changing their own earlier answer is a new answer that notes the record
+it supersedes; the reopen rule covers evidence-driven reopening.
 
 Return one of: the grouped decision round; the recorded answer; or "no
-unresolved human decisions." Then stop.
+unresolved human decisions." Then stop. The one exception: after recording a
+candidate that forge-prototype handed over, return to the prototype session.
+
+## Prototype candidates (`P-###`)
+
+A candidate is handed over by forge-prototype with its alternatives and ledger
+locator, or is a `P-###` in `prototype-decisions.md` that no `decisions.md`
+record cites. Record it only when the user names the chosen option, or drops the
+question, in their own words; general praise such as "looks good" does neither,
+so ask. The record must stand alone, because the ledger is non-binding:
+
+- the user's own words;
+- `Behaviour:` one line stating the chosen behaviour, or
+  `none (question dropped)`;
+- the evidence, carrying the reason for any check that was only `UNMEASURED`;
+- `Source: P-###`, a pointer only.
+
+Add no other ids or statuses.

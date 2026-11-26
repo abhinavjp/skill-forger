@@ -5,7 +5,8 @@ description: Start a Forge work item from the user's own problem statement, writ
 
 # Forge Discover
 
-The user calls this to start a work item. Follow the shared
+Use this to start a work item, whether the user calls it, the host selects it,
+or another Forge skill backfills it. Follow the shared
 [workflow contract](../../shared/forge/references/workflow-contract.md) for
 lifecycle, backfill, stops, and locations.
 
@@ -40,6 +41,7 @@ untouched unless the user says to change it.
 
 Use [impact coverage](references/impact-coverage.md) to check which actors,
 states, paths, permissions, integrations, and regressions the change touches.
+For UI work, also record its prototype assessment below the Goal.
 
 Below the Goal, record:
 - current repository/product behaviour relevant to the Goal;
@@ -67,15 +69,23 @@ read its `SKILL.md` and follow it. After each round it records answers in
 human decisions." Run it again while any decision remains open — including
 one a prior answer only just unblocked — until it reports none left.
 
+If the user says a decision needs a prototype first ("prototype first"), leave
+that decision listed open in `context.md`, do not ask it again, and keep closing
+the others; never choose this yourself.
+
 If the Goal itself is materially unclear in a way no decision round can fix,
 say what is missing and stop instead of looping.
 
-Done when: forge-clarify reports no unresolved human decisions, or you have
-stopped and said why you could not get there.
+Done when: forge-clarify reports no unresolved human decisions apart from any
+the user marked "prototype first", or you have stopped and said why you could
+not get there.
 
 ## 4. Hand off
 
 Report that discovery is done and Specification can proceed when the user
-calls forge-spec.
+calls forge-spec. If the user said "prototype first", say instead that the
+decision is still open and name forge-prototype as the next, optional step.
+If the assessment recommends a prototype, also name forge-prototype as an
+optional next step. Do not run it.
 
-Done when: the user knows forge-spec is next.
+Done when: the user knows the next step.

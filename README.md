@@ -26,6 +26,9 @@ The plugin includes:
   current-behaviour evidence.
 - [forge-clarify](plugin/skills/forge-clarify/SKILL.md) — resolves the open
   human decisions in a work item, then stops.
+- [forge-prototype](plugin/skills/forge-prototype/SKILL.md) — optional: builds
+  a disposable clickable UI to answer an open UX question in a work item, and
+  hands choices to forge-clarify.
 - [forge-spec](plugin/skills/forge-spec/SKILL.md) — turns a work item's Goal
   and decisions into a testable behavioural spec.
 - [forge-plan](plugin/skills/forge-plan/SKILL.md) — turns a work item's Goal,
@@ -35,10 +38,10 @@ The plugin includes:
 - [convo-retro](plugin/skills/convo-retro/SKILL.md) — reviews a past agent
   session and proposes fixes to its environment, so the next run goes smoother.
 
-All nine skills are model-invocable: the host may select any of them from its
+All ten skills are model-invocable: the host may select any of them from its
 description, and you can still call one by name. See [CHANGELOG.md](CHANGELOG.md)
-for the 3.0.0 rework, the 3.1.0 convo-retro addition and the 3.2.0 invocation
-change.
+for the 3.0.0 rework, the 3.1.0 convo-retro addition, the 3.2.0 invocation
+change and the 3.3.0 forge-prototype addition.
 
 `plugin/shared/forge/` is the portable shared core for the Forge stages: it
 holds their workflow contracts, deterministic utilities, and cross-stage evals.

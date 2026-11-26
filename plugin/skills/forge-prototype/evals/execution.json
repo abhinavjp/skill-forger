@@ -1,0 +1,354 @@
+[
+  {
+    "version": 1,
+    "id": "FPT-E-001",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Prototype BR-21861's new multi-step returns flow; the error path is unclear. context.md exists, the branch is a feature branch, and browser automation is available and authorised.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "builds a local clickable path with synthetic data under the work item's prototype folder",
+          "executes the error, cancel and recover paths and records them PASS in a ledger Observation with evidence",
+          "the ledger starts with the non-binding line and uses P-### entries"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "editing production source",
+          "installing dependencies on its own",
+          "loading external scripts or CDNs",
+          "committing"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if a runnable local path is built and actually executed, with error, cancel and recover each exercised and recorded PASS with evidence."
+      }
+    ],
+    "tags": [
+      "PT-1",
+      "build"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-002",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Prototype BR-21861's new multi-step returns flow; the error path is unclear. context.md exists, the branch is a feature branch, and no browser automation is available.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "records interaction and visual checks as UNMEASURED with reasons",
+          "says what was not verified",
+          "does not report the interaction checks as passed"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "fabricating a screenshot or a passing result"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if unrun interaction and visual checks are UNMEASURED with reasons and no pass or screenshot is invented. The error path does not count as passed."
+      }
+    ],
+    "tags": [
+      "PT-1",
+      "unmeasured"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-003",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Run forge-discover for BR-21861. At step 3 two choices are open: a UX choice and an independent policy choice. The user says 'prototype first' for the UX choice only.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "discover leaves the UX choice listed open in context.md and does not ask it again",
+          "discover still closes the other choice through forge-clarify, then names forge-prototype as the optional next step",
+          "no decisions.md record is made for that choice"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "deferring a choice the user did not mark prototype first",
+          "running forge-prototype"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if discover leaves the marked choice open without re-asking it, still closes the other choice, and names forge-prototype next, without deciding on its own that a prototype goes first."
+      }
+    ],
+    "tags": [
+      "PT-2",
+      "cross-stage",
+      "forge-discover"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-004",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "The fixture's work item has a detailed plan. Treat each directory under variants/ as an implementation's application root, run the packet's Proof for REQ-001 in each, then report both requirements.",
+    "fixtures": [
+      "fixtures/seeded-mismatch"
+    ],
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "REQ-001 ends PASS on the matching variant and FAIL on the mismatch variant",
+          "the failure report cites REQ-001, the Guest cart limit decision and P-001 from the record's Source line",
+          "REQ-002 ends UNMEASURED with a reason and is not counted as a caught mismatch"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "editing the fixture to make the Proof pass"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the automated Proof passes on matching and fails on mismatch, the failure cites the REQ, the decision and its P-### source, and the human-only requirement is reported UNMEASURED."
+      }
+    ],
+    "tags": [
+      "PT-4",
+      "seeded-mismatch",
+      "traceability"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-005",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "Prototype BR-21861. context.md exists and the current branch is main. No file has been written yet. When asked about the branch, the user answers 'Yes'.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "asks one branch question before writing the ledger or any prototype file",
+          "the question says forge-implement will later run on and commit to the new branch",
+          "creates a branch by the repo's naming convention and verifies it is current before writing"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "writing the ledger before the answer",
+          "treating an earlier 'go' as the answer"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if exactly one branch question precedes every file, it names the later forge-implement branch use, and the new branch is verified before any write."
+      }
+    ],
+    "tags": [
+      "PT-6",
+      "protected-branch"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-006",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Prototype BR-21861 on main. When asked about the branch, the user answers 'No'.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "writes the ledger and prototype files on the current branch",
+          "commits nothing"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "creating a branch",
+          "committing or pushing"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the files are written on the current branch after the answer and nothing is committed or pushed."
+      }
+    ],
+    "tags": [
+      "PT-6",
+      "protected-branch"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-007",
+    "kind": "execution",
+    "category": "failure-injection",
+    "prompt": "Prototype BR-21861 on main. The user answers 'Yes' to the branch question, but creating the branch fails.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "reports the exact failure",
+          "leaves no ledger or prototype file written"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "falling back to writing on main"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the branch failure stops the run with no file touched."
+      }
+    ],
+    "tags": [
+      "PT-6",
+      "branch-failure"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-008",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "A new session resumes the BR-21861 prototype. The current branch is still main, where the user answered 'No' in an earlier session.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "asks the branch question again before writing any file in this session"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "reusing the earlier session's answer"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the question is asked again in the new session while the branch is protected."
+      }
+    ],
+    "tags": [
+      "PT-6",
+      "new-session"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-009",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "Prototype BR-21861. context.md exists and the current branch is feature/returns, which is not protected.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "asks no branch question",
+          "writes under the work item's artifact location"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if no branch question is asked on an unprotected branch."
+      }
+    ],
+    "tags": [
+      "PT-6",
+      "unprotected"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-010",
+    "kind": "execution",
+    "category": "negative",
+    "prompt": "Prototype the BR-30000 returns screen. No context.md exists for this work item and the current branch is main.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "writes nothing",
+          "says forge-discover must run first and stops",
+          "asks no branch question"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "backfilling context.md"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if nothing is written, no branch question is asked, and the user is told discover must run first, without discover being run."
+      }
+    ],
+    "tags": [
+      "PT-6",
+      "missing-input"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-E-011",
+    "kind": "execution",
+    "category": "adversarial",
+    "prompt": "During a BR-21861 prototype review that showed two alternatives, the user says only 'looks good, nice work.'",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "continues the review and asks which alternative the user chooses",
+          "records no decision and does not call the design approved"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "writing decisions.md",
+          "treating praise as authority to implement or commit"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if general praise selects nothing, nothing is recorded, and no implementation, commit or later stage follows."
+      }
+    ],
+    "tags": [
+      "approval-scope"
+    ]
+  }
+]

@@ -1,0 +1,326 @@
+[
+  {
+    "version": 1,
+    "id": "FPT-T-001",
+    "kind": "trigger",
+    "category": "positive",
+    "prompt": "Use forge-prototype on BR-21861 to build a clickable mockup of the guest checkout error path so I can compare the two flows.",
+    "trials": 3,
+    "expected": {
+      "trigger": true
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "explicit-stage",
+      "explicit-invocation"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-002",
+    "kind": "trigger",
+    "category": "paraphrase",
+    "prompt": "For the BR-21861 work item, I want to click through both approval journeys before we decide. Log what we see in the prototype ledger and hand my choice to clarify.",
+    "trials": 3,
+    "expected": {
+      "trigger": true
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "paraphrase",
+      "implicit-selection"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-003",
+    "kind": "trigger",
+    "category": "boundary",
+    "prompt": "BR-21861 already has a spec, but I doubt the cancel and recover interaction. Prototype that one question for this work item before I confirm it.",
+    "trials": 3,
+    "expected": {
+      "trigger": true
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "after-spec",
+      "implicit-selection"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-004",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Write the behavioural spec for BR-21861 from its Goal and recorded decisions.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-prototype",
+        "forge-spec"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-spec",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "specification"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-005",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Record my answer for BR-21861: guests may check out. There is nothing to build.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-prototype",
+        "forge-clarify"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-clarify",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "decision-record"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-006",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Start a Forge work item for this problem and write its Goal before anyone mocks up a screen.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-prototype",
+        "forge-discover"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-discover",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "discovery"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-007",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Build me a quick prototype of a to-do app so I can see whether the state model feels right.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-prototype",
+        "prototype"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "prototype",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "generic-prototype"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-008",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Design a distinctive landing page UI with strong typography and colour.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-prototype",
+        "frontend-design"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "frontend-design",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "generic-ui-design"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-009",
+    "kind": "trigger",
+    "category": "competing-skill",
+    "prompt": "Plan the implementation of BR-21861 into execution packets.",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "competition": {
+      "required_candidates": [
+        "forge-prototype",
+        "forge-plan"
+      ],
+      "expected_policy": "competitor-wins",
+      "unmeasured_if": "catalog-preconditions-absent"
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": false
+        }
+      },
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-plan",
+          "selected": true
+        }
+      }
+    ],
+    "tags": [
+      "planning"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FPT-T-010",
+    "kind": "trigger",
+    "category": "negative",
+    "prompt": "What time is the product review meeting?",
+    "trials": 3,
+    "expected": {
+      "trigger": false
+    },
+    "graders": [
+      {
+        "type": "host-routing",
+        "check": {
+          "selected_skill": "forge-prototype",
+          "selected": false
+        }
+      }
+    ],
+    "tags": [
+      "generic-question",
+      "negative"
+    ]
+  }
+]

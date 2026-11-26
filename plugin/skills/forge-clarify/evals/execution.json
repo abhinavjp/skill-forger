@@ -94,5 +94,137 @@
       { "type": "llm-judge", "rubric": "Pass only if it leaves the settled decision closed because there is no evidenced contradiction, staleness, or scope change, and stops at clarification rather than silently proceeding." }
     ],
     "tags": ["settled-decision", "no-silent-reopening", "stage-boundary"]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-007",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "forge-prototype hands forge-clarify a candidate for BR-21861: inline error (A) or blocking dialog (B), ledger locator P-001. The user's only words so far are 'looks good'.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "writes no decisions.md record",
+          "asks which option the user chooses"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "inferring a chosen option from general praise"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if no record is made from 'looks good' and clarify asks for the chosen option."
+      }
+    ],
+    "tags": [
+      "PT-3",
+      "prototype-handoff",
+      "looks-good"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-008",
+    "kind": "execution",
+    "category": "positive",
+    "prompt": "forge-prototype hands forge-clarify a candidate for BR-21861: inline error (A) or blocking dialog (B), ledger locator P-001, interaction check UNMEASURED because no browser automation was available. Asked which, the user says: 'Go with A, show the error inline.'",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "appends one decisions.md record holding the user's own words",
+          "the record has a one-line summary of the chosen behaviour",
+          "the record cites Source: P-001 and carries the UNMEASURED reason in its evidence",
+          "returns control to the prototype session"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "adding new ids or statuses to decisions.md",
+          "continuing to specification"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the self-contained record has the user's words, a behaviour summary, the evidence with its UNMEASURED reason, and Source: P-001."
+      }
+    ],
+    "tags": [
+      "PT-3",
+      "prototype-handoff",
+      "named-choice"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-009",
+    "kind": "execution",
+    "category": "boundary",
+    "prompt": "forge-prototype hands forge-clarify the open question at P-002 for BR-21861. The user says: 'Drop that question, we are not changing it.'",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "appends one decisions.md record holding the user's own words",
+          "the record's Behaviour line is none (question dropped)",
+          "the record cites Source: P-002"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "inventing a chosen behaviour",
+          "adding new ids or statuses to decisions.md"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if the dropped question is recorded in the user's words with Behaviour none (question dropped) and Source: P-002, with no behaviour invented."
+      }
+    ],
+    "tags": [
+      "prototype-handoff",
+      "dropped-question"
+    ]
+  },
+  {
+    "version": 1,
+    "id": "FC-E-010",
+    "kind": "execution",
+    "category": "regression",
+    "prompt": "Fresh session: run forge-clarify for BR-21861. prototype-decisions.md has P-001 and no decisions.md record cites it. context.md lists no open decision.",
+    "trials": 3,
+    "expected": {
+      "outcome": {
+        "assertions": [
+          "asks the user about the P-001 question with its alternatives",
+          "after the user names an option, the record cites Source: P-001"
+        ]
+      },
+      "process": {
+        "forbidden": [
+          "reporting no unresolved human decisions while P-001 is uncited",
+          "recording a choice from the ledger Observation"
+        ]
+      }
+    },
+    "graders": [
+      {
+        "type": "llm-judge",
+        "rubric": "Pass only if clarify finds the uncited P-001 from the ledger, asks it, records nothing until the user answers, and cites Source: P-001."
+      }
+    ],
+    "tags": [
+      "prototype-ledger",
+      "uncited-entry"
+    ]
   }
 ]
